@@ -1,0 +1,238 @@
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include <signal.h>
+#include <poll.h>
+#include <assert.h>
+#include <errno.h>
+
+#include <dbus/dbus.h>
+
+#define LOG_MODULE "main"
+#define LOG_ENABLE_DBG 1
+#include "log.h"
+
+static volatile sig_atomic_t aborted = 0;
+
+static void
+sig_handler(int signo)
+{
+    aborted = 1;
+}
+
+static bool
+get_server_information(DBusConnection *conn, DBusMessage *msg, void *data)
+{
+    LOG_DBG("get_server_information");
+
+    bool ret = false;
+
+    DBusMessage *reply = dbus_message_new_method_return(msg);
+    if (reply == NULL)
+        return false;
+
+    DBusMessageIter iter;
+    dbus_message_iter_init_append(reply, &iter);
+
+    if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &(const char *){"fnott"}) ||
+        !dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &(const char *){"dnkl"}) ||
+        !dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &(const char *){FNOTT_VERSION}) ||
+        !dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &(const char *){"1.2"}))
+    {
+        goto err;
+    }
+
+    if (!dbus_connection_send(conn, reply, NULL))
+        goto err;
+
+    ret = true;
+
+err:
+    dbus_message_unref(reply);
+    return ret;
+}
+
+static bool
+get_capabilities(DBusConnection *conn, DBusMessage *msg, void *data)
+{
+    DBusMessage *reply = dbus_message_new_method_return(msg);
+    if (reply == NULL)
+        return false;
+
+    bool ret = false;
+    DBusMessageIter iter, arr;
+    dbus_message_iter_init_append(reply, &iter);
+    dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, DBUS_TYPE_STRING_AS_STRING, &arr);
+
+    dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"body"});
+#if 0
+    dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"body-markup"});
+    dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"actions"});
+    dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"icon-static"});
+#endif
+
+    dbus_message_iter_close_container(&iter, &arr);
+    if (!dbus_connection_send(conn, reply, NULL))
+        goto err;
+
+    ret = true;
+
+err:
+    dbus_message_unref(reply);
+    return ret;
+}
+
+static bool
+notify(DBusConnection *conn, DBusMessage *msg, void *data)
+{
+    DBusError dbus_error;
+    dbus_error_init(&dbus_error);
+
+    uint32_t replaces_id;
+    const char *app_name, *app_icon, *summary, *body;
+    if (!dbus_message_get_args(
+            msg, &dbus_error,
+            DBUS_TYPE_STRING, &app_name,
+            DBUS_TYPE_UINT32, &replaces_id,
+            DBUS_TYPE_STRING, &app_icon,
+            DBUS_TYPE_STRING, &summary,
+            DBUS_TYPE_STRING, &body,
+            DBUS_TYPE_INVALID))
+    {
+        return false;
+    }
+
+    bool ret = false;
+    LOG_DBG("app: %s, icon: %s, summary: %s, body: %s", app_name, app_icon, summary, body);
+
+    DBusMessage *reply = dbus_message_new_method_return(msg);
+    if (reply == NULL)
+        goto err;
+
+    DBusMessageIter iter;
+    dbus_message_iter_init_append(reply, &iter);
+
+    if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(uint32_t){1234}))
+        goto err;
+
+    if (!dbus_connection_send(conn, reply, NULL))
+        goto err;
+
+    ret = true;
+err:
+    dbus_message_unref(reply);
+    return ret;
+}
+
+static DBusHandlerResult
+dbus_handler(DBusConnection *conn, DBusMessage *msg, void *data)
+{
+    const char *iface = dbus_message_get_interface(msg);
+    const char *member = dbus_message_get_member(msg);
+    LOG_DBG("%s:%s", iface, member);
+
+    static const struct {
+        const char *name;
+        bool (*handler)(DBusConnection *conn, DBusMessage *msg, void *data);
+    } handlers[] = {
+        {"GetServerInformation", &get_server_information},
+        {"GetCapabilities", &get_capabilities},
+        {"Notify", &notify},
+    };
+
+    for (size_t i = 0; i < sizeof(handlers) / sizeof(handlers[0]); i++) {
+        if (strcmp(handlers[i].name, member) != 0)
+            continue;
+
+        return handlers[i].handler(conn, msg, data) ?
+            DBUS_HANDLER_RESULT_HANDLED:
+            DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
+
+    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
+int
+main(int argc, const char *const *argv)
+{
+    DBusError dbus_error;
+    dbus_error_init(&dbus_error);
+
+    DBusConnection *conn;
+    conn = dbus_bus_get(DBUS_BUS_SESSION, &dbus_error);
+    if (dbus_error_is_set(&dbus_error)) {
+        LOG_ERR("failed to connect to D-Bus session bus: %s", dbus_error.message);
+        dbus_error_free(&dbus_error);
+    }
+
+    if (conn == NULL)
+        goto err;
+
+    int ret = dbus_bus_request_name(conn, "org.freedesktop.Notifications", DBUS_NAME_FLAG_DO_NOT_QUEUE, &dbus_error);
+    if (dbus_error_is_set(&dbus_error)) {
+        LOG_ERR("failed to acquire service name: %s", dbus_error.message);
+        dbus_error_free(&dbus_error);
+        goto err;
+    }
+
+    if (ret != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER) {
+        LOG_ERR("failed to acquire service name: not primary owner, ret = %d", ret);
+        if (ret == DBUS_REQUEST_NAME_REPLY_EXISTS)
+            LOG_ERR("is a notification daemon already running?");
+        goto err;
+    }
+
+
+    const DBusObjectPathVTable handler = {
+        .message_function = &dbus_handler,
+    };
+
+    if (!dbus_connection_register_object_path(conn, "/org/freedesktop/Notifications", &handler, NULL)) {
+        LOG_ERR("failed to register vtable");
+        goto err;
+    }
+
+    const struct sigaction sigact = {
+        .sa_handler = &sig_handler,
+    };
+    sigaction(SIGINT, &sigact, NULL);
+    sigaction(SIGTERM, &sigact, NULL);
+
+    int dbus_fd;
+    if (!dbus_connection_get_unix_fd(conn, &dbus_fd)) {
+        LOG_ERR("failed to get dbus FD");
+        goto err;
+    }
+
+    while (!aborted) {
+        struct pollfd fds[] = {
+            {.fd = dbus_fd, .events = POLLIN}
+        };
+
+        int r = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
+        if (r == -1) {
+            if (aborted)
+                break;
+            else if (errno == EINTR)
+                continue;
+            else {
+                LOG_ERRNO("failed to poll");
+                goto err;
+            }
+        }
+
+        assert(fds[0].revents & POLLIN);
+        if (!dbus_connection_read_write(conn, 0)) {
+            LOG_WARN("failed to read/write dbus connection");
+            continue;
+        }
+
+        while (dbus_connection_dispatch(conn) != DBUS_DISPATCH_COMPLETE)
+            ;
+    }
+
+err:
+    dbus_connection_close(conn);
+    return EXIT_SUCCESS;
+}
