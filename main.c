@@ -89,6 +89,9 @@ notify(DBusConnection *conn, DBusMessage *msg, void *data)
     DBusError dbus_error;
     dbus_error_init(&dbus_error);
 
+    DBusMessageIter args_iter;
+    dbus_message_iter_init(msg, &args_iter);
+
     uint32_t replaces_id;
     const char *app_name, *app_icon, *summary, *body;
     if (!dbus_message_get_args(
@@ -105,6 +108,59 @@ notify(DBusConnection *conn, DBusMessage *msg, void *data)
 
     bool ret = false;
     LOG_DBG("app: %s, icon: %s, summary: %s, body: %s", app_name, app_icon, summary, body);
+
+    dbus_message_iter_next(&args_iter);
+    dbus_message_iter_next(&args_iter);
+    dbus_message_iter_next(&args_iter);
+    dbus_message_iter_next(&args_iter);
+    dbus_message_iter_next(&args_iter);
+
+    assert(dbus_message_iter_get_arg_type(&args_iter) == DBUS_TYPE_ARRAY);
+
+    DBusMessageIter actions_iter;
+    dbus_message_iter_recurse(&args_iter, &actions_iter);
+
+    while (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_INVALID) {
+        const char *id;
+        const char *label;
+        dbus_message_iter_get_basic(&actions_iter, &id);
+        dbus_message_iter_next(&actions_iter);
+        dbus_message_iter_get_basic(&actions_iter, &label);
+        dbus_message_iter_next(&actions_iter);
+        LOG_DBG("action: %s %s", id, label);
+    }
+    dbus_message_iter_next(&args_iter);
+
+    DBusMessageIter hints_iter;
+    dbus_message_iter_recurse(&args_iter, &hints_iter);
+
+    while (dbus_message_iter_get_arg_type(&hints_iter) != DBUS_TYPE_INVALID) {
+        DBusMessageIter entry_iter;
+        dbus_message_iter_recurse(&hints_iter, &entry_iter);
+        dbus_message_iter_next(&hints_iter);
+
+        const char *name;
+        dbus_message_iter_get_basic(&entry_iter, &name);
+        dbus_message_iter_next(&entry_iter);
+
+        DBusMessageIter value_iter;
+        dbus_message_iter_recurse(&entry_iter, &value_iter);
+        dbus_message_iter_next(&entry_iter);
+
+        /* TODO: type depends on hint */
+#if 0
+        uint8_t level;
+        dbus_message_iter_get_basic(&value_iter, &level);
+#endif
+        LOG_DBG("hint: %s", name);
+    }
+
+    dbus_message_iter_next(&args_iter);
+
+    /* -1 - up to server (us), 0 - never expire */
+    int32_t timeout_ms;
+    dbus_message_iter_get_basic(&args_iter, &timeout_ms);
+    LOG_DBG("timeout = %dms", timeout_ms);
 
     DBusMessage *reply = dbus_message_new_method_return(msg);
     if (reply == NULL)
