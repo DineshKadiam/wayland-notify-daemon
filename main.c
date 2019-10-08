@@ -77,6 +77,12 @@ main(int argc, const char *const *argv)
             .bottom = 25,
             .left = 25,
         },
+        .padding = {
+            .top = 20,
+            .right = 20,
+            .bottom = 20,
+            .left = 20,
+        },
         .border = {
             .color = {0x9090, 0x9090, 0x9090, 0xffff},
             .size = 1,
