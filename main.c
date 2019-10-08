@@ -5,6 +5,7 @@
 #include <poll.h>
 #include <assert.h>
 #include <errno.h>
+#include <locale.h>
 
 #define LOG_MODULE "main"
 #define LOG_ENABLE_DBG 1
@@ -25,6 +26,7 @@ int
 main(int argc, const char *const *argv)
 {
     int ret = EXIT_FAILURE;
+    setlocale(LC_ALL, "");
 
     font_list_t font_list = tll_init();
     tll_push_back(font_list, "Fantasque Sans Mono:pixelsize=24");
