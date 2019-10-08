@@ -38,7 +38,7 @@ struct notif_mgr {
     tll(struct notif *) notifs;
 };
 
-static size_t next_id = 0;
+static size_t next_id = 1;
 
 struct notif_mgr *
 notif_mgr_new(const struct config *conf)
