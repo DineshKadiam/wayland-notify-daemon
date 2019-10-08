@@ -104,6 +104,12 @@ notify(struct dbus *bus, DBusMessage *msg)
         return false;
     }
 
+    if (dbus_error_is_set(&dbus_error)) {
+        LOG_ERR("Notify: failed to parse arguments: %s", dbus_error.message);
+        dbus_error_free(&dbus_error);
+        return false;
+    }
+
     bool ret = false;
     LOG_DBG("app: %s, icon: %s, summary: %s, body: %s", app_name, app_icon, summary, body);
 
