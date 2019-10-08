@@ -271,34 +271,21 @@ dbus_handler(DBusConnection *conn, DBusMessage *msg, void *data)
 static bool
 signal_notification_closed(struct dbus *bus, uint32_t id, uint32_t reason)
 {
-    bool ret = false;
-
     DBusMessage *signal = dbus_message_new_signal(
         "/org/freedesktop/Notifications",
         "org.freedesktop.Notifications",
         "NotificationClosed");
 
     if (signal == NULL)
-        goto err;
+        return false;
 
     DBusMessageIter iter;
     dbus_message_iter_init_append(signal, &iter);
-
-    if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &id) ||
-        !dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &reason))
-    {
-        goto err;
-    }
-
-    if (!dbus_connection_send(bus->conn, signal, NULL))
-        goto err;
-
-    ret = true;
-
-err:
-    if (signal != NULL)
-        dbus_message_unref(signal);
-    return ret;
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &reason);
+    dbus_connection_send(bus->conn, signal, NULL);
+    dbus_message_unref(signal);
+    return true;
 }
 
 bool
