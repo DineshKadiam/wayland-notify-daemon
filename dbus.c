@@ -161,6 +161,9 @@ notify(struct dbus *bus, DBusMessage *msg)
     LOG_DBG("timeout = %dms", timeout_ms);
 
     struct notif *notif = notif_mgr_get_notif(bus->notif_mgr, replaces_id);
+    notif_set_application(notif, app_name);
+    notif_set_summary(notif, summary);
+    notif_set_body(notif, body);
     notif_mgr_refresh(bus->notif_mgr);
 
     DBusMessage *reply = dbus_message_new_method_return(msg);

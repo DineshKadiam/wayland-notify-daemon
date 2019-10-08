@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <wchar.h>
 
 #include <pixman.h>
 #include <wayland-client.h>
@@ -21,16 +22,18 @@ struct notif {
     struct zwlr_layer_surface_v1 *layer_surface;
 
     uint32_t id;
+    wchar_t *app;
+    wchar_t *summary;
+    wchar_t *body;
 
     struct buffer *pending;
     bool frame_is_scheduled;
 };
 
 struct notif_mgr {
+    const struct config *conf;
     struct wayland *wayl;
     struct dbus *bus;
-
-    int margin;
 
     tll(struct notif *) notifs;
 };
@@ -38,13 +41,13 @@ struct notif_mgr {
 static size_t next_id = 0;
 
 struct notif_mgr *
-notif_mgr_new(void)
+notif_mgr_new(const struct config *conf)
 {
     struct notif_mgr *mgr = malloc(sizeof(*mgr));
     *mgr = (struct notif_mgr) {
+        .conf = conf,
         .wayl = NULL,   /* notif_mgr_configure() */
         .bus = NULL,    /* notif_mgr_configure() */
-        .margin = 50,
         .notifs = tll_init(),
     };
 
@@ -147,6 +150,9 @@ notif_destroy(struct notif *notif)
     if (notif->surface)
         wl_surface_destroy(notif->surface);
 
+    free(notif->app);
+    free(notif->summary);
+    free(notif->body);
     free(notif);
 }
 
@@ -154,6 +160,36 @@ uint32_t
 notif_id(const struct notif *notif)
 {
     return notif->id;
+}
+
+void
+notif_set_application(struct notif *notif, const char *text)
+{
+    free(notif->app);
+
+    size_t chars = mbstowcs(NULL, text, 0);
+    notif->app = malloc((chars + 1) * sizeof(wchar_t));
+    mbstowcs(notif->app, text, chars + 1);
+}
+
+void
+notif_set_summary(struct notif *notif, const char *text)
+{
+    free(notif->summary);
+
+    size_t chars = mbstowcs(NULL, text, 0);
+    notif->summary = malloc((chars + 1) * sizeof(wchar_t));
+    mbstowcs(notif->summary, text, chars + 1);
+}
+
+void
+notif_set_body(struct notif *notif, const char *text)
+{
+    free(notif->body);
+
+    size_t chars = mbstowcs(NULL, text, 0);
+    notif->body = malloc((chars + 1) * sizeof(wchar_t));
+    mbstowcs(notif->body, text, chars + 1);
 }
 
 static void frame_callback(
@@ -200,30 +236,191 @@ static int
 notif_show(struct notif *notif, int y)
 {
     const struct notif_mgr *mgr = notif->mgr;
-    struct wayland *wayl = notif->mgr->wayl;
+    const struct config *conf = mgr->conf;
 
+    const int padding = 20;
+    int width = 0;
+    int height = padding;
+
+    struct g {
+        const struct glyph *glyph;
+        const pixman_color_t *color;
+        int x, y;
+    };
+
+    tll(struct g) glyphs = tll_init();
+
+#define max(x, y) ((x) > (y) ? (x) : (y))
+
+    /* App */
+    {
+        struct font *font = conf->app.font;
+        const wchar_t *text = notif->app;
+
+        int x = padding;
+        int y = height;
+
+        for (const wchar_t *wc = text; *wc != L'\0'; wc++) {
+            const struct glyph *glyph = font_glyph_for_wc(font, *wc);
+            if (glyph == NULL || !glyph->valid)
+                continue;
+
+            if (x + glyph->x_advance + padding > conf->max_width) {
+                width = max(width, x);
+                height += font->fextents.height;
+                x = padding;
+                y += font->fextents.height;
+            }
+
+            struct g g = {
+                .glyph = glyph,
+                .color = &conf->app.color,
+                .x = x,
+                .y = y + font->fextents.ascent,
+            };
+
+            tll_push_back(glyphs, g);
+            x += glyph->x_advance;
+        }
+
+        width = max(width, x);
+        height += font->fextents.height;
+    }
+
+    /* Summary */
+    {
+        struct font *font = conf->summary.font;
+        const wchar_t *text = notif->summary;
+
+        int x = padding;
+        int y = height;
+
+        for (const wchar_t *wc = text; *wc != L'\0'; wc++) {
+            const struct glyph *glyph = font_glyph_for_wc(font, *wc);
+            if (glyph == NULL || !glyph->valid)
+                continue;
+
+            if (x + glyph->x_advance + padding > conf->max_width) {
+                width = max(width, x);
+                height += font->fextents.height;
+                x = padding;
+                y += font->fextents.height;
+            }
+
+            struct g g = {
+                .glyph = glyph,
+                .color = &conf->app.color,
+                .x = x,
+                .y = y + font->fextents.ascent,
+            };
+
+            tll_push_back(glyphs, g);
+            x += glyph->x_advance;
+        }
+
+        width = max(width, x);
+        height += font->fextents.height;
+    }
+
+    /* Body */
+    {
+        struct font *font = conf->summary.font;
+        const wchar_t *text = notif->body;
+
+        int x = padding;
+        int y = height;
+
+        for (const wchar_t *wc = text; *wc != L'\0'; wc++) {
+            const struct glyph *glyph = font_glyph_for_wc(font, *wc);
+            if (glyph == NULL || !glyph->valid)
+                continue;
+
+            if (x + glyph->x_advance + padding > conf->max_width) {
+                width = max(width, x);
+                height += font->fextents.height;
+                x = padding;
+                y += font->fextents.height;
+            }
+
+            struct g g = {
+                .glyph = glyph,
+                .color = &conf->app.color,
+                .x = x,
+                .y = y + font->fextents.ascent,
+            };
+
+            tll_push_back(glyphs, g);
+            x += glyph->x_advance;
+        }
+
+        width = max(width, x);
+        height += font->fextents.height;
+    }
+
+    width += padding;
+    height += padding;
+
+    struct wayland *wayl = notif->mgr->wayl;
     const int scale = wayl_monitor(wayl)->scale;
-    const int width = 400;
-    const int height = 200;
 
     LOG_DBG("show: y = %d, width = %d, height = %d", y, width, height);
 
     zwlr_layer_surface_v1_set_size(notif->layer_surface, width, height);
     zwlr_layer_surface_v1_set_margin(
         notif->layer_surface,
-        y,            /* top */
-        mgr->margin,  /* right */
-        mgr->margin,  /* bottom */
-        mgr->margin); /* left */
+        y,                   /* top */
+        conf->margin.right,  /* right */
+        conf->margin.bottom, /* bottom */
+        conf->margin.left);  /* left */
 
     struct buffer *buf = wayl_get_buffer(wayl, width * scale, height * scale);
     zwlr_layer_surface_v1_set_size(notif->layer_surface, width, height);
     wayl_roundtrip(wayl);
 
+    /* Colors */
+    pixman_color_t border = {0xffff, 0xffff, 0xffff, 0xffff};
     pixman_color_t bg = {0x0000, 0xffff, 0x0000, 0xffff};
+
+    /* Border size */
+    const int brd_sz = 1;
+
+    /* Border */
+    pixman_image_fill_rectangles(
+        PIXMAN_OP_SRC, buf->pix, &border,
+        4, (pixman_rectangle16_t []){
+            {0, 0, buf->width, brd_sz},                     /* top */
+            {buf->width - brd_sz, 0, brd_sz, buf->height},  /* right */
+            {0, buf->height - brd_sz, buf->width, brd_sz},  /* bottom */
+            {0, 0, brd_sz, buf->height},                    /* left */
+    });
+
+    /* Background */
     pixman_image_fill_rectangles(
         PIXMAN_OP_SRC, buf->pix, &bg,
-        1, &(pixman_rectangle16_t) {0, 0, buf->width * scale, buf->height * scale});
+        1, &(pixman_rectangle16_t){
+            brd_sz, brd_sz,
+            (buf->width - 2 * brd_sz) * scale,
+            (buf->height - 2 * brd_sz) * scale}
+    );
+
+    tll_foreach(glyphs, it) {
+        const struct glyph *glyph = it->item.glyph;
+        if (pixman_image_get_format(glyph->pix) == PIXMAN_a8r8g8b8) {
+            pixman_image_composite32(
+                PIXMAN_OP_OVER, glyph->pix, NULL, buf->pix, 0, 0, 0, 0,
+                it->item.x + glyph->x, it->item.y - glyph->y,
+                glyph->width, glyph->height);
+        } else {
+            /* Glyph surface is an alpha mask */
+            /* TODO: cache */
+            pixman_image_t *src = pixman_image_create_solid_fill(it->item.color);
+            pixman_image_composite32(
+                PIXMAN_OP_OVER, src, glyph->pix, buf->pix, 0, 0, 0, 0,
+                it->item.x + glyph->x, it->item.y - glyph->y,
+                glyph->width, glyph->height);
+            pixman_image_unref(src);
+        }
+    }
 
     if (notif->frame_is_scheduled) {
         if (notif->pending != NULL)
@@ -240,8 +437,8 @@ notif_show(struct notif *notif, int y)
 void
 notif_mgr_refresh(struct notif_mgr *mgr)
 {
-    int y = 50;
+    int y = mgr->conf->margin.top;
     tll_foreach(mgr->notifs, it) {
-        y += notif_show(it->item, y) + mgr->margin;
+        y += notif_show(it->item, y) + mgr->conf->margin.top;
     }
 }

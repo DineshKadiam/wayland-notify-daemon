@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+
+#include "config.h"
 #include "tllist.h"
 
 /* forward declarations, to avoid circular includes */
@@ -8,7 +10,7 @@ struct wayland;
 struct dbus;
 
 struct notif_mgr;
-struct notif_mgr *notif_mgr_new(void);
+struct notif_mgr *notif_mgr_new(const struct config *conf);
 void notif_mgr_destroy(struct notif_mgr *mgr);
 
 void notif_mgr_configure(
@@ -21,4 +23,7 @@ struct notif *notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id);
 
 void notif_destroy(struct notif *notif);
 uint32_t notif_id(const struct notif *notif);
-//void notif_show(struct notif *notif);
+
+void notif_set_application(struct notif *notif, const char *text);
+void notif_set_summary(struct notif *notif, const char *text);
+void notif_set_body(struct notif *notif, const char *text);

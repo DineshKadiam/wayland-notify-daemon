@@ -26,11 +26,72 @@ main(int argc, const char *const *argv)
 {
     int ret = EXIT_FAILURE;
 
+    font_list_t font_list = tll_init();
+    tll_push_back(font_list, "Fantasque Sans Mono:pixelsize=24");
+
+    struct font font_regular;
+    if (!font_from_name(font_list, "", &font_regular)) {
+        LOG_ERR("%s: failed to instantiate font", tll_front(font_list));
+        tll_free(font_list);
+        return EXIT_FAILURE;
+    }
+
+    struct font font_bold;
+    if (!font_from_name(font_list, "weight=bold", &font_bold)) {
+        LOG_ERR("%s:weight=bold: failed to instantiate font", tll_front(font_list));
+        tll_free(font_list);
+        font_destroy(&font_regular);
+        return EXIT_FAILURE;
+    }
+
+    struct font font_italic;
+    if (!font_from_name(font_list, "slant=italic", &font_italic)) {
+        LOG_ERR("%s:slant=italic: failed to instantiate font", tll_front(font_list));
+        tll_free(font_list);
+        font_destroy(&font_regular);
+        font_destroy(&font_bold);
+        return EXIT_FAILURE;
+    }
+
+    tll_free(font_list);
+
+    struct config conf = {
+        .bg = {0x0000, 0xffff, 0x0000, 0xffff},
+        .max_width = 400,
+        .max_height = 200,
+        .margin = {
+            .top = 25,
+            .right = 25,
+            .bottom = 25,
+            .left = 25,
+        },
+        .border = {
+            .color = {0xffff, 0xffff, 0xffff, 0xffff},
+            .size = 1,
+        },
+        .app = {
+            .font = &font_italic,
+            .color = {0xffff, 0xffff, 0xffff, 0xffff},
+        },
+        .summary = {
+            .font = &font_bold,
+            .color = {0xffff, 0xffff, 0xffff, 0xffff},
+        },
+        .body = {
+            .font = &font_regular,
+            .color = {0xffff, 0xffff, 0xffff, 0xffff},
+        },
+        .action = {
+            .font = &font_regular,
+            .color = {0xffff, 0xffff, 0xffff, 0xffff},
+        },
+    };
+
     struct dbus *bus = NULL;
     struct wayland *wayl = NULL;
     struct notif_mgr *mgr = NULL;
 
-    if ((mgr = notif_mgr_new()) == NULL)
+    if ((mgr = notif_mgr_new(&conf)) == NULL)
         goto err;
 
     if ((wayl = wayl_init()) == NULL)
@@ -93,7 +154,11 @@ main(int argc, const char *const *argv)
     }
 
 err:
+    notif_mgr_destroy(mgr);
     dbus_destroy(bus);
     wayl_destroy(wayl);
+    font_destroy(&font_regular);
+    font_destroy(&font_bold);
+    font_destroy(&font_italic);
     return ret;
 }

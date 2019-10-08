@@ -214,6 +214,19 @@ from_font_set(FcPattern *pattern, FcFontSet *fonts, int start_idx, const font_li
     font->bgr = fc_rgba == FC_RGBA_BGR || fc_rgba == FC_RGBA_VBGR;
     font->fc_idx = font_idx;
 
+    int max_x_advance = ft_face->size->metrics.max_advance / 64;
+    int height = ft_face->size->metrics.height / 64;
+    int descent = ft_face->size->metrics.descender / 64;
+    int ascent = ft_face->size->metrics.ascender / 64;
+
+    font->fextents.height = height * font->pixel_size_fixup;
+    font->fextents.descent = -descent * font->pixel_size_fixup;
+    font->fextents.ascent = ascent * font->pixel_size_fixup;
+    font->fextents.max_x_advance = max_x_advance * font->pixel_size_fixup;
+
+    LOG_DBG("metrics: height: %d, descent: %d, ascent: %d, x-advance: %d",
+            height, descent, ascent, max_x_advance);
+
     if (!is_fallback) {
         font->fc_pattern = pattern;
         font->fc_fonts = fonts;
@@ -527,6 +540,7 @@ glyph_for_wchar(const struct font *font, wchar_t wc, struct glyph *glyph)
         .pix = pix,
         .x = font->face->glyph->bitmap_left / font->pixel_size_fixup,
         .y = font->face->glyph->bitmap_top * font->pixel_size_fixup,
+        .x_advance = font->face->glyph->advance.x / 64,
         .width = width,
         .height = rows,
         .valid = true,

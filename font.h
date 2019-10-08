@@ -21,6 +21,7 @@ struct glyph {
     pixman_image_t *pix;
     int x;
     int y;
+    int x_advance;
     int width;
     int height;
 
@@ -40,6 +41,13 @@ struct font {
     FT_LcdFilter lcd_filter;
     double pixel_size_fixup; /* Scale factor - should only be used with ARGB32 glyphs */
     bool bgr;  /* True for FC_RGBA_BGR and FC_RGBA_VBGR */
+
+    struct {
+        int height;
+        int descent;
+        int ascent;
+        int max_x_advance;
+    } fextents;
 
     struct {
         int position;
