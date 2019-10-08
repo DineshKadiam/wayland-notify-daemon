@@ -324,7 +324,7 @@ notif_show(struct notif *notif, int y)
 
     /* Body */
     {
-        struct font *font = conf->summary.font;
+        struct font *font = conf->body.font;
         const wchar_t *text = notif->body;
 
         int x = padding;
