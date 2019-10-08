@@ -372,6 +372,8 @@ notif_show(struct notif *notif, int y)
         }
     }
 
+    tll_free(glyphs);
+
     if (notif->frame_is_scheduled) {
         if (notif->pending != NULL)
             notif->pending->busy = false;
