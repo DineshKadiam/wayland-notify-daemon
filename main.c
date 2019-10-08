@@ -53,10 +53,20 @@ main(int argc, const char *const *argv)
         return EXIT_FAILURE;
     }
 
+    struct font font_bold_italic;
+    if (!font_from_name(font_list, "weight=bold:slant=italic", &font_bold_italic)) {
+        LOG_ERR("%s:weight=bolds:slant=italic: failed to instantiate font", tll_front(font_list));
+        tll_free(font_list);
+        font_destroy(&font_regular);
+        font_destroy(&font_bold);
+        font_destroy(&font_italic);
+        return EXIT_FAILURE;
+    }
+
     tll_free(font_list);
 
     struct config conf = {
-        .bg = {0x0000, 0xffff, 0x0000, 0xffff},
+        .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
         .max_width = 400,
         .max_height = 200,
         .margin = {
@@ -160,5 +170,6 @@ err:
     font_destroy(&font_regular);
     font_destroy(&font_bold);
     font_destroy(&font_italic);
+    font_destroy(&font_bold_italic);
     return ret;
 }
