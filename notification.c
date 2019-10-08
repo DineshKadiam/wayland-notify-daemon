@@ -12,9 +12,10 @@
 #include "log.h"
 #include "wayland.h"
 
+struct notif_mgr;
+
 struct notif {
-    struct wayland *wayl;
-    struct dbus *bus;
+    const struct notif_mgr *mgr;
 
     struct wl_surface *surface;
     struct zwlr_layer_surface_v1 *layer_surface;
@@ -25,7 +26,52 @@ struct notif {
     bool frame_is_scheduled;
 };
 
+struct notif_mgr {
+    struct wayland *wayl;
+    struct dbus *bus;
+
+    int margin;
+
+    tll(struct notif *) notifs;
+};
+
 static size_t next_id = 0;
+
+struct notif_mgr *
+notif_mgr_new(void)
+{
+    struct notif_mgr *mgr = malloc(sizeof(*mgr));
+    *mgr = (struct notif_mgr) {
+        .wayl = NULL,   /* notif_mgr_configure() */
+        .bus = NULL,    /* notif_mgr_configure() */
+        .margin = 50,
+        .notifs = tll_init(),
+    };
+
+    return mgr;
+}
+
+void
+notif_mgr_destroy(struct notif_mgr *mgr)
+{
+    if (mgr == NULL)
+        return;
+
+    tll_foreach(mgr->notifs, it)
+        notif_destroy(it->item);
+    tll_free(mgr->notifs);
+    free(mgr);
+}
+
+void
+notif_mgr_configure(struct notif_mgr *mgr, struct wayland *wayl, struct dbus *bus)
+{
+    assert(mgr->wayl == NULL);
+    assert(mgr->bus == NULL);
+
+    mgr->wayl = wayl;
+    mgr->bus = bus;
+}
 
 static void
 layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
@@ -40,8 +86,16 @@ static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
 };
 
 struct notif *
-notif_new(struct wayland *wayl, struct dbus *bus)
+notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id)
 {
+    if (id != 0) {
+        tll_foreach(mgr->notifs, it) {
+            if (it->item->id == id)
+                return it->item;
+        }
+    }
+
+    struct wayland *wayl = mgr->wayl;
     const struct monitor *mon = wayl_monitor(wayl);
     if (mon == NULL)
         return NULL;
@@ -62,21 +116,19 @@ notif_new(struct wayland *wayl, struct dbus *bus)
         return NULL;
     }
 
-    zwlr_layer_surface_v1_set_size(layer_surface, 100, 100);
     zwlr_layer_surface_v1_set_anchor(
         layer_surface,
         ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
         ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
-    zwlr_layer_surface_v1_set_margin(layer_surface, 50, 50, 50, 50);
 
     struct notif *notif = malloc(sizeof(*notif));
     *notif = (struct notif) {
-        .wayl = wayl,
-        .bus = bus,
+        .mgr = mgr,
         .surface = surface,
         .layer_surface = layer_surface,
         .id = next_id++,
     };
+    tll_push_back(mgr->notifs, notif);
 
     zwlr_layer_surface_v1_add_listener(
         layer_surface, &layer_surface_listener, notif);
@@ -114,9 +166,10 @@ static const struct wl_callback_listener frame_listener = {
 static void
 commit_buffer(struct notif *notif, struct buffer *buf)
 {
+    struct wayland *wayl = notif->mgr->wayl;
     assert(buf->busy);
 
-    wl_surface_set_buffer_scale(notif->surface, wayl_monitor(notif->wayl)->scale);
+    wl_surface_set_buffer_scale(notif->surface, wayl_monitor(wayl)->scale);
     wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
     wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
 
@@ -125,7 +178,7 @@ commit_buffer(struct notif *notif, struct buffer *buf)
 
     notif->frame_is_scheduled = true;
     wl_surface_commit(notif->surface);
-    wayl_flush(notif->wayl);
+    wayl_flush(wayl);
 }
 
 static void
@@ -143,17 +196,29 @@ frame_callback(void *data, struct wl_callback *wl_callback, uint32_t callback_da
     }
 }
 
-void
-notif_show(struct notif *notif)
+static int
+notif_show(struct notif *notif, int y)
 {
+    const struct notif_mgr *mgr = notif->mgr;
+    struct wayland *wayl = notif->mgr->wayl;
+
+    const int scale = wayl_monitor(wayl)->scale;
     const int width = 400;
     const int height = 200;
-    const int scale = wayl_monitor(notif->wayl)->scale;
 
-    struct buffer *buf = wayl_get_buffer(notif->wayl, width * scale, height * scale);
-    zwlr_layer_surface_v1_set_size(notif->layer_surface, buf->width, buf->height);
+    LOG_DBG("show: y = %d, width = %d, height = %d", y, width, height);
 
-    wayl_roundtrip(notif->wayl);
+    zwlr_layer_surface_v1_set_size(notif->layer_surface, width, height);
+    zwlr_layer_surface_v1_set_margin(
+        notif->layer_surface,
+        y,            /* top */
+        mgr->margin,  /* right */
+        mgr->margin,  /* bottom */
+        mgr->margin); /* left */
+
+    struct buffer *buf = wayl_get_buffer(wayl, width * scale, height * scale);
+    zwlr_layer_surface_v1_set_size(notif->layer_surface, width, height);
+    wayl_roundtrip(wayl);
 
     pixman_color_t bg = {0x0000, 0xffff, 0x0000, 0xffff};
     pixman_image_fill_rectangles(
@@ -167,5 +232,16 @@ notif_show(struct notif *notif)
     } else {
         assert(notif->pending == NULL);
         commit_buffer(notif, buf);
+    }
+
+    return height;
+}
+
+void
+notif_mgr_refresh(struct notif_mgr *mgr)
+{
+    int y = 50;
+    tll_foreach(mgr->notifs, it) {
+        y += notif_show(it->item, y) + mgr->margin;
     }
 }

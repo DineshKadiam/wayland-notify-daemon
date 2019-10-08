@@ -7,7 +7,7 @@
 
 struct dbus;
 
-struct dbus *dbus_init(struct wayland *wayl, notif_list_t *notifs);
+struct dbus *dbus_init(struct wayland *wayl, struct notif_mgr *notif_mgr);
 void dbus_destroy(struct dbus *bus);
 
 int dbus_poll_fd(const struct dbus *bus);

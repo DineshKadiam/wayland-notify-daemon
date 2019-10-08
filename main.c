@@ -28,13 +28,18 @@ main(int argc, const char *const *argv)
 
     struct dbus *bus = NULL;
     struct wayland *wayl = NULL;
-    notif_list_t notifs = tll_init();
+    struct notif_mgr *mgr = NULL;
+
+    if ((mgr = notif_mgr_new()) == NULL)
+        goto err;
 
     if ((wayl = wayl_init()) == NULL)
         goto err;
 
-    if ((bus = dbus_init(wayl, &notifs)) == NULL)
+    if ((bus = dbus_init(wayl, mgr)) == NULL)
         goto err;
+
+    notif_mgr_configure(mgr, wayl, bus);
 
     const struct sigaction sigact = {
         .sa_handler = &sig_handler,
@@ -88,9 +93,6 @@ main(int argc, const char *const *argv)
     }
 
 err:
-    tll_foreach(notifs, it)
-        notif_destroy(it->item);
-    tll_free(notifs);
     dbus_destroy(bus);
     wayl_destroy(wayl);
     return ret;

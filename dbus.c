@@ -16,7 +16,7 @@
 struct dbus {
     DBusConnection *conn;
     struct wayland *wayl;
-    notif_list_t *notifs;
+    struct notif_mgr *notif_mgr;
 };
 
 bool
@@ -160,18 +160,8 @@ notify(struct dbus *bus, DBusMessage *msg)
     dbus_message_iter_get_basic(&args_iter, &timeout_ms);
     LOG_DBG("timeout = %dms", timeout_ms);
 
-    tll_foreach(*bus->notifs, it) {
-        if (notif_id(it->item) == replaces_id) {
-            /* TODO: does the new notification data append to the old? */
-            LOG_DBG("replacing notification with ID = %u", replaces_id);
-            notif_destroy(it->item);
-            tll_remove(*bus->notifs, it);
-        }
-    }
-
-    struct notif *notif = notif_new(bus->wayl, bus);
-    tll_push_back(*bus->notifs, notif);
-    notif_show(notif);
+    struct notif *notif = notif_mgr_get_notif(bus->notif_mgr, replaces_id);
+    notif_mgr_refresh(bus->notif_mgr);
 
     DBusMessage *reply = dbus_message_new_method_return(msg);
     if (reply == NULL)
@@ -225,7 +215,7 @@ dbus_handler(DBusConnection *conn, DBusMessage *msg, void *data)
 
 
 struct dbus *
-dbus_init(struct wayland *wayl, notif_list_t *notifs)
+dbus_init(struct wayland *wayl, struct notif_mgr *notif_mgr)
 {
     struct dbus *bus = NULL;
 
@@ -264,7 +254,7 @@ dbus_init(struct wayland *wayl, notif_list_t *notifs)
     *bus = (struct dbus) {
         .conn = conn,
         .wayl = wayl,
-        .notifs = notifs,
+        .notif_mgr = notif_mgr,
     };
 
     static const DBusObjectPathVTable handler = {
