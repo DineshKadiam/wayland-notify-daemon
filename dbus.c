@@ -192,6 +192,48 @@ err:
     return ret;
 }
 
+static bool
+close_notification(struct dbus *bus, DBusMessage *msg)
+{
+    DBusError dbus_error;
+    dbus_error_init(&dbus_error);
+
+    uint32_t id;
+    if (!dbus_message_get_args(
+            msg, &dbus_error,
+            DBUS_TYPE_UINT32, &id,
+            DBUS_TYPE_INVALID))
+    {
+        return false;
+    }
+
+    if (dbus_error_is_set(&dbus_error)) {
+        LOG_ERR("CloseNotification: failed to parse arguments: %s", dbus_error.message);
+        dbus_error_free(&dbus_error);
+        return false;
+    }
+
+    LOG_DBG("CloseNotification: id=%u", id);
+    bool success  = notif_mgr_del_notif(bus->notif_mgr, id);
+
+    bool ret = false;
+    DBusMessage *reply = success
+        ? dbus_message_new_method_return(msg)
+        : dbus_message_new_error(msg, DBUS_ERROR_FAILED, "invalid notification ID");
+
+    if (reply == NULL)
+        goto err;
+
+    if (!dbus_connection_send(bus->conn, reply, NULL))
+        goto err;
+
+    ret = true;
+
+err:
+    dbus_message_unref(reply);
+    return ret;
+}
+
 static DBusHandlerResult
 dbus_handler(DBusConnection *conn, DBusMessage *msg, void *data)
 {
@@ -208,6 +250,7 @@ dbus_handler(DBusConnection *conn, DBusMessage *msg, void *data)
         {"GetServerInformation", &get_server_information},
         {"GetCapabilities", &get_capabilities},
         {"Notify", &notify},
+        {"CloseNotification", &close_notification},
     };
 
     for (size_t i = 0; i < sizeof(handlers) / sizeof(handlers[0]); i++) {
