@@ -18,6 +18,13 @@ struct config {
     } margin;
 
     struct {
+        int top;
+        int right;
+        int bottom;
+        int left;
+    } padding;
+
+    struct {
         pixman_color_t color;
         int size;
     } border;
