@@ -28,11 +28,12 @@ main(int argc, const char *const *argv)
 
     struct dbus *bus = NULL;
     struct wayland *wayl = NULL;
-
-    if ((bus = dbus_init()) == NULL)
-        goto err;
+    notif_list_t notifs = tll_init();
 
     if ((wayl = wayl_init()) == NULL)
+        goto err;
+
+    if ((bus = dbus_init(wayl, &notifs)) == NULL)
         goto err;
 
     const struct sigaction sigact = {
@@ -86,7 +87,10 @@ main(int argc, const char *const *argv)
     }
 
 err:
-    wayl_destroy(wayl);
+    tll_foreach(notifs, it)
+        notif_destroy(it->item);
+    tll_free(notifs);
     dbus_destroy(bus);
+    wayl_destroy(wayl);
     return ret;
 }

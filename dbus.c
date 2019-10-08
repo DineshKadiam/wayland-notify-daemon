@@ -11,13 +11,16 @@
 #define LOG_MODULE "dbus"
 #define LOG_ENABLE_DBG 1
 #include "log.h"
+#include "notification.h"
 
 struct dbus {
     DBusConnection *conn;
+    struct wayland *wayl;
+    notif_list_t *notifs;
 };
 
 bool
-get_server_information(DBusConnection *conn, DBusMessage *msg, void *data)
+get_server_information(struct dbus *bus, DBusMessage *msg)
 {
     LOG_DBG("get_server_information");
 
@@ -38,7 +41,7 @@ get_server_information(DBusConnection *conn, DBusMessage *msg, void *data)
         goto err;
     }
 
-    if (!dbus_connection_send(conn, reply, NULL))
+    if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
     ret = true;
@@ -49,7 +52,7 @@ err:
 }
 
 static bool
-get_capabilities(DBusConnection *conn, DBusMessage *msg, void *data)
+get_capabilities(struct dbus *bus, DBusMessage *msg)
 {
     DBusMessage *reply = dbus_message_new_method_return(msg);
     if (reply == NULL)
@@ -68,7 +71,7 @@ get_capabilities(DBusConnection *conn, DBusMessage *msg, void *data)
 #endif
 
     dbus_message_iter_close_container(&iter, &arr);
-    if (!dbus_connection_send(conn, reply, NULL))
+    if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
     ret = true;
@@ -79,7 +82,7 @@ err:
 }
 
 static bool
-notify(DBusConnection *conn, DBusMessage *msg, void *data)
+notify(struct dbus *bus, DBusMessage *msg)
 {
     DBusError dbus_error;
     dbus_error_init(&dbus_error);
@@ -157,6 +160,18 @@ notify(DBusConnection *conn, DBusMessage *msg, void *data)
     dbus_message_iter_get_basic(&args_iter, &timeout_ms);
     LOG_DBG("timeout = %dms", timeout_ms);
 
+    tll_foreach(*bus->notifs, it) {
+        if (notif_id(it->item) == replaces_id) {
+            /* TODO: does the new notification data append to the old? */
+            LOG_DBG("replacing notification with ID = %u", replaces_id);
+            notif_destroy(it->item);
+            tll_remove(*bus->notifs, it);
+        }
+    }
+
+    struct notif *notif = notif_new(bus->wayl, bus);
+    tll_push_back(*bus->notifs, notif);
+
     DBusMessage *reply = dbus_message_new_method_return(msg);
     if (reply == NULL)
         goto err;
@@ -164,10 +179,11 @@ notify(DBusConnection *conn, DBusMessage *msg, void *data)
     DBusMessageIter iter;
     dbus_message_iter_init_append(reply, &iter);
 
-    if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(uint32_t){1234}))
+    if (!dbus_message_iter_append_basic(
+            &iter, DBUS_TYPE_UINT32, &(uint32_t){notif_id(notif)}))
         goto err;
 
-    if (!dbus_connection_send(conn, reply, NULL))
+    if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
     ret = true;
@@ -179,13 +195,15 @@ err:
 static DBusHandlerResult
 dbus_handler(DBusConnection *conn, DBusMessage *msg, void *data)
 {
+    struct dbus *bus = data;
+
     const char *iface __attribute__((unused)) = dbus_message_get_interface(msg);
     const char *member = dbus_message_get_member(msg);
     LOG_DBG("%s:%s", iface, member);
 
     static const struct {
         const char *name;
-        bool (*handler)(DBusConnection *conn, DBusMessage *msg, void *data);
+        bool (*handler)(struct dbus *bus, DBusMessage *msg);
     } handlers[] = {
         {"GetServerInformation", &get_server_information},
         {"GetCapabilities", &get_capabilities},
@@ -196,7 +214,7 @@ dbus_handler(DBusConnection *conn, DBusMessage *msg, void *data)
         if (strcmp(handlers[i].name, member) != 0)
             continue;
 
-        return handlers[i].handler(conn, msg, data) ?
+        return handlers[i].handler(bus, msg) ?
             DBUS_HANDLER_RESULT_HANDLED:
             DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     }
@@ -206,8 +224,10 @@ dbus_handler(DBusConnection *conn, DBusMessage *msg, void *data)
 
 
 struct dbus *
-dbus_init(void)
+dbus_init(struct wayland *wayl, notif_list_t *notifs)
 {
+    struct dbus *bus = NULL;
+
     DBusError dbus_error;
     dbus_error_init(&dbus_error);
 
@@ -239,26 +259,29 @@ dbus_init(void)
         goto err;
     }
 
+    bus = malloc(sizeof(*bus));
+    *bus = (struct dbus) {
+        .conn = conn,
+        .wayl = wayl,
+        .notifs = notifs,
+    };
+
     static const DBusObjectPathVTable handler = {
         .message_function = &dbus_handler,
     };
 
     if (!dbus_connection_register_object_path(
-            conn, "/org/freedesktop/Notifications", &handler, NULL)) {
+            conn, "/org/freedesktop/Notifications", &handler, bus)) {
         LOG_ERR("failed to register vtable");
         goto err;
     }
-
-    struct dbus *bus = malloc(sizeof(*bus));
-
-    *bus = (struct dbus) {
-        .conn = conn,
-    };
 
     return bus;
 
 err:
     dbus_connection_close(conn);
+    if (bus != NULL)
+        free(bus);
     return NULL;
 }
 

@@ -164,8 +164,12 @@ wayl_destroy(struct wayland *wayl)
         wl_shm_destroy(wayl->shm);
     if (wayl->compositor != NULL)
         wl_compositor_destroy(wayl->compositor);
+    if (wayl->registry != NULL)
+        wl_registry_destroy(wayl->registry);
     if (wayl->display != NULL)
         wl_display_disconnect(wayl->display);
+
+    free(wayl);
 }
 
 int

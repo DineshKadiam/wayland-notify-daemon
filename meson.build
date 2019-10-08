@@ -83,6 +83,7 @@ executable(
   'dbus.c', 'dbus.h',
   'font.c', 'font.h',
   'log.c', 'log.h',
+  'notification.c', 'notification.h',
   'shm.c', 'shm.h',
   'stride.h',
   'tllist.h',
