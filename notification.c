@@ -285,53 +285,35 @@ notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
 static int
 notif_show(struct notif *notif, int y)
 {
+#define max(x, y) ((x) > (y) ? (x) : (y))
+
     const struct notif_mgr *mgr = notif->mgr;
     const struct config *conf = mgr->conf;
 
     int width = 0;
     int height = conf->padding.top;
-
     glyph_list_t glyphs = tll_init();
 
-#define max(x, y) ((x) > (y) ? (x) : (y))
+    int _w, _h;
 
     /* App */
-    {
-        struct font *font = conf->app.font;
-        const wchar_t *text = notif->app;
-
-        int _w, _h;
-        notif_layout(notif, font, text, height, &_w, &_h, &glyphs);
-
-        width = max(width, _w);
-        height += _h;
-    }
+    notif_layout(notif, conf->app.font, notif->app, height, &_w, &_h, &glyphs);
+    width = max(width, _w);
+    height += _h;
 
     /* Summary */
-    {
-        struct font *font = conf->summary.font;
-        const wchar_t *text = notif->summary;
-
-        int _w, _h;
-        notif_layout(notif, font, text, height, &_w, &_h, &glyphs);
-
-        width = max(width, _w);
-        height += _h;
-    }
+    notif_layout(notif, conf->summary.font, notif->summary, height, &_w, &_h, &glyphs);
+    width = max(width, _w);
+    height += _h;
 
     /* Body */
-    {
-        struct font *font = conf->body.font;
-        const wchar_t *text = notif->body;
-
-        int _w, _h;
-        notif_layout(notif, font, text, height, &_w, &_h, &glyphs);
-
-        width = max(width, _w);
-        height += _h;
-    }
+    notif_layout(notif, conf->body.font, notif->body, height, &_w, &_h, &glyphs);
+    width = max(width, _w);
+    height += _h;
 
     height += conf->padding.bottom;
+
+#undef max
 
     struct wayland *wayl = notif->mgr->wayl;
     const int scale = wayl_monitor(wayl)->scale;
