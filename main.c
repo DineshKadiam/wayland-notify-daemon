@@ -10,6 +10,8 @@
 #define LOG_ENABLE_DBG 1
 #include "log.h"
 #include "dbus.h"
+#include "wayland.h"
+
 
 static volatile sig_atomic_t aborted = 0;
 
@@ -19,14 +21,18 @@ sig_handler(int signo)
     aborted = 1;
 }
 
-
 int
 main(int argc, const char *const *argv)
 {
     int ret = EXIT_FAILURE;
 
-    struct dbus *bus = dbus_init();
-    if (bus == NULL)
+    struct dbus *bus = NULL;
+    struct wayland *wayl = NULL;
+
+    if ((bus = dbus_init()) == NULL)
+        goto err;
+
+    if ((wayl = wayl_init()) == NULL)
         goto err;
 
     const struct sigaction sigact = {
@@ -37,8 +43,12 @@ main(int argc, const char *const *argv)
 
     while (!aborted) {
         struct pollfd fds[] = {
+            {.fd = wayl_poll_fd(wayl), .events = POLLIN},
             {.fd = dbus_poll_fd(bus), .events = POLLIN},
         };
+
+        const size_t WAYL_FD = 0;
+        const size_t DBUS_FD = 1;
 
         int r = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
         if (r == -1) {
@@ -53,12 +63,30 @@ main(int argc, const char *const *argv)
             }
         }
 
-        assert(fds[0].revents & POLLIN);
-        if (!dbus_dispatch(bus))
+        if (fds[WAYL_FD].revents & POLLHUP) {
+            LOG_WARN("disconnected from wayland");
+            ret = EXIT_SUCCESS;
             break;
+        }
+
+        if (fds[DBUS_FD].revents & POLLHUP) {
+            LOG_ERR("disconnected from DBus");
+            break;
+        }
+
+        if (fds[WAYL_FD].revents & POLLIN) {
+            if (!wayl_dispatch(wayl))
+                break;
+        }
+
+        if (fds[DBUS_FD].revents & POLLIN) {
+            if (!dbus_dispatch(bus))
+                break;
+        }
     }
 
 err:
+    wayl_destroy(wayl);
     dbus_destroy(bus);
     return ret;
 }

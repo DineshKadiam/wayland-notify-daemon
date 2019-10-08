@@ -83,8 +83,10 @@ executable(
   'dbus.c', 'dbus.h',
   'font.c', 'font.h',
   'log.c', 'log.h',
+  'shm.c', 'shm.h',
   'stride.h',
   'tllist.h',
+  'wayland.c', 'wayland.h',
   wl_proto_src + wl_proto_headers,
   dependencies: [threads, math, freetype, fontconfig, pixman, wayland_client, wayland_cursor, dbus],
   install: true)
