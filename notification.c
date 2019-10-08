@@ -377,16 +377,12 @@ notif_show(struct notif *notif, int y)
     zwlr_layer_surface_v1_set_size(notif->layer_surface, width, height);
     wayl_roundtrip(wayl);
 
-    /* Colors */
-    pixman_color_t border = {0xffff, 0xffff, 0xffff, 0xffff};
-    pixman_color_t bg = {0x0000, 0xffff, 0x0000, 0xffff};
-
     /* Border size */
     const int brd_sz = 1;
 
     /* Border */
     pixman_image_fill_rectangles(
-        PIXMAN_OP_SRC, buf->pix, &border,
+        PIXMAN_OP_SRC, buf->pix, &conf->border.color,
         4, (pixman_rectangle16_t []){
             {0, 0, buf->width, brd_sz},                     /* top */
             {buf->width - brd_sz, 0, brd_sz, buf->height},  /* right */
@@ -396,7 +392,7 @@ notif_show(struct notif *notif, int y)
 
     /* Background */
     pixman_image_fill_rectangles(
-        PIXMAN_OP_SRC, buf->pix, &bg,
+        PIXMAN_OP_SRC, buf->pix, &conf->bg,
         1, &(pixman_rectangle16_t){
             brd_sz, brd_sz,
             (buf->width - 2 * brd_sz) * scale,
