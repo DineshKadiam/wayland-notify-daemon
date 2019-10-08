@@ -76,15 +76,15 @@ main(int argc, const char *const *argv)
             .left = 25,
         },
         .border = {
-            .color = {0xffff, 0xffff, 0xffff, 0xffff},
+            .color = {0x9090, 0x9090, 0x9090, 0xffff},
             .size = 1,
         },
         .app = {
-            .font = &font_italic,
+            .font = &font_regular,
             .color = {0xffff, 0xffff, 0xffff, 0xffff},
         },
         .summary = {
-            .font = &font_bold,
+            .font = &font_bold_italic,
             .color = {0xffff, 0xffff, 0xffff, 0xffff},
         },
         .body = {
