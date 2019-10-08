@@ -139,6 +139,24 @@ notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id)
     return notif;
 }
 
+bool
+notif_mgr_del_notif(struct notif_mgr *mgr, uint32_t id)
+{
+    if (id == 0)
+        return false;
+
+    tll_foreach(mgr->notifs, it) {
+        if (it->item->id != id)
+            continue;
+
+        notif_destroy(it->item);
+        tll_remove(mgr->notifs, it);
+        return true;
+    }
+
+    return false;
+}
+
 void
 notif_destroy(struct notif *notif)
 {
