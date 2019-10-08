@@ -51,6 +51,7 @@ main(int argc, const char *const *argv)
         const size_t WAYL_FD = 0;
         const size_t DBUS_FD = 1;
 
+        wayl_flush(wayl);
         int r = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
         if (r == -1) {
             if (aborted) {

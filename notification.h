@@ -14,3 +14,5 @@ struct notif *notif_new(struct wayland *wayl, struct dbus *bus);
 void notif_destroy(struct notif *notif);
 
 uint32_t notif_id(const struct notif *notif);
+
+void notif_show(struct notif *notif);

@@ -171,6 +171,7 @@ notify(struct dbus *bus, DBusMessage *msg)
 
     struct notif *notif = notif_new(bus->wayl, bus);
     tll_push_back(*bus->notifs, notif);
+    notif_show(notif);
 
     DBusMessage *reply = dbus_message_new_method_return(msg);
     if (reply == NULL)
