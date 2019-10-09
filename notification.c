@@ -271,7 +271,54 @@ notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
     const struct config *conf = notif->mgr->conf;
     int x = conf->padding.left;
 
+    bool bold __attribute__((unused)) = false;
+    bool italic __attribute__((unused)) = false;
+    bool underline __attribute__((unused)) = false;
+
     for (const wchar_t *wc = text; *wc != L'\0'; wc++) {
+
+        if (wcsncasecmp(wc, L"</b>", 4) == 0 ||
+            wcsncasecmp(wc, L"</i>", 4) == 0 ||
+            wcsncasecmp(wc, L"</u>", 4) == 0)
+        {
+            if (wc[2] == L'b' || wc[2] == L'B')
+                bold = false;
+            else if (wc[2] == L'i' || wc[2] == L'I')
+                italic = false;
+            else
+                underline = false;
+
+            wc += 3;
+            continue;
+        }
+
+        if (wcsncasecmp(wc, L"<b>", 3) == 0 ||
+            wcsncasecmp(wc, L"<i>", 3) == 0 ||
+            wcsncasecmp(wc, L"<u>", 3) == 0)
+        {
+            if (wc[1] == L'b' || wc[1] == L'B')
+                bold = true;
+            else if (wc[1] == L'i' || wc[1] == L'I')
+                italic = true;
+            else
+                underline = true;
+
+            wc += 2;
+            continue;
+        }
+
+        /* TODO: filter out href and img tags */
+
+#if 0
+        char attrs[1024] = {0};
+        if (bold)
+            strcat(attrs, "weight=bold:");
+        if (italic)
+            strcat(attrs, "slant=italic:");
+        if (strlen(attrs) > 0)
+            attrs[strlen(attrs) - 1] = '\0';
+#endif
+
         const struct glyph *glyph = font_glyph_for_wc(font, *wc);
         if (glyph == NULL || !glyph->valid)
             continue;
