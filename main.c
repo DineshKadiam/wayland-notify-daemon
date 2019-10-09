@@ -111,9 +111,6 @@ main(int argc, const char *const *argv)
     struct wayland *wayl = NULL;
     struct notif_mgr *mgr = NULL;
 
-    if ((ctrl = ctrl_init()) == NULL)
-        goto err;
-
     if ((mgr = notif_mgr_new(&conf)) == NULL)
         goto err;
 
@@ -121,6 +118,9 @@ main(int argc, const char *const *argv)
         goto err;
 
     if ((bus = dbus_init(wayl, mgr)) == NULL)
+        goto err;
+
+    if ((ctrl = ctrl_init(mgr)) == NULL)
         goto err;
 
     notif_mgr_configure(mgr, wayl, bus);
@@ -184,10 +184,10 @@ main(int argc, const char *const *argv)
     }
 
 err:
+    ctrl_destroy(ctrl);
     notif_mgr_destroy(mgr);
     dbus_destroy(bus);
     wayl_destroy(wayl);
-    ctrl_destroy(ctrl);
     font_destroy(&font_regular);
     font_destroy(&font_bold);
     font_destroy(&font_italic);

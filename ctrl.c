@@ -9,8 +9,10 @@
 #define LOG_MODULE "ctrl"
 #define LOG_ENABLE_DBG 1
 #include "log.h"
+#include "ctrl-protocol.h"
 
 struct ctrl {
+    struct notif_mgr *notif_mgr;
     int server_fd;
     char *socket_path;
 };
@@ -28,7 +30,7 @@ get_socket_path(void)
 }
 
 struct ctrl *
-ctrl_init(void)
+ctrl_init(struct notif_mgr *notif_mgr)
 {
     int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (fd == -1) {
@@ -52,6 +54,7 @@ ctrl_init(void)
 
     struct ctrl *ctrl = malloc(sizeof(*ctrl));
     *ctrl = (struct ctrl){
+        .notif_mgr = notif_mgr,
         .server_fd = fd,
         .socket_path = sock_path,
     };
@@ -87,8 +90,29 @@ ctrl_poll_fd(const struct ctrl *ctrl)
 bool
 ctrl_dispatch(struct ctrl *ctrl)
 {
-    char buf[1024];
-    ssize_t count = recv(ctrl->server_fd, buf, sizeof(buf), 0);
-    LOG_DBG("got %zd bytes: %.*s", count, (int)count, buf);
+    struct command cmd;
+
+    ssize_t count = recv(ctrl->server_fd, &cmd, sizeof(cmd), 0);
+    if (count == -1 || count != sizeof(cmd)) {
+        LOG_ERRNO("failed to receive command");
+        return false;
+    }
+
+    /* TODO: endianness */
+
+    switch (cmd.cmd) {
+    case CMD_DISMISS_CURRENT:
+        notif_mgr_dismiss_current(ctrl->notif_mgr);
+        break;
+
+    case CMD_DISMISS_BY_ID:
+        notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id);
+        break;
+
+    case CMD_DISMISS_ALL:
+        notif_mgr_dismiss_all(ctrl->notif_mgr);
+        break;
+    }
+
     return true;
 }
