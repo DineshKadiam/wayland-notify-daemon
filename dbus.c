@@ -141,6 +141,8 @@ notify(struct dbus *bus, DBusMessage *msg)
     DBusMessageIter hints_iter;
     dbus_message_iter_recurse(&args_iter, &hints_iter);
 
+    enum urgency urgency = URGENCY_NORMAL;
+
     while (dbus_message_iter_get_arg_type(&hints_iter) != DBUS_TYPE_INVALID) {
         DBusMessageIter entry_iter;
         dbus_message_iter_recurse(&hints_iter, &entry_iter);
@@ -160,6 +162,7 @@ notify(struct dbus *bus, DBusMessage *msg)
             /* low=0, normal=1, critical=2 */
             uint8_t level;
             dbus_message_iter_get_basic(&value_iter, &level);
+            urgency = level;
         }
     }
 
@@ -174,6 +177,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     notif_set_application(notif, app_name);
     notif_set_summary(notif, summary);
     notif_set_body(notif, body);
+    notif_set_urgency(notif, urgency);
     notif_mgr_refresh(bus->notif_mgr);
 
     DBusMessage *reply = dbus_message_new_method_return(msg);
