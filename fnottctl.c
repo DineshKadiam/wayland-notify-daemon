@@ -8,6 +8,7 @@
 #define LOG_MODULE "main"
 #define LOG_ENABLE_DBG 0
 #include "log.h"
+#include "ctrl-protocol.h"
 
 int
 main(int argc, const char *const *argv)
@@ -39,8 +40,14 @@ main(int argc, const char *const *argv)
         }
     }
 
-    ssize_t sent = send(fd, "hello", 5, 0);
-    if (sent == -1) {
+    /* TODO: endianness */
+    struct command cmd = {
+        .cmd = CMD_DISMISS_CURRENT,
+        .id = 0,
+    };
+
+    ssize_t sent = send(fd, &cmd, sizeof(cmd), 0);
+    if (sent == -1 || sent != sizeof(cmd)) {
         LOG_ERRNO("failed to send command");
         goto err;
     }
