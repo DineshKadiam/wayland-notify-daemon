@@ -80,6 +80,7 @@ endforeach
 executable(
   'fnott',
   'main.c',
+  'ctrl.c', 'ctrl.h',
   'dbus.c', 'dbus.h',
   'font.c', 'font.h',
   'log.c', 'log.h',

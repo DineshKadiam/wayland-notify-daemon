@@ -1,0 +1,22 @@
+#include "ctrl.h"
+
+struct ctrl {
+    int dummy;
+};
+
+struct ctrl *
+ctrl_init(void)
+{
+    struct ctrl *ctrl = malloc(sizeof(*ctrl));
+    *ctrl = (struct ctrl){
+        .dummy = 0;
+    };
+}
+
+void
+ctrl_destroy(struct ctrl *ctrl)
+{
+    if (ctrl == NULL)
+        return;
+    free(ctrl);
+}

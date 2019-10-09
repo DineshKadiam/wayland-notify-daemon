@@ -12,6 +12,7 @@
 #include "log.h"
 #include "dbus.h"
 #include "wayland.h"
+#include "ctrl.h"
 
 
 static volatile sig_atomic_t aborted = 0;
@@ -105,9 +106,13 @@ main(int argc, const char *const *argv)
         },
     };
 
+    struct ctrl *ctrl = NULL;
     struct dbus *bus = NULL;
     struct wayland *wayl = NULL;
     struct notif_mgr *mgr = NULL;
+
+    if ((ctrl = ctrl_init()) == NULL)
+        goto err;
 
     if ((mgr = notif_mgr_new(&conf)) == NULL)
         goto err;
@@ -175,6 +180,7 @@ err:
     notif_mgr_destroy(mgr);
     dbus_destroy(bus);
     wayl_destroy(wayl);
+    ctrl_destroy(ctrl);
     font_destroy(&font_regular);
     font_destroy(&font_bold);
     font_destroy(&font_italic);

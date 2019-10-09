@@ -1,0 +1,5 @@
+#pragma once
+
+struct ctrl;
+struct ctrl *ctrl_init(void);
+ctrl_destroy(struct ctrl *ctrl);
