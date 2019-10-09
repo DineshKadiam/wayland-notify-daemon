@@ -93,19 +93,19 @@ main(int argc, const char *const *argv)
                 },
                 .app = {
                     .font = &font_regular,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .summary = {
                     .font = &font_bold_italic,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .body = {
                     .font = &font_regular,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .action = {
                     .font = &font_regular,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
             },
             {
