@@ -457,6 +457,7 @@ notif_show(struct notif *notif, int y)
             pixman_image_get_height(notif->pix));
     }
 
+    /* Text */
     tll_foreach(glyphs, it) {
         const struct glyph *glyph = it->item.glyph;
         if (pixman_image_get_format(glyph->pix) == PIXMAN_a8r8g8b8) {
