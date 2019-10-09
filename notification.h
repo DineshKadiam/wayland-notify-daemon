@@ -1,7 +1,9 @@
 #pragma once
 
 #include <stdint.h>
+
 #include <pixman.h>
+#include <wayland-client.h>
 
 #include "config.h"
 #include "tllist.h"
@@ -22,6 +24,7 @@ void notif_mgr_refresh(struct notif_mgr *mgr);
 bool notif_mgr_dismiss_current(struct notif_mgr *mgr);
 bool notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_dismiss_all(struct notif_mgr *mgr);
+bool notif_mgr_dismiss_surface(struct notif_mgr *mgr, struct wl_surface *surface);
 
 enum urgency { URGENCY_LOW, URGENCY_NORMAL, URGENCY_CRITICAL };
 

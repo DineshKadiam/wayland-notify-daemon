@@ -538,6 +538,24 @@ notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id)
 }
 
 bool
+notif_mgr_dismiss_surface(struct notif_mgr *mgr, struct wl_surface *surface)
+{
+    tll_foreach(mgr->notifs, it) {
+        if (it->item->surface != surface)
+            continue;
+
+        struct notif *notif = it->item;
+        tll_remove(mgr->notifs, it);
+
+        bool ret = notif_dismiss(notif);
+        notif_mgr_refresh(mgr);
+        return ret;
+    }
+
+    return false;
+}
+
+bool
 notif_mgr_dismiss_all(struct notif_mgr *mgr)
 {
     bool ret = true;
