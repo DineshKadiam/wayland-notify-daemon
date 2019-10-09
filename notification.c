@@ -292,6 +292,7 @@ notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
     *height = 0;
 
     const struct config *conf = notif->mgr->conf;
+    const struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
     int x = indent;
 
     bool bold __attribute__((unused)) = false;
@@ -356,7 +357,7 @@ notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
 
         struct glyph_layout layout = {
             .glyph = glyph,
-            .color = &conf->app.color,
+            .color = &urgency->app.color,
             .x = x,
             .y = y + font->fextents.ascent,
         };
@@ -378,6 +379,7 @@ notif_show(struct notif *notif, int y)
 
     const struct notif_mgr *mgr = notif->mgr;
     const struct config *conf = mgr->conf;
+    const struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
     int width = 0;
     int height = conf->padding.top;
@@ -390,17 +392,17 @@ notif_show(struct notif *notif, int y)
         indent += pixman_image_get_width(notif->pix) + conf->padding.left;
 
     /* App */
-    notif_layout(notif, conf->app.font, notif->app, indent, height, &_w, &_h, &glyphs);
+    notif_layout(notif, urgency->app.font, notif->app, indent, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Summary */
-    notif_layout(notif, conf->summary.font, notif->summary, indent, height, &_w, &_h, &glyphs);
+    notif_layout(notif, urgency->summary.font, notif->summary, indent, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Body */
-    notif_layout(notif, conf->body.font, notif->body, indent, height, &_w, &_h, &glyphs);
+    notif_layout(notif, urgency->body.font, notif->body, indent, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
@@ -431,7 +433,7 @@ notif_show(struct notif *notif, int y)
 
     /* Border */
     pixman_image_fill_rectangles(
-        PIXMAN_OP_SRC, buf->pix, &conf->border.color,
+        PIXMAN_OP_SRC, buf->pix, &urgency->border.color,
         4, (pixman_rectangle16_t []){
             {0, 0, buf->width, brd_sz * scale},                             /* top */
             {buf->width - brd_sz * scale, 0, brd_sz * scale, buf->height},  /* right */
@@ -441,7 +443,7 @@ notif_show(struct notif *notif, int y)
 
     /* Background */
     pixman_image_fill_rectangles(
-        PIXMAN_OP_SRC, buf->pix, &conf->bg,
+        PIXMAN_OP_SRC, buf->pix, &urgency->bg,
         1, &(pixman_rectangle16_t){
             brd_sz, brd_sz,
             (buf->width - 2 * brd_sz) * scale,

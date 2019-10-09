@@ -70,7 +70,6 @@ main(int argc, const char *const *argv)
     tll_free(font_list);
 
     struct config conf = {
-        .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
         .max_width = 1400,
         .max_height = 1000,
         .margin = {
@@ -85,25 +84,76 @@ main(int argc, const char *const *argv)
             .bottom = 20,
             .left = 20,
         },
-        .border = {
-            .color = {0x9090, 0x9090, 0x9090, 0xffff},
-            .size = 1,
-        },
-        .app = {
-            .font = &font_regular,
-            .color = {0xffff, 0xffff, 0xffff, 0xffff},
-        },
-        .summary = {
-            .font = &font_bold_italic,
-            .color = {0xffff, 0xffff, 0xffff, 0xffff},
-        },
-        .body = {
-            .font = &font_regular,
-            .color = {0xffff, 0xffff, 0xffff, 0xffff},
-        },
-        .action = {
-            .font = &font_regular,
-            .color = {0xffff, 0xffff, 0xffff, 0xffff},
+        .by_urgency = {
+            {
+                .bg = {0x2b2b, 0x2b2b, 0x2b2b, 0xffff},
+                .border = {
+                    .color = {0x9090, 0x9090, 0x9090, 0xffff},
+                    .size = 1,
+                },
+                .app = {
+                    .font = &font_regular,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .summary = {
+                    .font = &font_bold_italic,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .body = {
+                    .font = &font_regular,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .action = {
+                    .font = &font_regular,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+            },
+            {
+                .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
+                .border = {
+                    .color = {0x9090, 0x9090, 0x9090, 0xffff},
+                    .size = 1,
+                },
+                .app = {
+                    .font = &font_regular,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .summary = {
+                    .font = &font_bold_italic,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .body = {
+                    .font = &font_regular,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .action = {
+                    .font = &font_regular,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+            },
+            {
+                .bg = {0x6c6c, 0x3333, 0x3333, 0xffff},
+                .border = {
+                    .color = {0x9090, 0x9090, 0x9090, 0xffff},
+                    .size = 1,
+                },
+                .app = {
+                    .font = &font_regular,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .summary = {
+                    .font = &font_bold_italic,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .body = {
+                    .font = &font_regular,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .action = {
+                    .font = &font_regular,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+            },
         },
     };
 

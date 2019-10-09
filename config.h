@@ -4,25 +4,8 @@
 
 #include "font.h"
 
-struct config {
+struct urgency_config {
     pixman_color_t bg;
-
-    int max_width;
-    int max_height;
-
-    struct {
-        int top;
-        int right;
-        int bottom;
-        int left;
-    } margin;
-
-    struct {
-        int top;
-        int right;
-        int bottom;
-        int left;
-    } padding;
 
     struct {
         pixman_color_t color;
@@ -48,4 +31,25 @@ struct config {
         struct font *font;
         pixman_color_t color;
     } action;
+};
+
+struct config {
+    int max_width;
+    int max_height;
+
+    struct {
+        int top;
+        int right;
+        int bottom;
+        int left;
+    } margin;
+
+    struct {
+        int top;
+        int right;
+        int bottom;
+        int left;
+    } padding;
+
+    struct urgency_config by_urgency[3];
 };
