@@ -11,8 +11,8 @@
 #define LOG_MODULE "notification"
 #define LOG_ENABLE_DBG 1
 #include "log.h"
-#include "wayland.h"
 #include "dbus.h"
+#include "wayland.h"
 
 struct notif_mgr;
 

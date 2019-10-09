@@ -10,10 +10,10 @@
 #define LOG_MODULE "main"
 #define LOG_ENABLE_DBG 1
 #include "log.h"
-#include "dbus.h"
-#include "wayland.h"
 #include "ctrl.h"
+#include "dbus.h"
 #include "fdm.h"
+#include "wayland.h"
 
 
 static volatile sig_atomic_t aborted = 0;
