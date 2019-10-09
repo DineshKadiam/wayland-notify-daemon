@@ -59,7 +59,7 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
 err:
     if (events & EPOLLHUP) {
         /* Client disconnected */
-        LOG_DBG("client FD=%d disconnected", fd);
+        LOG_DBG("client: FD=%d disconnected", fd);
         fdm_del(fdm, fd);
         close(fd);
 
