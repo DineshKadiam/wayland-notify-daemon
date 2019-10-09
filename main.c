@@ -137,10 +137,14 @@ main(int argc, const char *const *argv)
         },
     };
 
+    struct fdm *fdm = NULL;
     struct ctrl *ctrl = NULL;
     struct dbus *bus = NULL;
     struct wayland *wayl = NULL;
     struct notif_mgr *mgr = NULL;
+
+    if ((fdm = fdm_init()) == NULL)
+        goto err;
 
     if ((mgr = notif_mgr_new(&conf)) == NULL)
         goto err;
@@ -162,7 +166,6 @@ main(int argc, const char *const *argv)
     sigaction(SIGINT, &sigact, NULL);
     sigaction(SIGTERM, &sigact, NULL);
 
-    struct fdm *fdm = fdm_init();
     fdm_add(fdm, wayl_poll_fd(wayl), &fdm_wayl, wayl);
     fdm_add(fdm, dbus_poll_fd(bus), &fdm_dbus, bus);
     fdm_add(fdm, ctrl_poll_fd(ctrl), &fdm_ctrl, ctrl);
@@ -183,11 +186,11 @@ main(int argc, const char *const *argv)
     fdm_del(fdm, ctrl_poll_fd(ctrl));
 
 err:
-    fdm_destroy(fdm);
     ctrl_destroy(ctrl);
     notif_mgr_destroy(mgr);
     dbus_destroy(bus);
     wayl_destroy(wayl);
+    fdm_destroy(fdm);
     font_destroy(&font_regular);
     font_destroy(&font_bold);
     font_destroy(&font_italic);
