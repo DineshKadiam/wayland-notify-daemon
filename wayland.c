@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <sys/epoll.h>
 
+#include <linux/input-event-codes.h>
 #include <wayland-client.h>
 #include <wayland-cursor.h>
 #include <xdg-output-unstable-v1.h>
@@ -15,10 +16,12 @@
 #define LOG_MODULE "wayland"
 #define LOG_ENABLE_DBG 1
 #include "log.h"
+#include "notification.h"
 #include "tllist.h"
 
 struct wayland {
     struct fdm *fdm;
+    struct notif_mgr *notif_mgr;
     struct wl_display *display;
     struct wl_registry *registry;
     struct wl_compositor *compositor;
@@ -31,13 +34,17 @@ struct wayland {
         struct wl_pointer *pointer;
         uint32_t serial;
 
+        /* Current location */
         int x;
         int y;
+        struct wl_surface *on_surface;
 
+        /* Cursor image */
         struct wl_surface *surface;
         struct wl_cursor_theme *theme;
         struct wl_cursor *cursor;
 
+        /* Cursor theme info */
         int size;
         char *theme_name;
     } pointer;
@@ -185,9 +192,10 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
                  wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
     struct wayland *wayl = data;
+    wayl->pointer.serial = serial;
     wayl->pointer.x = wl_fixed_to_int(surface_x) * wayl->monitor->scale;
     wayl->pointer.y = wl_fixed_to_int(surface_y) * wayl->monitor->scale;
-    wayl->pointer.serial = serial;
+    wayl->pointer.on_surface = surface;
     update_cursor_surface(wayl);
 }
 
@@ -197,6 +205,8 @@ wl_pointer_leave(void *data, struct wl_pointer *wl_pointer,
 {
     struct wayland *wayl = data;
     wayl->pointer.serial = 0;
+    wayl->pointer.x = wayl->pointer.y = 0;
+    wayl->pointer.on_surface = NULL;
 }
 
 static void
@@ -214,19 +224,20 @@ wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
 {
     LOG_DBG("BUTTON: button=%x, state=%u", button, state);
 
-#if 0
     struct wayland *wayl = data;
 
     switch (state) {
     case WL_POINTER_BUTTON_STATE_PRESSED: {
-        //if (button == BTN_LEFT) {
+        if (button == BTN_LEFT) {
+            assert(wayl->pointer.on_surface != NULL);
+            notif_mgr_dismiss_surface(wayl->notif_mgr, wayl->pointer.on_surface);
+        }
         break;
     }
 
     case WL_POINTER_BUTTON_STATE_RELEASED:
         break;
     }
-#endif
 }
 
 static void
@@ -272,7 +283,7 @@ const struct wl_pointer_listener pointer_listener = {
 
 static void
 seat_capabilities(void *data, struct wl_seat *wl_seat,
-                         enum wl_seat_capability caps)
+                  enum wl_seat_capability caps)
 {
     struct wayland *wayl = data;
 
@@ -402,9 +413,10 @@ fdm_handler(struct fdm *fdm, int fd, int events, void *data)
 }
 
 struct wayland *
-wayl_init(struct fdm *fdm)
+wayl_init(struct fdm *fdm, struct notif_mgr *notif_mgr)
 {
     struct wayland *wayl = calloc(1, sizeof(*wayl));
+    wayl->notif_mgr = notif_mgr;
 
     wayl->display = wl_display_connect(NULL);
     if (wayl->display == NULL) {

@@ -119,7 +119,7 @@ main(int argc, const char *const *argv)
     if ((mgr = notif_mgr_new(&conf)) == NULL)
         goto err;
 
-    if ((wayl = wayl_init(fdm)) == NULL)
+    if ((wayl = wayl_init(fdm, mgr)) == NULL)
         goto err;
 
     if ((bus = dbus_init(fdm, wayl, mgr)) == NULL)
