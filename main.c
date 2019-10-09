@@ -13,6 +13,7 @@
 #include "dbus.h"
 #include "wayland.h"
 #include "ctrl.h"
+#include "fdm.h"
 
 
 static volatile sig_atomic_t aborted = 0;
@@ -21,6 +22,36 @@ static void
 sig_handler(int signo)
 {
     aborted = 1;
+}
+
+static bool
+fdm_wayl(struct fdm *fdm, int fd, int events, void *data)
+{
+    if (events & POLLHUP) {
+        LOG_INFO("disconnected from Wayland");
+        return false;
+    }
+    return wayl_dispatch(data);
+}
+
+static bool
+fdm_dbus(struct fdm *fdm, int fd, int events, void *data)
+{
+    if (events & POLLHUP) {
+        LOG_ERR("disconnected from DBus");
+        return false;
+    }
+    return dbus_dispatch(data);
+}
+
+static bool
+fdm_ctrl(struct fdm *fdm, int fd, int events, void *data)
+{
+    if (events & POLLHUP) {
+        LOG_ERR("disconnected from controller UNIX socket");
+        return false;
+    }
+    return ctrl_dispatch(data);
 }
 
 int
@@ -131,59 +162,24 @@ main(int argc, const char *const *argv)
     sigaction(SIGINT, &sigact, NULL);
     sigaction(SIGTERM, &sigact, NULL);
 
+    struct fdm *fdm = fdm_init();
+    fdm_add(fdm, wayl_poll_fd(wayl), &fdm_wayl, wayl);
+    fdm_add(fdm, dbus_poll_fd(bus), &fdm_dbus, bus);
+    fdm_add(fdm, ctrl_poll_fd(ctrl), &fdm_ctrl, ctrl);
+
     while (!aborted) {
-        struct pollfd fds[] = {
-            {.fd = wayl_poll_fd(wayl), .events = POLLIN},
-            {.fd = dbus_poll_fd(bus), .events = POLLIN},
-            {.fd = ctrl_poll_fd(ctrl), .events = POLLIN},
-        };
-
-        const size_t WAYL_FD = 0;
-        const size_t DBUS_FD = 1;
-        const size_t CTRL_FD = 2;
-
         wayl_flush(wayl);
-        int r = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
-        if (r == -1) {
-            if (aborted) {
+
+        bool ret = fdm_poll(fdm);
+        if (!ret) {
+            if (aborted)
                 ret = EXIT_SUCCESS;
-                break;
-            } else if (errno == EINTR)
-                continue;
-            else {
-                LOG_ERRNO("failed to poll");
-                goto err;
-            }
-        }
-
-        if (fds[WAYL_FD].revents & POLLHUP) {
-            LOG_WARN("disconnected from wayland");
-            ret = EXIT_SUCCESS;
             break;
-        }
-
-        if (fds[DBUS_FD].revents & POLLHUP) {
-            LOG_ERR("disconnected from DBus");
-            break;
-        }
-
-        if (fds[WAYL_FD].revents & POLLIN) {
-            if (!wayl_dispatch(wayl))
-                break;
-        }
-
-        if (fds[DBUS_FD].revents & POLLIN) {
-            if (!dbus_dispatch(bus))
-                break;
-        }
-
-        if (fds[CTRL_FD].revents & POLLIN) {
-            if (!ctrl_dispatch(ctrl))
-                break;
         }
     }
 
 err:
+    fdm_destroy(fdm);
     ctrl_destroy(ctrl);
     notif_mgr_destroy(mgr);
     dbus_destroy(bus);

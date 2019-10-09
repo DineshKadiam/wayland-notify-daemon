@@ -82,6 +82,7 @@ executable(
   'main.c',
   'ctrl.c', 'ctrl.h',
   'dbus.c', 'dbus.h',
+  'fdm.c', 'fdm.h',
   'font.c', 'font.h',
   'log.c', 'log.h',
   'notification.c', 'notification.h',
