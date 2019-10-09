@@ -172,8 +172,10 @@ notif_destroy(struct notif *notif)
     if (notif->surface)
         wl_surface_destroy(notif->surface);
 
-    if (notif->pix != NULL)
+    if (notif->pix != NULL) {
+        free(pixman_image_get_data(notif->pix));
         pixman_image_unref(notif->pix);
+    }
 
     free(notif->app);
     free(notif->summary);
@@ -230,7 +232,6 @@ notif_set_image(struct notif *notif, pixman_image_t *pix)
     if (notif->pix != NULL)
         pixman_image_unref(notif->pix);
     notif->pix = pix;
-    pixman_image_ref(notif->pix);
 }
 
 static void frame_callback(
@@ -283,7 +284,7 @@ typedef tll(struct glyph_layout) glyph_list_t;
 
 static void
 notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
-             int y, int *width, int *height, glyph_list_t *glyphs)
+             int indent, int y, int *width, int *height, glyph_list_t *glyphs)
 {
 #define max(x, y) ((x) > (y) ? (x) : (y))
 
@@ -291,7 +292,7 @@ notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
     *height = 0;
 
     const struct config *conf = notif->mgr->conf;
-    int x = conf->padding.left;
+    int x = indent;
 
     bool bold __attribute__((unused)) = false;
     bool italic __attribute__((unused)) = false;
@@ -349,7 +350,7 @@ notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
             *width = max(*width, x + conf->padding.right);
             *height += font->fextents.height;
 
-            x = conf->padding.left;
+            x = indent;
             y += font->fextents.height;
         }
 
@@ -382,23 +383,29 @@ notif_show(struct notif *notif, int y)
     int height = conf->padding.top;
     glyph_list_t glyphs = tll_init();
 
+    int indent = conf->padding.left;
     int _w, _h;
 
+    if (notif->pix != NULL)
+        indent += pixman_image_get_width(notif->pix) + conf->padding.left;
+
     /* App */
-    notif_layout(notif, conf->app.font, notif->app, height, &_w, &_h, &glyphs);
+    notif_layout(notif, conf->app.font, notif->app, indent, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Summary */
-    notif_layout(notif, conf->summary.font, notif->summary, height, &_w, &_h, &glyphs);
+    notif_layout(notif, conf->summary.font, notif->summary, indent, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Body */
-    notif_layout(notif, conf->body.font, notif->body, height, &_w, &_h, &glyphs);
+    notif_layout(notif, conf->body.font, notif->body, indent, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
+    if (notif->pix != NULL)
+        height = max(height, conf->padding.top + pixman_image_get_height(notif->pix));
     height += conf->padding.bottom;
 
 #undef max
@@ -440,6 +447,15 @@ notif_show(struct notif *notif, int y)
             (buf->width - 2 * brd_sz) * scale,
             (buf->height - 2 * brd_sz) * scale}
     );
+
+    /* Image */
+    if (notif->pix != NULL) {
+        pixman_image_composite32(
+            PIXMAN_OP_OVER, notif->pix, NULL, buf->pix, 0, 0, 0, 0,
+            conf->padding.left, conf->padding.top,
+            pixman_image_get_width(notif->pix),
+            pixman_image_get_height(notif->pix));
+    }
 
     tll_foreach(glyphs, it) {
         const struct glyph *glyph = it->item.glyph;
