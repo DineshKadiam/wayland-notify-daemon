@@ -92,3 +92,10 @@ executable(
   wl_proto_src + wl_proto_headers,
   dependencies: [threads, math, freetype, fontconfig, pixman, wayland_client, wayland_cursor, dbus],
   install: true)
+
+executable(
+  'fnottctl',
+  'fnottctl.c',
+  'ctrl-protocol.h',
+  'log.c', 'log.h',
+  install: true)
