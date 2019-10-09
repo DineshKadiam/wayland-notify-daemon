@@ -178,6 +178,10 @@ main(int argc, const char *const *argv)
         }
     }
 
+    fdm_del(fdm, wayl_poll_fd(wayl));
+    fdm_del(fdm, dbus_poll_fd(bus));
+    fdm_del(fdm, ctrl_poll_fd(ctrl));
+
 err:
     fdm_destroy(fdm);
     ctrl_destroy(ctrl);
