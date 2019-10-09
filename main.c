@@ -138,14 +138,12 @@ main(int argc, const char *const *argv)
 
     while (!aborted) {
         wayl_flush(wayl);
-
-        bool ret = fdm_poll(fdm);
-        if (!ret) {
-            if (aborted)
-                ret = EXIT_SUCCESS;
+        if (!fdm_poll(fdm))
             break;
-        }
     }
+
+    if (aborted)
+        ret = EXIT_SUCCESS;
 
 err:
     ctrl_destroy(ctrl);
