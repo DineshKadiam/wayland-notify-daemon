@@ -71,8 +71,8 @@ main(int argc, const char *const *argv)
 
     struct config conf = {
         .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
-        .max_width = 400,
-        .max_height = 200,
+        .max_width = 1400,
+        .max_height = 1000,
         .margin = {
             .top = 25,
             .right = 25,
