@@ -1,8 +1,9 @@
 #include "fdm.h"
 
 #include <stdlib.h>
-#include <poll.h>
+#include <unistd.h>
 #include <errno.h>
+#include <sys/epoll.h>
 
 #define LOG_MODULE "fdm"
 #define LOG_ENABLE_DBG 1
@@ -16,14 +17,22 @@ struct fd {
 };
 
 struct fdm {
+    int epoll_fd;
     tll(struct fd) fds;
 };
 
 struct fdm *
 fdm_init(void)
 {
+    int epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+    if (epoll_fd == -1) {
+        LOG_ERRNO("failed to create epoll FD");
+        return NULL;
+    }
+
     struct fdm *fdm = malloc(sizeof(*fdm));
     *fdm = (struct fdm){
+        .epoll_fd = epoll_fd,
         .fds = tll_init(),
     };
     return fdm;
@@ -35,6 +44,7 @@ fdm_destroy(struct fdm *fdm)
     if (fdm == NULL)
         return;
     tll_free(fdm->fds);
+    close(fdm->epoll_fd);
     free(fdm);
 }
 
@@ -50,6 +60,18 @@ fdm_add(struct fdm *fdm, int fd, fdm_handler_t handler, void *data)
 
     tll_push_back(
         fdm->fds, ((struct fd){.fd = fd, .data = data, .handler = handler}));
+
+    struct epoll_event ev = {
+        .events = EPOLLIN,
+        .data = {.ptr = &tll_back(fdm->fds)},
+    };
+
+    if (epoll_ctl(fdm->epoll_fd, EPOLL_CTL_ADD, fd, &ev) < 0) {
+        LOG_ERRNO("failed to register FD with epoll");
+        tll_pop_back(fdm->fds);
+        return false;
+    }
+
     return true;
 }
 
@@ -58,6 +80,9 @@ fdm_del(struct fdm *fdm, int fd)
 {
     tll_foreach(fdm->fds, it) {
         if (it->item.fd == fd) {
+            if (epoll_ctl(fdm->epoll_fd, EPOLL_CTL_DEL, fd, NULL) < 0)
+                LOG_ERRNO("failed to unregister FD from epoll");
+
             tll_remove(fdm->fds, it);
             return true;
         }
@@ -69,30 +94,20 @@ fdm_del(struct fdm *fdm, int fd)
 bool
 fdm_poll(struct fdm *fdm)
 {
-    /* TODO: use epoll */
-    struct pollfd fds[tll_length(fdm->fds)];
-
-    size_t i = 0;
-    tll_foreach(fdm->fds, it)
-        fds[i++] = (struct pollfd){.fd = it->item.fd, .events = POLLIN};
-
-    int ret = poll(fds, tll_length(fdm->fds), -1);
+    struct epoll_event events[tll_length(fdm->fds)];
+    int ret = epoll_wait(fdm->epoll_fd, events, tll_length(fdm->fds), -1);
     if (ret == -1) {
         if (errno == EINTR)
             return true;
 
-        LOG_ERRNO("failed to poll");
+        LOG_ERRNO("failed to epoll");
         return false;
     }
 
-    i = 0;
-    tll_foreach(fdm->fds, it) {
-        if (fds[i].revents & POLLIN) {
-            if (!it->item.handler(fdm, it->item.fd, fds[i].revents, it->item.data))
-                return false;
-        }
-
-        i++;
+    for (int i = 0; i < ret; i++) {
+        struct fd *fd = events[i].data.ptr;
+        if (!fd->handler(fdm, fd->fd, events[i].events, fd->data))
+            return false;
     }
 
     return true;
