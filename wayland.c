@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <sys/epoll.h>
 
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -200,7 +201,12 @@ fdm_handler(struct fdm *fdm, int fd, int events, void *data)
 {
     struct wayland *wayl = data;
     int event_count =  wl_display_dispatch(wayl->display);
-    wl_display_flush(wayl->display);
+
+    if (events & EPOLLHUP) {
+        LOG_INFO("disconnected from Wayland");
+        return false;
+    }
+
     return event_count != -1;
 }
 
