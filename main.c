@@ -24,16 +24,6 @@ sig_handler(int signo)
     aborted = 1;
 }
 
-static bool
-fdm_dbus(struct fdm *fdm, int fd, int events, void *data)
-{
-    if (events & POLLHUP) {
-        LOG_ERR("disconnected from DBus");
-        return false;
-    }
-    return dbus_dispatch(data);
-}
-
 int
 main(int argc, const char *const *argv)
 {
@@ -132,7 +122,7 @@ main(int argc, const char *const *argv)
     if ((wayl = wayl_init(fdm)) == NULL)
         goto err;
 
-    if ((bus = dbus_init(wayl, mgr)) == NULL)
+    if ((bus = dbus_init(fdm, wayl, mgr)) == NULL)
         goto err;
 
     if ((ctrl = ctrl_init(fdm, mgr)) == NULL)
@@ -146,8 +136,6 @@ main(int argc, const char *const *argv)
     sigaction(SIGINT, &sigact, NULL);
     sigaction(SIGTERM, &sigact, NULL);
 
-    fdm_add(fdm, dbus_poll_fd(bus), &fdm_dbus, bus);
-
     while (!aborted) {
         wayl_flush(wayl);
 
@@ -158,8 +146,6 @@ main(int argc, const char *const *argv)
             break;
         }
     }
-
-    fdm_del(fdm, dbus_poll_fd(bus));
 
 err:
     ctrl_destroy(ctrl);

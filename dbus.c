@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/epoll.h>
 
 #include <dbus/dbus.h>
 
@@ -15,8 +16,10 @@
 
 struct dbus {
     DBusConnection *conn;
+    struct fdm *fdm;
     struct wayland *wayl;
     struct notif_mgr *notif_mgr;
+    int bus_fd;
 };
 
 bool
@@ -306,8 +309,33 @@ dbus_signal_closed(struct dbus *bus, uint32_t id)
     return signal_notification_closed(bus, id, 2);
 }
 
+static bool
+fdm_handler(struct fdm *fdm, int fd, int events, void *data)
+{
+    bool ret = false;
+    struct dbus *bus = data;
+
+    if (!dbus_connection_read_write(bus->conn, 0)) {
+        LOG_WARN("failed to read/write dbus connection");
+        goto err;
+    }
+
+    while (dbus_connection_dispatch(bus->conn) != DBUS_DISPATCH_COMPLETE)
+        ;
+
+    ret = true;
+
+err:
+    if (events & EPOLLHUP) {
+        LOG_INFO("disconnected from Wayland");
+        return false;
+    }
+
+    return ret;
+}
+
 struct dbus *
-dbus_init(struct wayland *wayl, struct notif_mgr *notif_mgr)
+dbus_init(struct fdm *fdm, struct wayland *wayl, struct notif_mgr *notif_mgr)
 {
     struct dbus *bus = NULL;
 
@@ -345,8 +373,10 @@ dbus_init(struct wayland *wayl, struct notif_mgr *notif_mgr)
     bus = malloc(sizeof(*bus));
     *bus = (struct dbus) {
         .conn = conn,
+        .fdm = fdm,
         .wayl = wayl,
         .notif_mgr = notif_mgr,
+        .bus_fd = -1,  /* TODO: use watches */
     };
 
     static const DBusObjectPathVTable handler = {
@@ -356,6 +386,20 @@ dbus_init(struct wayland *wayl, struct notif_mgr *notif_mgr)
     if (!dbus_connection_register_object_path(
             conn, "/org/freedesktop/Notifications", &handler, bus)) {
         LOG_ERR("failed to register vtable");
+        goto err;
+    }
+
+    /* TODO: use watches */
+    if (!dbus_connection_get_unix_fd(conn, &bus->bus_fd)) {
+        if (!dbus_connection_get_socket(conn, &bus->bus_fd)) {
+            LOG_ERR("failed to get socket or UNIX FD");
+            goto err;
+        }
+    }
+
+    assert(bus->bus_fd != -1);
+    if (!fdm_add(fdm, bus->bus_fd, fdm_handler, bus)) {
+        LOG_ERR("failed to register with FDM");
         goto err;
     }
 
@@ -374,6 +418,7 @@ dbus_destroy(struct dbus *bus)
     if (bus == NULL)
         return;
 
+    fdm_del(bus->fdm, bus->bus_fd);
     dbus_connection_close(bus->conn);
     free(bus);
 }
@@ -392,18 +437,4 @@ dbus_poll_fd(const struct dbus *bus)
 
     assert(fd != -1);
     return fd;
-}
-
-bool
-dbus_dispatch(struct dbus *bus)
-{
-    if (!dbus_connection_read_write(bus->conn, 0)) {
-        LOG_WARN("failed to read/write dbus connection");
-        return false;
-    }
-
-    while (dbus_connection_dispatch(bus->conn) != DBUS_DISPATCH_COMPLETE)
-        ;
-
-    return true;
 }
