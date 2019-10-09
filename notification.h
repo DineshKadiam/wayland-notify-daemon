@@ -22,6 +22,8 @@ bool notif_mgr_dismiss_current(struct notif_mgr *mgr);
 bool notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_dismiss_all(struct notif_mgr *mgr);
 
+enum urgency { URGENCY_LOW, URGENCY_NORMAL, URGENCY_CRITICAL };
+
 struct notif;
 struct notif *notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_del_notif(struct notif_mgr *mgr, uint32_t id);
@@ -32,3 +34,4 @@ uint32_t notif_id(const struct notif *notif);
 void notif_set_application(struct notif *notif, const char *text);
 void notif_set_summary(struct notif *notif, const char *text);
 void notif_set_body(struct notif *notif, const char *text);
+void notif_set_urgency(struct notif *notif, enum urgency urgency);

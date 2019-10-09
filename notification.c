@@ -23,6 +23,7 @@ struct notif {
     struct zwlr_layer_surface_v1 *layer_surface;
 
     uint32_t id;
+    enum urgency urgency;
     wchar_t *app;
     wchar_t *summary;
     wchar_t *body;
@@ -131,6 +132,7 @@ notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id)
         .surface = surface,
         .layer_surface = layer_surface,
         .id = next_id++,
+        .urgency = URGENCY_NORMAL,
     };
     tll_push_back(mgr->notifs, notif);
 
@@ -209,6 +211,13 @@ notif_set_body(struct notif *notif, const char *text)
     size_t chars = mbstowcs(NULL, text, 0);
     notif->body = malloc((chars + 1) * sizeof(wchar_t));
     mbstowcs(notif->body, text, chars + 1);
+}
+
+void
+notif_set_urgency(struct notif *notif, enum urgency urgency)
+{
+    /* TODO: re-sort and refresh */
+    notif->urgency = urgency;
 }
 
 static void frame_callback(
