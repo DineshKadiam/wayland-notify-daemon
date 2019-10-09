@@ -154,12 +154,13 @@ notify(struct dbus *bus, DBusMessage *msg)
         dbus_message_iter_recurse(&entry_iter, &value_iter);
         dbus_message_iter_next(&entry_iter);
 
-        /* TODO: type depends on hint */
-#if 0
-        uint8_t level;
-        dbus_message_iter_get_basic(&value_iter, &level);
-#endif
         LOG_DBG("hint: %s", name);
+
+        if (strcmp(name, "urgency") == 0) {
+            /* low=0, normal=1, critical=2 */
+            uint8_t level;
+            dbus_message_iter_get_basic(&value_iter, &level);
+        }
     }
 
     dbus_message_iter_next(&args_iter);
