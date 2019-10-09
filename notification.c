@@ -17,7 +17,7 @@
 struct notif_mgr;
 
 struct notif {
-    const struct notif_mgr *mgr;
+    struct notif_mgr *mgr;
 
     struct wl_surface *surface;
     struct zwlr_layer_surface_v1 *layer_surface;
@@ -135,7 +135,18 @@ notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id)
         .id = next_id++,
         .urgency = URGENCY_NORMAL,
     };
-    tll_push_back(mgr->notifs, notif);
+
+    bool inserted = false;
+    tll_rforeach(mgr->notifs, it) {
+        if (it->item->urgency >= notif->urgency) {
+            tll_insert_after(mgr->notifs, it, notif);
+            inserted = true;
+            break;
+        }
+    }
+
+    if (!inserted)
+        tll_push_front(mgr->notifs, notif);
 
     zwlr_layer_surface_v1_add_listener(
         layer_surface, &layer_surface_listener, notif);
@@ -222,8 +233,31 @@ notif_set_body(struct notif *notif, const char *text)
 void
 notif_set_urgency(struct notif *notif, enum urgency urgency)
 {
-    /* TODO: re-sort and refresh */
+    if (notif->urgency == urgency)
+        return;
+
     notif->urgency = urgency;
+
+    if (tll_length(notif->mgr->notifs) <= 1)
+        return;
+
+    tll_foreach(notif->mgr->notifs, it) {
+        if (it->item == notif) {
+            tll_remove(notif->mgr->notifs, it);
+            break;
+        }
+    }
+
+    tll_rforeach(notif->mgr->notifs, it) {
+        if (it->item->urgency >= notif->urgency) {
+            tll_insert_after(notif->mgr->notifs, it, notif);
+            notif_mgr_refresh(notif->mgr);
+            return;
+        }
+    }
+
+    tll_push_front(notif->mgr->notifs, notif);
+    notif_mgr_refresh(notif->mgr);
 }
 
 void
@@ -498,7 +532,7 @@ void
 notif_mgr_refresh(struct notif_mgr *mgr)
 {
     int y = mgr->conf->margin.top;
-    tll_foreach(mgr->notifs, it)
+    tll_rforeach(mgr->notifs, it)
         y += notif_show(it->item, y) + mgr->conf->margin.top;
 }
 
