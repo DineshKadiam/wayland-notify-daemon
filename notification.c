@@ -12,6 +12,7 @@
 #define LOG_ENABLE_DBG 1
 #include "log.h"
 #include "wayland.h"
+#include "dbus.h"
 
 struct notif_mgr;
 
@@ -411,4 +412,50 @@ notif_mgr_refresh(struct notif_mgr *mgr)
     int y = mgr->conf->margin.top;
     tll_foreach(mgr->notifs, it)
         y += notif_show(it->item, y) + mgr->conf->margin.top;
+}
+
+static bool
+notif_dismiss(struct notif *notif)
+{
+    dbus_signal_dismissed(notif->mgr->bus, notif->id);
+    notif_destroy(notif);
+    return true;
+}
+
+bool
+notif_mgr_dismiss_current(struct notif_mgr *mgr)
+{
+    if (tll_length(mgr->notifs) == 0)
+        return false;
+
+    return notif_dismiss(tll_pop_front(mgr->notifs));
+}
+
+bool
+notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id)
+{
+    tll_foreach(mgr->notifs, it) {
+        if (it->item->id != id)
+            continue;
+
+        struct notif *notif = it->item;
+        tll_remove(mgr->notifs, it);
+        return notif_dismiss(notif);
+    }
+
+    return false;
+}
+
+bool
+notif_mgr_dismiss_all(struct notif_mgr *mgr)
+{
+    bool ret = true;
+    tll_foreach(mgr->notifs, it) {
+        struct notif *notif = it->item;
+        if (!notif_dismiss(notif))
+            ret = false;
+        tll_remove(mgr->notifs, it);
+    }
+
+    return ret;
 }

@@ -18,6 +18,10 @@ void notif_mgr_configure(
 
 void notif_mgr_refresh(struct notif_mgr *mgr);
 
+bool notif_mgr_dismiss_current(struct notif_mgr *mgr);
+bool notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id);
+bool notif_mgr_dismiss_all(struct notif_mgr *mgr);
+
 struct notif;
 struct notif *notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_del_notif(struct notif_mgr *mgr, uint32_t id);
