@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <pixman.h>
 
 #include "config.h"
 #include "tllist.h"
@@ -35,3 +36,4 @@ void notif_set_application(struct notif *notif, const char *text);
 void notif_set_summary(struct notif *notif, const char *text);
 void notif_set_body(struct notif *notif, const char *text);
 void notif_set_urgency(struct notif *notif, enum urgency urgency);
+void notif_set_image(struct notif *notif, pixman_image_t *pix);

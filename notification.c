@@ -27,6 +27,7 @@ struct notif {
     wchar_t *app;
     wchar_t *summary;
     wchar_t *body;
+    pixman_image_t *pix;
 
     struct buffer *pending;
     bool frame_is_scheduled;
@@ -171,6 +172,9 @@ notif_destroy(struct notif *notif)
     if (notif->surface)
         wl_surface_destroy(notif->surface);
 
+    if (notif->pix != NULL)
+        pixman_image_unref(notif->pix);
+
     free(notif->app);
     free(notif->summary);
     free(notif->body);
@@ -218,6 +222,15 @@ notif_set_urgency(struct notif *notif, enum urgency urgency)
 {
     /* TODO: re-sort and refresh */
     notif->urgency = urgency;
+}
+
+void
+notif_set_image(struct notif *notif, pixman_image_t *pix)
+{
+    if (notif->pix != NULL)
+        pixman_image_unref(notif->pix);
+    notif->pix = pix;
+    pixman_image_ref(notif->pix);
 }
 
 static void frame_callback(
