@@ -4,6 +4,7 @@
 #include <wayland-client.h>
 
 #include "shm.h"
+#include "fdm.h"
 
 struct wayland;
 
@@ -24,7 +25,7 @@ struct monitor {
     int scale;
 };
 
-struct wayland *wayl_init(void);
+struct wayland *wayl_init(struct fdm *fdm);
 void wayl_destroy(struct wayland *wayl);
 
 struct wl_compositor *wayl_compositor(const struct wayland *wayl);
@@ -36,4 +37,3 @@ const struct monitor *wayl_monitor(const struct wayland *wayl);
 int wayl_poll_fd(const struct wayland *wayl);
 void wayl_flush(struct wayland *wayl);
 void wayl_roundtrip(struct wayland *wayl);
-bool wayl_dispatch(struct wayland *wayl);

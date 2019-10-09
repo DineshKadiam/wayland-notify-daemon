@@ -25,16 +25,6 @@ sig_handler(int signo)
 }
 
 static bool
-fdm_wayl(struct fdm *fdm, int fd, int events, void *data)
-{
-    if (events & POLLHUP) {
-        LOG_INFO("disconnected from Wayland");
-        return false;
-    }
-    return wayl_dispatch(data);
-}
-
-static bool
 fdm_dbus(struct fdm *fdm, int fd, int events, void *data)
 {
     if (events & POLLHUP) {
@@ -149,7 +139,7 @@ main(int argc, const char *const *argv)
     if ((mgr = notif_mgr_new(&conf)) == NULL)
         goto err;
 
-    if ((wayl = wayl_init()) == NULL)
+    if ((wayl = wayl_init(fdm)) == NULL)
         goto err;
 
     if ((bus = dbus_init(wayl, mgr)) == NULL)
@@ -166,7 +156,6 @@ main(int argc, const char *const *argv)
     sigaction(SIGINT, &sigact, NULL);
     sigaction(SIGTERM, &sigact, NULL);
 
-    fdm_add(fdm, wayl_poll_fd(wayl), &fdm_wayl, wayl);
     fdm_add(fdm, dbus_poll_fd(bus), &fdm_dbus, bus);
     fdm_add(fdm, ctrl_poll_fd(ctrl), &fdm_ctrl, ctrl);
 
@@ -181,7 +170,6 @@ main(int argc, const char *const *argv)
         }
     }
 
-    fdm_del(fdm, wayl_poll_fd(wayl));
     fdm_del(fdm, dbus_poll_fd(bus));
     fdm_del(fdm, ctrl_poll_fd(ctrl));
 

@@ -16,6 +16,7 @@
 #include "tllist.h"
 
 struct wayland {
+    struct fdm *fdm;
     struct wl_display *display;
     struct wl_registry *registry;
     struct wl_compositor *compositor;
@@ -194,8 +195,17 @@ static const struct wl_registry_listener registry_listener = {
     .global_remove = &handle_global_remove,
 };
 
+static bool
+fdm_handler(struct fdm *fdm, int fd, int events, void *data)
+{
+    struct wayland *wayl = data;
+    int event_count =  wl_display_dispatch(wayl->display);
+    wl_display_flush(wayl->display);
+    return event_count != -1;
+}
+
 struct wayland *
-wayl_init(void)
+wayl_init(struct fdm *fdm)
 {
     struct wayland *wayl = calloc(1, sizeof(*wayl));
 
@@ -244,6 +254,12 @@ wayl_init(void)
         goto err;
     }
 
+    if (!fdm_add(fdm, wl_display_get_fd(wayl->display), &fdm_handler, wayl)) {
+        LOG_ERR("failed to register with FDM");
+        goto err;
+    }
+    wayl->fdm = fdm;
+
     return wayl;
 
 err:
@@ -256,6 +272,9 @@ wayl_destroy(struct wayland *wayl)
 {
     if (wayl == NULL)
         return;
+
+    if (wayl->fdm != NULL)
+        fdm_del(wayl->fdm, wl_display_get_fd(wayl->display));
 
     tll_foreach(wayl->monitors, it) {
         free(it->item.name);
@@ -322,13 +341,4 @@ void
 wayl_roundtrip(struct wayland *wayl)
 {
     wl_display_roundtrip(wayl->display);
-}
-
-bool
-wayl_dispatch(struct wayland *wayl)
-{
-    int event_count =  wl_display_dispatch(wayl->display);
-    wl_display_flush(wayl->display);
-    return event_count != -1;
-
 }
