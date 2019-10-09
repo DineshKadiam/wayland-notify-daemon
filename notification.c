@@ -475,7 +475,9 @@ notif_mgr_dismiss_current(struct notif_mgr *mgr)
     if (tll_length(mgr->notifs) == 0)
         return false;
 
-    return notif_dismiss(tll_pop_front(mgr->notifs));
+    bool ret = notif_dismiss(tll_pop_front(mgr->notifs));
+    notif_mgr_refresh(mgr);
+    return ret;
 }
 
 bool
@@ -487,7 +489,10 @@ notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id)
 
         struct notif *notif = it->item;
         tll_remove(mgr->notifs, it);
-        return notif_dismiss(notif);
+
+        bool ret = notif_dismiss(notif);
+        notif_mgr_refresh(mgr);
+        return ret;
     }
 
     return false;
@@ -504,5 +509,6 @@ notif_mgr_dismiss_all(struct notif_mgr *mgr)
         tll_remove(mgr->notifs, it);
     }
 
+    notif_mgr_refresh(mgr);
     return ret;
 }
