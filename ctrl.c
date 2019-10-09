@@ -37,19 +37,17 @@ ctrl_init(void)
     }
 
     char *sock_path = get_socket_path();
-    if (sock_path == NULL) {
-        close(fd);
-        return NULL;
-    }
+    if (sock_path == NULL)
+        goto err;
+
+    unlink(sock_path);
 
     struct sockaddr_un addr = {.sun_family = AF_UNIX};
     strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
 
     if (bind(fd, (const struct sockaddr *)&addr, sizeof(addr)) < 0) {
         LOG_ERRNO("%s: failed to bind", addr.sun_path);
-        free(sock_path);
-        close(fd);
-        return NULL;
+        goto err;
     }
 
     struct ctrl *ctrl = malloc(sizeof(*ctrl));
@@ -59,6 +57,13 @@ ctrl_init(void)
     };
 
     return ctrl;
+
+err:
+    if (sock_path)
+        free(sock_path);
+    if (fd != -1)
+        close(fd);
+    return NULL;
 }
 
 void
@@ -77,4 +82,13 @@ int
 ctrl_poll_fd(const struct ctrl *ctrl)
 {
     return ctrl->server_fd;
+}
+
+bool
+ctrl_dispatch(struct ctrl *ctrl)
+{
+    char buf[1024];
+    ssize_t count = recv(ctrl->server_fd, buf, sizeof(buf), 0);
+    LOG_DBG("got %zd bytes: %.*s", count, (int)count, buf);
+    return true;
 }

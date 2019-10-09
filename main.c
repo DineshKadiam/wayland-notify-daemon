@@ -135,10 +135,12 @@ main(int argc, const char *const *argv)
         struct pollfd fds[] = {
             {.fd = wayl_poll_fd(wayl), .events = POLLIN},
             {.fd = dbus_poll_fd(bus), .events = POLLIN},
+            {.fd = ctrl_poll_fd(ctrl), .events = POLLIN},
         };
 
         const size_t WAYL_FD = 0;
         const size_t DBUS_FD = 1;
+        const size_t CTRL_FD = 2;
 
         wayl_flush(wayl);
         int r = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
@@ -172,6 +174,11 @@ main(int argc, const char *const *argv)
 
         if (fds[DBUS_FD].revents & POLLIN) {
             if (!dbus_dispatch(bus))
+                break;
+        }
+
+        if (fds[CTRL_FD].revents & POLLIN) {
+            if (!ctrl_dispatch(ctrl))
                 break;
         }
     }
