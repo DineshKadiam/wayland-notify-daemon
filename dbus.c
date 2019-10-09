@@ -93,6 +93,8 @@ notify(struct dbus *bus, DBusMessage *msg)
     DBusMessageIter args_iter;
     dbus_message_iter_init(msg, &args_iter);
 
+    pixman_image_t *pix = NULL;
+
     uint32_t replaces_id;
     const char *app_name, *app_icon, *summary, *body;
     if (!dbus_message_get_args(
@@ -164,6 +166,68 @@ notify(struct dbus *bus, DBusMessage *msg)
             dbus_message_iter_get_basic(&value_iter, &level);
             urgency = level;
         }
+
+        else if (strcmp(name, "image-data") == 0 ||
+                 strcmp(name, "image_data") == 0 ||
+                 strcmp(name, "icon_data") == 0)
+        {
+            DBusMessageIter img_iter;
+            dbus_message_iter_recurse(&value_iter, &img_iter);
+
+            bool has_alpha;
+            uint32_t width, height, stride, bpp, channels;
+            dbus_message_iter_get_basic(&img_iter, &width); dbus_message_iter_next(&img_iter);
+            dbus_message_iter_get_basic(&img_iter, &height); dbus_message_iter_next(&img_iter);
+            dbus_message_iter_get_basic(&img_iter, &stride); dbus_message_iter_next(&img_iter);
+            dbus_message_iter_get_basic(&img_iter, &has_alpha); dbus_message_iter_next(&img_iter);
+            dbus_message_iter_get_basic(&img_iter, &bpp); dbus_message_iter_next(&img_iter);
+            dbus_message_iter_get_basic(&img_iter, &channels); dbus_message_iter_next(&img_iter);
+
+            LOG_DBG("image: width=%u, height=%u, stride=%u, has-alpha=%d, bpp=%u, channels=%u",
+                    width, height, stride, has_alpha, bpp, channels);
+
+            assert(dbus_message_iter_get_arg_type(&img_iter) == DBUS_TYPE_ARRAY);
+
+            if (width * channels * bpp / 8 > stride)
+                LOG_WARN("image width exceeds image stride");
+
+            size_t image_size = stride * height;
+            uint8_t *image_data = malloc(image_size);
+
+            DBusMessageIter data_iter;
+            dbus_message_iter_recurse(&img_iter, &data_iter);
+            for (size_t i = 0; i < image_size; i++)
+            {
+                if (dbus_message_iter_get_arg_type(&data_iter) == DBUS_TYPE_INVALID) {
+                    LOG_WARN("image data truncated");
+                    break;
+                }
+
+                dbus_message_iter_get_basic(&data_iter, &image_data[i]);
+                dbus_message_iter_next(&data_iter);
+            }
+
+            if (dbus_message_iter_get_arg_type(&data_iter) != DBUS_TYPE_INVALID)
+                LOG_WARN("image data exceeds specified size");
+
+            pixman_format_code_t format;
+            if (bpp == 8 && channels == 4)
+                format = has_alpha ? PIXMAN_a8r8g8b8 : PIXMAN_x8r8g8b8;
+            else if (bpp == 8 && channels == 3) {
+                /* Untested */
+                format = PIXMAN_r8g8b8;
+            } else {
+                LOG_WARN("unimplemented image format: bpp=%u, channels=%u",
+                         bpp, channels);
+                free(image_data);
+            }
+
+            if (pix != NULL)
+                pixman_image_unref(pix);
+
+            pix = pixman_image_create_bits_no_clear(
+                format, width, height, (uint32_t *)image_data, stride);
+        }
     }
 
     dbus_message_iter_next(&args_iter);
@@ -178,6 +242,10 @@ notify(struct dbus *bus, DBusMessage *msg)
     notif_set_summary(notif, summary);
     notif_set_body(notif, body);
     notif_set_urgency(notif, urgency);
+
+    if (pix != NULL)
+        notif_set_image(notif, pix);
+
     notif_mgr_refresh(bus->notif_mgr);
 
     DBusMessage *reply = dbus_message_new_method_return(msg);
