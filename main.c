@@ -34,16 +34,6 @@ fdm_dbus(struct fdm *fdm, int fd, int events, void *data)
     return dbus_dispatch(data);
 }
 
-static bool
-fdm_ctrl(struct fdm *fdm, int fd, int events, void *data)
-{
-    if (events & POLLHUP) {
-        LOG_ERR("disconnected from controller UNIX socket");
-        return false;
-    }
-    return ctrl_dispatch(data);
-}
-
 int
 main(int argc, const char *const *argv)
 {
@@ -145,7 +135,7 @@ main(int argc, const char *const *argv)
     if ((bus = dbus_init(wayl, mgr)) == NULL)
         goto err;
 
-    if ((ctrl = ctrl_init(mgr)) == NULL)
+    if ((ctrl = ctrl_init(fdm, mgr)) == NULL)
         goto err;
 
     notif_mgr_configure(mgr, wayl, bus);
@@ -157,7 +147,6 @@ main(int argc, const char *const *argv)
     sigaction(SIGTERM, &sigact, NULL);
 
     fdm_add(fdm, dbus_poll_fd(bus), &fdm_dbus, bus);
-    fdm_add(fdm, ctrl_poll_fd(ctrl), &fdm_ctrl, ctrl);
 
     while (!aborted) {
         wayl_flush(wayl);
@@ -171,7 +160,6 @@ main(int argc, const char *const *argv)
     }
 
     fdm_del(fdm, dbus_poll_fd(bus));
-    fdm_del(fdm, ctrl_poll_fd(ctrl));
 
 err:
     ctrl_destroy(ctrl);

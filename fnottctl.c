@@ -15,7 +15,7 @@ main(int argc, const char *const *argv)
 {
     int ret = EXIT_FAILURE;
 
-    int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1) {
         LOG_ERRNO("failed to create socket");
         goto err;

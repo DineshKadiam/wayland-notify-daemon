@@ -4,18 +4,105 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/epoll.h>
 #include <sys/un.h>
 
 #define LOG_MODULE "ctrl"
 #define LOG_ENABLE_DBG 1
 #include "log.h"
 #include "ctrl-protocol.h"
+#include "tllist.h"
 
 struct ctrl {
+    struct fdm *fdm;
     struct notif_mgr *notif_mgr;
     int server_fd;
     char *socket_path;
+    tll(int) clients;
 };
+
+static bool
+fdm_client(struct fdm *fdm, int fd, int events, void *data)
+{
+    struct ctrl *ctrl = data;
+
+    bool ret = false;
+    struct command cmd;
+
+    ssize_t count = recv(fd, &cmd, sizeof(cmd), 0);
+    if (count == -1 || count != sizeof(cmd)) {
+        LOG_ERRNO("failed to receive command");
+        goto err;
+    }
+
+    /* TODO: endianness */
+
+    switch (cmd.cmd) {
+    case CMD_DISMISS_CURRENT:
+        LOG_DBG("client: FD=%d, dismiss current", fd);
+        notif_mgr_dismiss_current(ctrl->notif_mgr);
+        break;
+
+    case CMD_DISMISS_BY_ID:
+        LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, cmd.id);
+        notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id);
+        break;
+
+    case CMD_DISMISS_ALL:
+        LOG_DBG("client: FD=%d, dismiss all", fd);
+        notif_mgr_dismiss_all(ctrl->notif_mgr);
+        break;
+    }
+
+    ret = true;
+
+err:
+    if (events & EPOLLHUP) {
+        /* Client disconnected */
+        LOG_DBG("client FD=%d disconnected", fd);
+        fdm_del(fdm, fd);
+        close(fd);
+
+        tll_foreach(ctrl->clients, it) {
+            if (it->item == fd) {
+                tll_remove(ctrl->clients, it);
+            }
+        }
+    }
+
+    return ret;
+}
+
+static bool
+fdm_server(struct fdm *fdm, int fd, int events, void *data)
+{
+    if (events & EPOLLHUP) {
+        LOG_ERR("disconnected from controller UNIX socket");
+        return false;
+    }
+
+    struct ctrl *ctrl = data;
+
+    struct sockaddr_un addr;
+    socklen_t addr_size = sizeof(addr);
+    int client_fd = accept(ctrl->server_fd, &addr, &addr_size);
+
+    if (client_fd == -1) {
+        LOG_ERRNO("failed to accept client connection");
+        return false;
+    }
+
+    LOG_DBG("client FD=%d connected", client_fd);
+
+    tll_push_back(ctrl->clients, client_fd);
+    if (!fdm_add(ctrl->fdm, client_fd, &fdm_client, ctrl)) {
+        LOG_ERR("failed to register client FD with FDM");
+        tll_pop_back(ctrl->clients);
+        return false;
+    }
+
+    return true;
+}
 
 static char *
 get_socket_path(void)
@@ -30,9 +117,9 @@ get_socket_path(void)
 }
 
 struct ctrl *
-ctrl_init(struct notif_mgr *notif_mgr)
+ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr)
 {
-    int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1) {
         LOG_ERRNO("failed to create UNIX socket");
         return NULL;
@@ -52,12 +139,24 @@ ctrl_init(struct notif_mgr *notif_mgr)
         goto err;
     }
 
+    if (listen(fd, 5) < 0) {
+        LOG_ERRNO("%s: failed to listen", addr.sun_path);
+        goto err;
+    }
+
     struct ctrl *ctrl = malloc(sizeof(*ctrl));
     *ctrl = (struct ctrl){
+        .fdm = fdm,
         .notif_mgr = notif_mgr,
         .server_fd = fd,
         .socket_path = sock_path,
+        .clients = tll_init(),
     };
+
+    if (!fdm_add(fdm, fd, &fdm_server, ctrl)) {
+        LOG_ERR("failed to register with FDM");
+        goto err;
+    }
 
     return ctrl;
 
@@ -74,10 +173,14 @@ ctrl_destroy(struct ctrl *ctrl)
 {
     if (ctrl == NULL)
         return;
+
+    fdm_del(ctrl->fdm, ctrl->server_fd);
+    close(ctrl->server_fd);
+
     if (ctrl->socket_path != NULL)
         unlink(ctrl->socket_path);
     free(ctrl->socket_path);
-    close(ctrl->server_fd);
+
     free(ctrl);
 }
 
@@ -85,34 +188,4 @@ int
 ctrl_poll_fd(const struct ctrl *ctrl)
 {
     return ctrl->server_fd;
-}
-
-bool
-ctrl_dispatch(struct ctrl *ctrl)
-{
-    struct command cmd;
-
-    ssize_t count = recv(ctrl->server_fd, &cmd, sizeof(cmd), 0);
-    if (count == -1 || count != sizeof(cmd)) {
-        LOG_ERRNO("failed to receive command");
-        return false;
-    }
-
-    /* TODO: endianness */
-
-    switch (cmd.cmd) {
-    case CMD_DISMISS_CURRENT:
-        notif_mgr_dismiss_current(ctrl->notif_mgr);
-        break;
-
-    case CMD_DISMISS_BY_ID:
-        notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id);
-        break;
-
-    case CMD_DISMISS_ALL:
-        notif_mgr_dismiss_all(ctrl->notif_mgr);
-        break;
-    }
-
-    return true;
 }
