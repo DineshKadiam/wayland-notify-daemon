@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <assert.h>
 #include <sys/epoll.h>
 
 #define LOG_MODULE "fdm"
@@ -43,6 +44,12 @@ fdm_destroy(struct fdm *fdm)
 {
     if (fdm == NULL)
         return;
+
+    if (tll_length(fdm->fds) > 0)
+        LOG_WARN("FD list not empty");
+
+    assert(tll_length(fdm->fds) == 0);
+
     tll_free(fdm->fds);
     close(fdm->epoll_fd);
     free(fdm);
