@@ -27,7 +27,10 @@ struct notif {
     wchar_t *app;
     wchar_t *summary;
     wchar_t *body;
+
     pixman_image_t *pix;
+    int image_width;
+    int image_height;
 
     struct buffer *pending;
     bool frame_is_scheduled;
@@ -263,9 +266,34 @@ notif_set_urgency(struct notif *notif, enum urgency urgency)
 void
 notif_set_image(struct notif *notif, pixman_image_t *pix)
 {
+    static const double max_width = 64;
+    static const double max_height = 64;
+
     if (notif->pix != NULL)
         pixman_image_unref(notif->pix);
+
     notif->pix = pix;
+    notif->image_width = pixman_image_get_width(pix);
+    notif->image_height = pixman_image_get_height(pix);
+
+    if (notif->image_width <= max_width && notif->image_height <= max_height)
+        return;
+
+    double scale_w = notif->image_width / max_width;
+    double scale_h = notif->image_height / max_height;
+    double scale = scale_w > scale_h ? scale_w : scale_h;
+
+    notif->image_width /= scale;
+    notif->image_height /= scale;
+
+    LOG_DBG("image re-scaled: %dx%d -> %dx%d",
+            pixman_image_get_width(pix), pixman_image_get_height(pix),
+            notif->image_width, notif->image_height);
+
+    struct pixman_transform t;
+    pixman_transform_init_scale(
+        &t, pixman_double_to_fixed(scale), pixman_double_to_fixed(scale));
+    pixman_image_set_transform(pix, &t);
 }
 
 static void frame_callback(
@@ -423,7 +451,7 @@ notif_show(struct notif *notif, int y)
     int _w, _h;
 
     if (notif->pix != NULL)
-        indent += pixman_image_get_width(notif->pix) + conf->padding.left;
+        indent += notif->image_width + conf->padding.left;
 
     /* App */
     notif_layout(notif, urgency->app.font, notif->app, indent, height, &_w, &_h, &glyphs);
@@ -441,7 +469,7 @@ notif_show(struct notif *notif, int y)
     height += _h;
 
     if (notif->pix != NULL)
-        height = max(height, conf->padding.top + pixman_image_get_height(notif->pix));
+        height = max(height, conf->padding.top + notif->image_height);
     height += conf->padding.bottom;
 
 #undef max
@@ -489,8 +517,7 @@ notif_show(struct notif *notif, int y)
         pixman_image_composite32(
             PIXMAN_OP_OVER, notif->pix, NULL, buf->pix, 0, 0, 0, 0,
             conf->padding.left, conf->padding.top,
-            pixman_image_get_width(notif->pix),
-            pixman_image_get_height(notif->pix));
+            notif->image_width, notif->image_height);
     }
 
     /* Text */
