@@ -32,39 +32,21 @@ main(int argc, const char *const *argv)
     setlocale(LC_ALL, "");
 
     font_list_t font_list = tll_init();
-    tll_push_back(font_list, "Fantasque Sans Mono:pixelsize=24");
+    tll_push_back(font_list, "Fantasque Sans Mono");
 
-    struct font font_regular;
-    if (!font_from_name(font_list, "", &font_regular)) {
+    struct font font_summary = {0};
+    struct font font_app = {0};
+    struct font font_body = {0};
+
+    if (!font_from_name(font_list, "pixelsize=32:weight=bold", &font_summary) ||
+        !font_from_name(font_list, "pixelsize=20:slant=italic", &font_app) ||
+        !font_from_name(font_list, "pixelsize=24", &font_body))
+    {
         LOG_ERR("%s: failed to instantiate font", tll_front(font_list));
+        font_destroy(&font_summary);
+        font_destroy(&font_app);
+        font_destroy(&font_body);
         tll_free(font_list);
-        return EXIT_FAILURE;
-    }
-
-    struct font font_bold;
-    if (!font_from_name(font_list, "weight=bold", &font_bold)) {
-        LOG_ERR("%s:weight=bold: failed to instantiate font", tll_front(font_list));
-        tll_free(font_list);
-        font_destroy(&font_regular);
-        return EXIT_FAILURE;
-    }
-
-    struct font font_italic;
-    if (!font_from_name(font_list, "slant=italic", &font_italic)) {
-        LOG_ERR("%s:slant=italic: failed to instantiate font", tll_front(font_list));
-        tll_free(font_list);
-        font_destroy(&font_regular);
-        font_destroy(&font_bold);
-        return EXIT_FAILURE;
-    }
-
-    struct font font_bold_italic;
-    if (!font_from_name(font_list, "weight=bold:slant=italic", &font_bold_italic)) {
-        LOG_ERR("%s:weight=bolds:slant=italic: failed to instantiate font", tll_front(font_list));
-        tll_free(font_list);
-        font_destroy(&font_regular);
-        font_destroy(&font_bold);
-        font_destroy(&font_italic);
         return EXIT_FAILURE;
     }
 
@@ -94,19 +76,19 @@ main(int argc, const char *const *argv)
                     .size = 1,
                 },
                 .app = {
-                    .font = &font_regular,
+                    .font = &font_app,
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .summary = {
-                    .font = &font_bold_italic,
+                    .font = &font_summary,
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .body = {
-                    .font = &font_regular,
+                    .font = &font_body,
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .action = {
-                    .font = &font_regular,
+                    .font = &font_body,
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
             },
@@ -117,19 +99,19 @@ main(int argc, const char *const *argv)
                     .size = 1,
                 },
                 .app = {
-                    .font = &font_regular,
+                    .font = &font_app,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .summary = {
-                    .font = &font_bold_italic,
+                    .font = &font_summary,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .body = {
-                    .font = &font_regular,
+                    .font = &font_body,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .action = {
-                    .font = &font_regular,
+                    .font = &font_body,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
             },
@@ -140,19 +122,19 @@ main(int argc, const char *const *argv)
                     .size = 1,
                 },
                 .app = {
-                    .font = &font_regular,
+                    .font = &font_app,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .summary = {
-                    .font = &font_bold_italic,
+                    .font = &font_summary,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .body = {
-                    .font = &font_regular,
+                    .font = &font_body,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .action = {
-                    .font = &font_regular,
+                    .font = &font_body,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
             },
@@ -207,9 +189,8 @@ err:
     dbus_destroy(bus);
     wayl_destroy(wayl);
     fdm_destroy(fdm);
-    font_destroy(&font_regular);
-    font_destroy(&font_bold);
-    font_destroy(&font_italic);
-    font_destroy(&font_bold_italic);
+    font_destroy(&font_summary);
+    font_destroy(&font_app);
+    font_destroy(&font_body);
     return ret;
 }
