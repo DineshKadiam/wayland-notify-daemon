@@ -147,6 +147,7 @@ output_scale(void *data, struct wl_output *wl_output, int32_t factor)
     struct monitor *mon = data;
     mon->scale = factor;
     reload_cursor_theme(mon->wayl);
+    notif_mgr_refresh(mon->wayl->notif_mgr);
 }
 
 static void
