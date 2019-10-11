@@ -13,6 +13,7 @@
 #include "ctrl.h"
 #include "dbus.h"
 #include "fdm.h"
+#include "icon.h"
 #include "wayland.h"
 
 
@@ -162,6 +163,9 @@ main(int argc, const char *const *argv)
     struct dbus *bus = NULL;
     struct wayland *wayl = NULL;
     struct notif_mgr *mgr = NULL;
+    icon_theme_list_t icon_theme = tll_init();
+
+    icon_theme = icon_load_theme("hicolor");
 
     if ((fdm = fdm_init()) == NULL)
         goto err;
@@ -172,7 +176,7 @@ main(int argc, const char *const *argv)
     if ((wayl = wayl_init(fdm, mgr)) == NULL)
         goto err;
 
-    if ((bus = dbus_init(fdm, wayl, mgr)) == NULL)
+    if ((bus = dbus_init(fdm, wayl, mgr, &icon_theme)) == NULL)
         goto err;
 
     if ((ctrl = ctrl_init(fdm, mgr)) == NULL)
@@ -196,6 +200,7 @@ main(int argc, const char *const *argv)
         ret = EXIT_SUCCESS;
 
 err:
+    icon_themes_destroy(icon_theme);
     ctrl_destroy(ctrl);
     notif_mgr_destroy(mgr);
     dbus_destroy(bus);

@@ -45,6 +45,7 @@ threads = dependency('threads')
 freetype = dependency('freetype2')
 fontconfig = dependency('fontconfig')
 pixman = dependency('pixman-1')
+png = dependency('libpng')
 wayland_protocols = dependency('wayland-protocols')
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
@@ -84,14 +85,17 @@ executable(
   'dbus.c', 'dbus.h',
   'fdm.c', 'fdm.h',
   'font.c', 'font.h',
+  'icon.c', 'icon.h',
   'log.c', 'log.h',
   'notification.c', 'notification.h',
+  'png.c', 'png-fnott.h',
   'shm.c', 'shm.h',
   'stride.h',
   'tllist.h',
   'wayland.c', 'wayland.h',
+  'xdg.c', 'xdg.h',
   wl_proto_src + wl_proto_headers,
-  dependencies: [threads, math, freetype, fontconfig, pixman, wayland_client, wayland_cursor, dbus],
+  dependencies: [threads, math, freetype, fontconfig, pixman, png, wayland_client, wayland_cursor, dbus],
   install: true)
 
 executable(
