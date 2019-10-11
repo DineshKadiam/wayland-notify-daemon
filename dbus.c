@@ -219,7 +219,7 @@ notify(struct dbus *bus, DBusMessage *msg)
 
             pixman_format_code_t format = 0;
             if (bpp == 8 && channels == 4)
-                format = has_alpha ? PIXMAN_a8r8g8b8 : PIXMAN_x8r8g8b8;
+                format = has_alpha ? PIXMAN_a8b8g8r8 : PIXMAN_x8b8g8r8;
             else if (bpp == 8 && channels == 3) {
                 /* Untested */
                 format = PIXMAN_r8g8b8;
