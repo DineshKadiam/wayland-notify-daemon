@@ -73,6 +73,7 @@ main(int argc, const char *const *argv)
     struct config conf = {
         .max_width = 1400,
         .max_height = 1000,
+        .max_icon_size = 64,
         .margin = {
             .top = 25,
             .right = 25,

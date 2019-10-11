@@ -266,8 +266,7 @@ notif_set_urgency(struct notif *notif, enum urgency urgency)
 void
 notif_set_image(struct notif *notif, pixman_image_t *pix)
 {
-    static const double max_width = 64;
-    static const double max_height = 64;
+    const int max_size = notif->mgr->conf->max_icon_size;
 
     if (notif->pix != NULL)
         pixman_image_unref(notif->pix);
@@ -276,11 +275,11 @@ notif_set_image(struct notif *notif, pixman_image_t *pix)
     notif->image_width = pixman_image_get_width(pix);
     notif->image_height = pixman_image_get_height(pix);
 
-    if (notif->image_width <= max_width && notif->image_height <= max_height)
+    if (notif->image_width <= max_size && notif->image_height <= max_size)
         return;
 
-    double scale_w = notif->image_width / max_width;
-    double scale_h = notif->image_height / max_height;
+    double scale_w = notif->image_width / max_size;
+    double scale_h = notif->image_height / max_size;
     double scale = scale_w > scale_h ? scale_w : scale_h;
 
     notif->image_width /= scale;

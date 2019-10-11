@@ -36,6 +36,7 @@ struct urgency_config {
 struct config {
     int max_width;
     int max_height;
+    int max_icon_size;
 
     struct {
         int top;
