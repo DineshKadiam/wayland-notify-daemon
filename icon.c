@@ -274,7 +274,7 @@ load_theme_in(const char *dir, struct icon_theme *theme,
 
     index_fd = openat(theme_dir_fd, "index.theme", O_RDONLY);
     if (index_fd == -1) {
-        LOG_ERRNO("%s/index.theme: failed to open", dir);
+        LOG_DBG("%s/index.theme: failed to open", dir);
         goto out;
     }
 
