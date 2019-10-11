@@ -514,7 +514,7 @@ notif_show(struct notif *notif, int y)
     if (notif->pix != NULL) {
         pixman_image_composite32(
             PIXMAN_OP_OVER, notif->pix, NULL, buf->pix, 0, 0, 0, 0,
-            conf->padding.left, conf->padding.top,
+            conf->padding.left, (height - notif->image_height) / 2,
             notif->image_width, notif->image_height);
     }
 
