@@ -298,8 +298,10 @@ close_notification(struct dbus *bus, DBusMessage *msg)
     LOG_DBG("CloseNotification: id=%u", id);
     bool success  = notif_mgr_del_notif(bus->notif_mgr, id);
 
-    if (success)
+    if (success) {
+        notif_mgr_refresh(bus->notif_mgr);
         dbus_signal_closed(bus, id);
+    }
 
     bool ret = false;
     DBusMessage *reply = success
