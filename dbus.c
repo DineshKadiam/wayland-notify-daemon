@@ -222,7 +222,7 @@ notify(struct dbus *bus, DBusMessage *msg)
                 format = has_alpha ? PIXMAN_a8b8g8r8 : PIXMAN_x8b8g8r8;
             else if (bpp == 8 && channels == 3) {
                 /* Untested */
-                format = PIXMAN_r8g8b8;
+                format = PIXMAN_b8g8r8;
             } else {
                 LOG_WARN("unimplemented image format: bpp=%u, channels=%u",
                          bpp, channels);
