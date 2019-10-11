@@ -480,26 +480,26 @@ notif_show(struct notif *notif, int y)
             y, width, height, scale);
 
     /* Resize and position */
-    zwlr_layer_surface_v1_set_size(notif->layer_surface, width, height);
+    zwlr_layer_surface_v1_set_size(notif->layer_surface, width / scale, height / scale);
     zwlr_layer_surface_v1_set_margin(
         notif->layer_surface,
-        y,                   /* top */
-        conf->margin.right,  /* right */
-        conf->margin.bottom, /* bottom */
-        conf->margin.left);  /* left */
+        y / scale,                   /* top */
+        conf->margin.right / scale,  /* right */
+        conf->margin.bottom / scale, /* bottom */
+        conf->margin.left / scale);  /* left */
     wayl_roundtrip(wayl);
 
-    struct buffer *buf = wayl_get_buffer(wayl, width * scale, height * scale);
+    struct buffer *buf = wayl_get_buffer(wayl, width, height);
     const int brd_sz = 1;
 
     /* Border */
     pixman_image_fill_rectangles(
         PIXMAN_OP_SRC, buf->pix, &urgency->border.color,
         4, (pixman_rectangle16_t []){
-            {0, 0, buf->width, brd_sz * scale},                             /* top */
-            {buf->width - brd_sz * scale, 0, brd_sz * scale, buf->height},  /* right */
-            {0, buf->height - brd_sz * scale, buf->width, brd_sz * scale},  /* bottom */
-            {0, 0, brd_sz * scale, buf->height},                            /* left */
+            {0, 0, buf->width, brd_sz},                     /* top */
+            {buf->width - brd_sz, 0, brd_sz, buf->height},  /* right */
+            {0, buf->height - brd_sz, buf->width, brd_sz},  /* bottom */
+            {0, 0, brd_sz, buf->height},                    /* left */
     });
 
     /* Background */
@@ -507,8 +507,7 @@ notif_show(struct notif *notif, int y)
         PIXMAN_OP_SRC, buf->pix, &urgency->bg,
         1, &(pixman_rectangle16_t){
             brd_sz, brd_sz,
-            (buf->width - 2 * brd_sz) * scale,
-            (buf->height - 2 * brd_sz) * scale}
+            buf->width - 2 * brd_sz, buf->height - 2 * brd_sz}
     );
 
     /* Image */
