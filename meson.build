@@ -84,6 +84,7 @@ executable(
   'dbus.c', 'dbus.h',
   'fdm.c', 'fdm.h',
   'font.c', 'font.h',
+  'icon.c', 'icon.h',
   'log.c', 'log.h',
   'notification.c', 'notification.h',
   'shm.c', 'shm.h',
