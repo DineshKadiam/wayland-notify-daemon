@@ -91,6 +91,7 @@ executable(
   'stride.h',
   'tllist.h',
   'wayland.c', 'wayland.h',
+  'xdg.c', 'xdg.h',
   wl_proto_src + wl_proto_headers,
   dependencies: [threads, math, freetype, fontconfig, pixman, wayland_client, wayland_cursor, dbus],
   install: true)
