@@ -33,9 +33,10 @@ main(int argc, const char *const *argv)
     if (strcmp(cmd_word, "dismiss") == 0) {
         if (argc >= 3) {
             const char *id_or_all = argv[2];
-            if (strcmp(id_or_all, "all") == 0)
+            if (strcmp(id_or_all, "all") == 0) {
                 cmd_type = CMD_DISMISS_ALL;
-            else {
+                id = 0;
+            } else {
                 char *end = NULL;
                 errno = 0;
                 id = strtoul(id_or_all, &end, 0);
