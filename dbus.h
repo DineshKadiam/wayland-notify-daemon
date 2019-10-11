@@ -10,8 +10,8 @@
 struct dbus;
 
 struct dbus *dbus_init(
-    struct fdm *fdm, struct wayland *wayl, struct notif_mgr *notif_mgr,
-    const icon_theme_list_t *icon_theme);
+    const struct config *conf, struct fdm *fdm, struct wayland *wayl,
+    struct notif_mgr *notif_mgr, const icon_theme_list_t *icon_theme);
 void dbus_destroy(struct dbus *bus);
 
 bool dbus_signal_expired(struct dbus *bus, uint32_t id);

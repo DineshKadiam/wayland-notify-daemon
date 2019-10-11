@@ -17,6 +17,7 @@
 
 struct dbus {
     DBusConnection *conn;
+    const struct config *conf;
     struct fdm *fdm;
     struct wayland *wayl;
     struct notif_mgr *notif_mgr;
@@ -121,7 +122,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     LOG_DBG("app: %s, icon: %s, summary: %s, body: %s", app_name, app_icon, summary, body);
 
     if (strlen(app_icon) > 0)
-        pix = icon_load(app_icon, 64, *bus->icon_theme);
+        pix = icon_load(app_icon, bus->conf->max_icon_size, *bus->icon_theme);
 
     dbus_message_iter_next(&args_iter);
     dbus_message_iter_next(&args_iter);
@@ -413,8 +414,8 @@ err:
 }
 
 struct dbus *
-dbus_init(struct fdm *fdm, struct wayland *wayl, struct notif_mgr *notif_mgr,
-          const icon_theme_list_t *icon_theme)
+dbus_init(const struct config *conf, struct fdm *fdm, struct wayland *wayl,
+          struct notif_mgr *notif_mgr, const icon_theme_list_t *icon_theme)
 {
     struct dbus *bus = NULL;
 
@@ -452,6 +453,7 @@ dbus_init(struct fdm *fdm, struct wayland *wayl, struct notif_mgr *notif_mgr,
     bus = malloc(sizeof(*bus));
     *bus = (struct dbus) {
         .conn = conn,
+        .conf = conf,
         .fdm = fdm,
         .wayl = wayl,
         .notif_mgr = notif_mgr,

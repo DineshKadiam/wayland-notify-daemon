@@ -177,7 +177,7 @@ main(int argc, const char *const *argv)
     if ((wayl = wayl_init(fdm, mgr)) == NULL)
         goto err;
 
-    if ((bus = dbus_init(fdm, wayl, mgr, &icon_theme)) == NULL)
+    if ((bus = dbus_init(&conf, fdm, wayl, mgr, &icon_theme)) == NULL)
         goto err;
 
     if ((ctrl = ctrl_init(fdm, mgr)) == NULL)
