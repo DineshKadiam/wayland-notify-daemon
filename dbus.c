@@ -217,7 +217,7 @@ notify(struct dbus *bus, DBusMessage *msg)
             if (dbus_message_iter_get_arg_type(&data_iter) != DBUS_TYPE_INVALID)
                 LOG_WARN("image data exceeds specified size");
 
-            pixman_format_code_t format;
+            pixman_format_code_t format = 0;
             if (bpp == 8 && channels == 4)
                 format = has_alpha ? PIXMAN_a8r8g8b8 : PIXMAN_x8r8g8b8;
             else if (bpp == 8 && channels == 3) {
@@ -229,11 +229,13 @@ notify(struct dbus *bus, DBusMessage *msg)
                 free(image_data);
             }
 
-            if (pix != NULL)
-                pixman_image_unref(pix);
+            if (format != 0) {
+                if (pix != NULL)
+                    pixman_image_unref(pix);
 
-            pix = pixman_image_create_bits_no_clear(
-                format, width, height, (uint32_t *)image_data, stride);
+                pix = pixman_image_create_bits_no_clear(
+                    format, width, height, (uint32_t *)image_data, stride);
+            }
         }
     }
 
