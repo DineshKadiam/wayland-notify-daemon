@@ -5,11 +5,13 @@
 #include "notification.h"
 #include "wayland.h"
 #include "fdm.h"
+#include "icon.h"
 
 struct dbus;
 
 struct dbus *dbus_init(
-    struct fdm *fdm, struct wayland *wayl, struct notif_mgr *notif_mgr);
+    struct fdm *fdm, struct wayland *wayl, struct notif_mgr *notif_mgr,
+    const icon_theme_list_t *icon_theme);
 void dbus_destroy(struct dbus *bus);
 
 bool dbus_signal_expired(struct dbus *bus, uint32_t id);
