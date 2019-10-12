@@ -1,0 +1,21 @@
+# -*- conf -*-
+
+# Global values
+# max-width=400
+# max-height=200
+# max-icon-size=32
+
+# Default values, may be overridden in 'urgency' specific sections
+# background=3f5f3f
+# border-color=909090
+# border-size=1
+# title-font=sans serif
+# title-color=ffffff
+# summary-font=sans serif
+# summary-color=ffffff
+# body-font=sans serif
+# body-color=ffffff
+
+# [low]
+# [normal]
+# [critical]

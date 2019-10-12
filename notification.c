@@ -344,8 +344,9 @@ struct glyph_layout {
 typedef tll(struct glyph_layout) glyph_list_t;
 
 static void
-notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
-             int indent, int y, int *width, int *height, glyph_list_t *glyphs)
+notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color,
+             const wchar_t *text, int indent, int y, int *width, int *height,
+             glyph_list_t *glyphs)
 {
 #define max(x, y) ((x) > (y) ? (x) : (y))
 
@@ -353,7 +354,6 @@ notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
     *height = 0;
 
     const struct config *conf = notif->mgr->conf;
-    const struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
     int x = indent;
 
     bool bold __attribute__((unused)) = false;
@@ -418,7 +418,7 @@ notif_layout(struct notif *notif, struct font *font, const wchar_t *text,
 
         struct glyph_layout layout = {
             .glyph = glyph,
-            .color = &urgency->app.color,
+            .color = color,
             .x = x,
             .y = y + font->fextents.ascent,
         };
@@ -453,17 +453,17 @@ notif_show(struct notif *notif, int y)
         indent += notif->image_width + conf->padding.left;
 
     /* App */
-    notif_layout(notif, urgency->app.font, notif->app, indent, height, &_w, &_h, &glyphs);
+    notif_layout(notif, urgency->app.font, &urgency->app.color, notif->app, indent, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Summary */
-    notif_layout(notif, urgency->summary.font, notif->summary, indent, height, &_w, &_h, &glyphs);
+    notif_layout(notif, urgency->summary.font, &urgency->summary.color, notif->summary, indent, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Body */
-    notif_layout(notif, urgency->body.font, notif->body, indent, height, &_w, &_h, &glyphs);
+    notif_layout(notif, urgency->body.font, &urgency->body.color, notif->body, indent, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
@@ -490,7 +490,7 @@ notif_show(struct notif *notif, int y)
     wayl_roundtrip(wayl);
 
     struct buffer *buf = wayl_get_buffer(wayl, width, height);
-    const int brd_sz = 1;
+    const int brd_sz = urgency->border.size;;
 
     /* Border */
     pixman_image_fill_rectangles(

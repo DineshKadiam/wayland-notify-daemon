@@ -64,8 +64,10 @@ struct font {
 
     hash_entry_t **cache;
     mtx_t lock;
+    size_t ref_counter;
 };
 
-bool font_from_name(font_list_t names, const char *attributes, struct font *result);
+struct font *font_from_name(font_list_t names, const char *attributes);
+struct font *font_clone(const struct font *font);
 const struct glyph *font_glyph_for_wc(struct font *font, wchar_t wc);
 void font_destroy(struct font *font);

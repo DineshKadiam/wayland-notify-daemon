@@ -213,6 +213,7 @@ from_font_set(FcPattern *pattern, FcFontSet *fonts, int start_idx, const font_li
     font->pixel_size_fixup = scalable ? pixel_fixup : 1.;
     font->bgr = fc_rgba == FC_RGBA_BGR || fc_rgba == FC_RGBA_VBGR;
     font->fc_idx = font_idx;
+    font->ref_counter = 1;
 
     int max_x_advance = ft_face->size->metrics.max_advance / 64;
     int height = ft_face->size->metrics.height / 64;
@@ -304,11 +305,11 @@ from_name(const char *base_name, const font_list_t *fallbacks, const char *attri
     return true;
 }
 
-bool
-font_from_name(font_list_t names, const char *attributes, struct font *font)
+struct font *
+font_from_name(font_list_t names, const char *attributes)
 {
     if (tll_length(names) == 0)
-        return false;
+        return NULL;
 
     font_list_t fallbacks = tll_init();
     bool skip_first = true;
@@ -321,9 +322,24 @@ font_from_name(font_list_t names, const char *attributes, struct font *font)
         tll_push_back(fallbacks, it->item);
     }
 
+    struct font *font = malloc(sizeof(*font));
     bool ret = from_name(tll_front(names), &fallbacks, attributes, font, false);
 
+    if (!ret) {
+        free(font);
+        font = NULL;
+    }
+
     tll_free(fallbacks);
+    return font;
+}
+
+struct font *
+font_clone(const struct font *font)
+{
+    struct font *ret = (struct font *)font;
+    assert(ret->ref_counter >= 1);
+    ret->ref_counter++;
     return ret;
 }
 
@@ -594,6 +610,12 @@ font_glyph_for_wc(struct font *font, wchar_t wc)
 void
 font_destroy(struct font *font)
 {
+    if (font == NULL || font->ref_counter == 0)
+        return;
+
+    if (--font->ref_counter > 0)
+        return;
+
     tll_free_and_free(font->fallbacks, free);
 
     if (font->face != NULL) {
@@ -629,4 +651,5 @@ font_destroy(struct font *font)
         free(font->cache[i]);
     }
     free(font->cache);
+    free(font);
 }
