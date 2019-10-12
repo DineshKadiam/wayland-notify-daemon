@@ -62,6 +62,25 @@ main(int argc, const char *const *argv)
         }
     }
 
+    else if (strcmp(cmd_word, "actions") == 0) {
+        if (argc >= 3) {
+            const char *id_as_str = argv[2];
+            char *end = NULL;
+            errno = 0;
+            id = strtoul(id_as_str, &end, 0);
+
+            if (errno != 0 || *end != '\0') {
+                LOG_ERR("%s: invalid notification ID (expected an integer)", id_as_str);
+                return EXIT_FAILURE;
+            }
+
+            cmd_type = CMD_GET_ACTIONS_BY_ID;
+        } else {
+            cmd_type = CMD_GET_ACTIONS_CURRENT;
+            id = 0;
+        }
+    }
+
     else {
         LOG_ERR("%s: invalid command", cmd_word);
         return EXIT_FAILURE;
@@ -103,6 +122,31 @@ main(int argc, const char *const *argv)
     if (sent == -1 || sent != sizeof(cmd)) {
         LOG_ERRNO("failed to send command");
         goto err;
+    }
+
+    if (cmd_type == CMD_GET_ACTIONS_CURRENT || cmd_type == CMD_GET_ACTIONS_BY_ID) {
+        struct get_action_reply reply;
+        read(fd, &reply, sizeof(reply));
+
+        char *ids[reply.count];
+        char *labels[reply.count];
+
+        for (size_t i = 0; i < reply.count; i++) {
+            struct get_action_reply_action action;
+            read(fd, &action, sizeof(action));
+
+            ids[i] = calloc(action.id_length + 1, 1);
+            labels[i] = calloc(action.label_length + 1, 1);
+            read(fd, ids[i], action.id_length);
+            read(fd, labels[i], action.label_length);
+        }
+
+        for (size_t i = 0; i < reply.count; i++) {
+            printf("%s | %s\n", ids[i], labels[i]);
+            free(ids[i]);
+            free(labels[i]);
+        }
+
     }
 
     ret = EXIT_SUCCESS;
