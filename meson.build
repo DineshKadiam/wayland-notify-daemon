@@ -81,6 +81,7 @@ endforeach
 executable(
   'fnott',
   'main.c',
+  'config.c', 'config.h',
   'ctrl.c', 'ctrl.h',
   'dbus.c', 'dbus.h',
   'fdm.c', 'fdm.h',

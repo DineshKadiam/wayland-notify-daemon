@@ -31,115 +31,9 @@ main(int argc, const char *const *argv)
     int ret = EXIT_FAILURE;
     setlocale(LC_ALL, "");
 
-    font_list_t font_list = tll_init();
-    tll_push_back(font_list, "Fantasque Sans Mono");
-
-    struct font font_summary = {0};
-    struct font font_app = {0};
-    struct font font_body = {0};
-
-    if (!font_from_name(font_list, "pixelsize=32:weight=bold", &font_summary) ||
-        !font_from_name(font_list, "pixelsize=20:slant=italic", &font_app) ||
-        !font_from_name(font_list, "pixelsize=24", &font_body))
-    {
-        LOG_ERR("%s: failed to instantiate font", tll_front(font_list));
-        font_destroy(&font_summary);
-        font_destroy(&font_app);
-        font_destroy(&font_body);
-        tll_free(font_list);
-        return EXIT_FAILURE;
-    }
-
-    tll_free(font_list);
-
-    struct config conf = {
-        .max_width = 1400,
-        .max_height = 1000,
-        .max_icon_size = 64,
-        .margin = {
-            .top = 25,
-            .right = 25,
-            .bottom = 25,
-            .left = 25,
-        },
-        .padding = {
-            .top = 20,
-            .right = 20,
-            .bottom = 20,
-            .left = 20,
-        },
-        .by_urgency = {
-            {
-                .bg = {0x2b2b, 0x2b2b, 0x2b2b, 0xffff},
-                .border = {
-                    .color = {0x9090, 0x9090, 0x9090, 0xffff},
-                    .size = 1,
-                },
-                .app = {
-                    .font = &font_app,
-                    .color = {0x8888, 0x8888, 0x8888, 0xffff},
-                },
-                .summary = {
-                    .font = &font_summary,
-                    .color = {0x8888, 0x8888, 0x8888, 0xffff},
-                },
-                .body = {
-                    .font = &font_body,
-                    .color = {0x8888, 0x8888, 0x8888, 0xffff},
-                },
-                .action = {
-                    .font = &font_body,
-                    .color = {0x8888, 0x8888, 0x8888, 0xffff},
-                },
-            },
-            {
-                .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
-                .border = {
-                    .color = {0x9090, 0x9090, 0x9090, 0xffff},
-                    .size = 1,
-                },
-                .app = {
-                    .font = &font_app,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                },
-                .summary = {
-                    .font = &font_summary,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                },
-                .body = {
-                    .font = &font_body,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                },
-                .action = {
-                    .font = &font_body,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                },
-            },
-            {
-                .bg = {0x6c6c, 0x3333, 0x3333, 0xffff},
-                .border = {
-                    .color = {0x9090, 0x9090, 0x9090, 0xffff},
-                    .size = 1,
-                },
-                .app = {
-                    .font = &font_app,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                },
-                .summary = {
-                    .font = &font_summary,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                },
-                .body = {
-                    .font = &font_body,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                },
-                .action = {
-                    .font = &font_body,
-                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                },
-            },
-        },
-    };
+    struct config conf = {};
+    if (!config_load(&conf))
+        return ret;
 
     struct fdm *fdm = NULL;
     struct ctrl *ctrl = NULL;
@@ -189,8 +83,6 @@ err:
     dbus_destroy(bus);
     wayl_destroy(wayl);
     fdm_destroy(fdm);
-    font_destroy(&font_summary);
-    font_destroy(&font_app);
-    font_destroy(&font_body);
+    config_destroy(conf);
     return ret;
 }

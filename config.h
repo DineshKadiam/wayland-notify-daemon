@@ -54,3 +54,6 @@ struct config {
 
     struct urgency_config by_urgency[3];
 };
+
+bool config_load(struct config *conf);
+void config_destroy(struct config conf);
