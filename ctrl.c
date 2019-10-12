@@ -34,7 +34,10 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
 
     ssize_t count = recv(fd, &cmd, sizeof(cmd), 0);
     if (count == -1 || count != sizeof(cmd)) {
-        LOG_ERRNO("failed to receive command");
+        if (events & EPOLLHUP)
+            ret = true;
+        else
+            LOG_ERRNO("failed to receive command");
         goto err;
     }
 
