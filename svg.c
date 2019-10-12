@@ -16,6 +16,11 @@ svg_load(const char *path, int size)
     if (svg == NULL)
         return NULL;
 
+    if (svg->width == 0 || svg->height == 0) {
+        nsvgDelete(svg);
+        return NULL;
+    }
+
     struct NSVGrasterizer *rast = nsvgCreateRasterizer();
 
     const int w = size;
