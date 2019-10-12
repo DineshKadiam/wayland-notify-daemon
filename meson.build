@@ -88,6 +88,8 @@ executable(
   'font.c', 'font.h',
   'icon.c', 'icon.h',
   'log.c', 'log.h',
+  'nanosvg.c', '3rd-party/nanosvg.h',
+  'nanosvgrast.c', '3rd-party/nanosvgrast.h',
   'notification.c', 'notification.h',
   'png.c', 'png-fnott.h',
   'shm.c', 'shm.h',
