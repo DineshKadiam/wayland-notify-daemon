@@ -32,15 +32,15 @@ main(int argc, const char *const *argv)
     setlocale(LC_ALL, "");
 
     struct config conf = {};
-    if (!config_load(&conf))
-        return ret;
-
     struct fdm *fdm = NULL;
     struct ctrl *ctrl = NULL;
     struct dbus *bus = NULL;
     struct wayland *wayl = NULL;
     struct notif_mgr *mgr = NULL;
     icon_theme_list_t icon_theme = tll_init();
+
+    if (!config_load(&conf))
+        goto err;
 
     icon_theme = icon_load_theme(conf.icon_theme_name);
 
