@@ -22,5 +22,12 @@
 # body-color=ffffff
 
 # [low]
+# background=2b2b2b
+# title-color=888888
+# summary-color=888888
+# body-color=888888
+
 # [normal]
+
 # [critical]
+# background=6c3333
