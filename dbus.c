@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <ctype.h>
 #include <assert.h>
 #include <sys/epoll.h>
 
@@ -99,7 +100,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     pixman_image_t *pix = NULL;
 
     uint32_t replaces_id;
-    const char *app_name, *app_icon, *summary, *body;
+    char *app_name, *app_icon, *summary, *body;
     if (!dbus_message_get_args(
             msg, &dbus_error,
             DBUS_TYPE_STRING, &app_name,
@@ -111,6 +112,18 @@ notify(struct dbus *bus, DBusMessage *msg)
     {
         return false;
     }
+
+    size_t len = strlen(app_name);
+    while (len > 0 && isspace(app_name[len - 1]))
+        app_name[--len] = '\0';
+
+    len = strlen(summary);
+    while (len > 0 && isspace(summary[len - 1]))
+        summary[--len] = '\0';
+
+    len = strlen(body);
+    while (len > 0 && isspace(body[len - 1]))
+        body[--len] = '\0';
 
     if (dbus_error_is_set(&dbus_error)) {
         LOG_ERR("Notify: failed to parse arguments: %s", dbus_error.message);
