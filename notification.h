@@ -29,6 +29,7 @@ bool notif_mgr_dismiss_surface(struct notif_mgr *mgr, struct wl_surface *surface
 enum urgency { URGENCY_LOW, URGENCY_NORMAL, URGENCY_CRITICAL };
 
 struct notif;
+struct notif *notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id);
 struct notif *notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_del_notif(struct notif_mgr *mgr, uint32_t id);
 

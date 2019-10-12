@@ -105,11 +105,24 @@ static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
 struct notif *
 notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id)
 {
-    if (id != 0) {
-        tll_foreach(mgr->notifs, it) {
-            if (it->item->id == id)
-                return it->item;
-        }
+    if (id == 0 && tll_length(mgr->notifs) > 0)
+        return tll_front(mgr->notifs);
+
+    tll_foreach(mgr->notifs, it) {
+        if (it->item->id == id)
+            return it->item;
+    }
+
+    return NULL;
+}
+
+struct notif *
+notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
+{
+    if (replaces_id != 0) {
+        struct notif *old_notif = notif_mgr_get_notif(mgr, replaces_id);
+        if (old_notif != NULL)
+            return old_notif;
     }
 
     struct wayland *wayl = mgr->wayl;

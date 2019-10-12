@@ -264,7 +264,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     dbus_message_iter_get_basic(&args_iter, &timeout_ms);
     LOG_DBG("timeout = %dms", timeout_ms);
 
-    struct notif *notif = notif_mgr_get_notif(bus->notif_mgr, replaces_id);
+    struct notif *notif = notif_mgr_create_notif(bus->notif_mgr, replaces_id);
     notif_set_application(notif, app_name);
     notif_set_summary(notif, summary);
     notif_set_body(notif, body);
