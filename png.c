@@ -29,7 +29,7 @@ png_load(const char *path)
     /* open file and test for it being a png */
     FILE *fp = fopen(path, "rb");
     if (fp == NULL) {
-        LOG_ERRNO("%s: failed to open", path);
+        //LOG_ERRNO("%s: failed to open", path);
         goto err;
     }
 
