@@ -345,8 +345,8 @@ typedef tll(struct glyph_layout) glyph_list_t;
 
 static void
 notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color,
-             const wchar_t *text, int indent, int y, int *width, int *height,
-             glyph_list_t *glyphs)
+             const wchar_t *text, int left_pad, int right_pad,
+             int y, int *width, int *height, glyph_list_t *glyphs)
 {
 #define max(x, y) ((x) > (y) ? (x) : (y))
 
@@ -354,7 +354,7 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
     *height = 0;
 
     const struct config *conf = notif->mgr->conf;
-    int x = indent;
+    int x = left_pad;
 
     bool bold __attribute__((unused)) = false;
     bool italic __attribute__((unused)) = false;
@@ -408,11 +408,11 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
         if (glyph == NULL || !glyph->valid)
             continue;
 
-        if (x + glyph->x_advance + conf->padding.right > conf->max_width) {
-            *width = max(*width, x + conf->padding.right);
+        if (x + glyph->x_advance + right_pad > conf->max_width) {
+            *width = max(*width, x + right_pad);
             *height += font->fextents.height;
 
-            x = indent;
+            x = left_pad;
             y += font->fextents.height;
         }
 
@@ -427,7 +427,7 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
         x += glyph->x_advance;
     }
 
-    *width = max(*width, x + conf->padding.right);
+    *width = max(*width, x + right_pad);
     *height += font->fextents.height;
 
 #undef max
@@ -442,34 +442,37 @@ notif_show(struct notif *notif, int y)
     const struct config *conf = mgr->conf;
     const struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
+    const int pad_horizontal = urgency->body.font->fextents.max_x_advance;
+    const int pad_vertical = urgency->body.font->fextents.height;
+
     int width = 0;
-    int height = conf->padding.top;
+    int height = pad_vertical;
     glyph_list_t glyphs = tll_init();
 
-    int indent = conf->padding.left;
+    int indent = pad_horizontal;
     int _w, _h;
 
     if (notif->pix != NULL)
-        indent += notif->image_width + conf->padding.left;
+        indent += notif->image_width + pad_horizontal;
 
     /* App */
-    notif_layout(notif, urgency->app.font, &urgency->app.color, notif->app, indent, height, &_w, &_h, &glyphs);
+    notif_layout(notif, urgency->app.font, &urgency->app.color, notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Summary */
-    notif_layout(notif, urgency->summary.font, &urgency->summary.color, notif->summary, indent, height, &_w, &_h, &glyphs);
+    notif_layout(notif, urgency->summary.font, &urgency->summary.color, notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Body */
-    notif_layout(notif, urgency->body.font, &urgency->body.color, notif->body, indent, height, &_w, &_h, &glyphs);
+    notif_layout(notif, urgency->body.font, &urgency->body.color, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     if (notif->pix != NULL)
-        height = max(height, conf->padding.top + notif->image_height);
-    height += conf->padding.bottom;
+        height = max(height, pad_vertical + notif->image_height);
+    height += pad_vertical;
 
 #undef max
 
@@ -514,7 +517,7 @@ notif_show(struct notif *notif, int y)
     if (notif->pix != NULL) {
         pixman_image_composite32(
             PIXMAN_OP_OVER, notif->pix, NULL, buf->pix, 0, 0, 0, 0,
-            conf->padding.left, (height - notif->image_height) / 2,
+            pad_horizontal, (height - notif->image_height) / 2,
             notif->image_width, notif->image_height);
     }
 

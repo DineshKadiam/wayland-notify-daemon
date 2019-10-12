@@ -47,13 +47,6 @@ struct config {
         int left;
     } margin;
 
-    struct {
-        int top;
-        int right;
-        int bottom;
-        int left;
-    } padding;
-
     struct urgency_config by_urgency[3];
 };
 
