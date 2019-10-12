@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <sys/un.h>
@@ -12,6 +13,8 @@
 #include "log.h"
 #include "ctrl-protocol.h"
 #include "tllist.h"
+
+extern volatile sig_atomic_t aborted;
 
 struct ctrl {
     struct fdm *fdm;
@@ -38,6 +41,11 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     /* TODO: endianness */
 
     switch (cmd.cmd) {
+    case CMD_QUIT:
+        LOG_DBG("client: FD=%d, quit", fd);
+        aborted = 1;
+        break;
+
     case CMD_DISMISS_CURRENT:
         LOG_DBG("client: FD=%d, dismiss current", fd);
         notif_mgr_dismiss_current(ctrl->notif_mgr);

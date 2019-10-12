@@ -15,7 +15,9 @@
 static void
 print_usage(const char *prog)
 {
-    printf("Usage: %s dismiss [all | <id>]\n", prog);
+    printf("Usage: %s dismiss [all | <id>]\n"
+           "       %s quit\n",
+           prog, prog);
 }
 
 int
@@ -31,7 +33,12 @@ main(int argc, const char *const *argv)
     enum command_type cmd_type;
     uint32_t id;
 
-    if (strcmp(cmd_word, "dismiss") == 0) {
+    if (strcmp(cmd_word, "quit") == 0) {
+        cmd_type = CMD_QUIT;
+        id = 0;
+    }
+
+    else if (strcmp(cmd_word, "dismiss") == 0) {
         if (argc >= 3) {
             const char *id_or_all = argv[2];
             if (strcmp(id_or_all, "all") == 0) {
@@ -53,7 +60,9 @@ main(int argc, const char *const *argv)
             cmd_type = CMD_DISMISS_CURRENT;
             id = 0;
         }
-    } else {
+    }
+
+    else {
         LOG_ERR("%s: invalid command", cmd_word);
         return EXIT_FAILURE;
     }

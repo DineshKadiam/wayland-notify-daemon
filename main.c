@@ -17,7 +17,7 @@
 #include "wayland.h"
 
 
-static volatile sig_atomic_t aborted = 0;
+volatile sig_atomic_t aborted = 0;
 
 static void
 sig_handler(int signo)
