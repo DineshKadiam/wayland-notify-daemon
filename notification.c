@@ -16,6 +16,13 @@
 
 struct notif_mgr;
 
+struct action {
+    char *id;
+    char *label;
+    wchar_t *wid;
+    wchar_t *wlabel;
+};
+
 struct notif {
     struct notif_mgr *mgr;
 
@@ -27,6 +34,7 @@ struct notif {
     wchar_t *app;
     wchar_t *summary;
     wchar_t *body;
+    tll(struct action) actions;
 
     pixman_image_t *pix;
     int image_width;
@@ -137,6 +145,7 @@ notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id)
         .layer_surface = layer_surface,
         .id = next_id++,
         .urgency = URGENCY_NORMAL,
+        .actions = tll_init(),
     };
 
     bool inserted = false;
@@ -190,6 +199,15 @@ notif_destroy(struct notif *notif)
         free(pixman_image_get_data(notif->pix));
         pixman_image_unref(notif->pix);
     }
+
+    tll_foreach(notif->actions, it) {
+        free(it->item.id);
+        free(it->item.wid);
+        free(it->item.label);
+        free(it->item.wlabel);
+    }
+
+    tll_free(notif->actions);
 
     free(notif->app);
     free(notif->summary);
@@ -293,6 +311,26 @@ notif_set_image(struct notif *notif, pixman_image_t *pix)
     pixman_transform_init_scale(
         &t, pixman_double_to_fixed(scale), pixman_double_to_fixed(scale));
     pixman_image_set_transform(pix, &t);
+}
+
+void
+notif_add_action(struct notif *notif, const char *id, const char *label)
+{
+    wchar_t *wid, *wlabel;
+
+    size_t chars = mbstowcs(NULL, id, 0);
+    wid = malloc((chars + 1) * sizeof(wchar_t));
+    mbstowcs(wid, id, chars + 1);
+
+    chars = mbstowcs(NULL, label, 0);
+    wlabel = malloc((chars + 1) * sizeof(wchar_t));
+    mbstowcs(wlabel, label, chars + 1);
+
+    tll_push_back(
+        notif->actions,
+        ((struct action){
+            .id = strdup(id), .wid = wid,
+            .label = strdup(label), .wlabel = wlabel}));
 }
 
 static void frame_callback(
@@ -457,6 +495,11 @@ notif_show(struct notif *notif, int y)
 
     /* App */
     notif_layout(notif, urgency->app.font, &urgency->app.color, notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    if (tll_length(notif->actions) > 0) {
+        /* TODO: better 'action' indicator */
+        int _a, _b;
+        notif_layout(notif, urgency->app.font, &urgency->app.color, L"*", _w - pad_horizontal, pad_horizontal, height, &_a, &_b, &glyphs);
+    }
     width = max(width, _w);
     height += _h;
 

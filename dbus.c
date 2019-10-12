@@ -147,6 +147,12 @@ notify(struct dbus *bus, DBusMessage *msg)
     DBusMessageIter actions_iter;
     dbus_message_iter_recurse(&args_iter, &actions_iter);
 
+    struct action {
+        const char *id;
+        const char *label;
+    };
+
+    tll(struct action) actions = tll_init();
     while (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_INVALID) {
         const char *id;
         const char *label;
@@ -155,6 +161,7 @@ notify(struct dbus *bus, DBusMessage *msg)
         dbus_message_iter_get_basic(&actions_iter, &label);
         dbus_message_iter_next(&actions_iter);
         LOG_DBG("action: %s %s", id, label);
+        tll_push_back(actions, ((struct action){id, label}));
     }
     dbus_message_iter_next(&args_iter);
 
@@ -266,6 +273,9 @@ notify(struct dbus *bus, DBusMessage *msg)
     if (pix != NULL)
         notif_set_image(notif, pix);
 
+    tll_foreach(actions, it)
+        notif_add_action(notif, it->item.id, it->item.label);
+
     notif_mgr_refresh(bus->notif_mgr);
 
     DBusMessage *reply = dbus_message_new_method_return(msg);
@@ -284,6 +294,7 @@ notify(struct dbus *bus, DBusMessage *msg)
 
     ret = true;
 err:
+    tll_free(actions);
     dbus_message_unref(reply);
     return ret;
 }
