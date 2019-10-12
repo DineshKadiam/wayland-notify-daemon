@@ -119,6 +119,109 @@ str_to_font(const char *s, const char *path, int lineno)
 }
 
 static bool
+parse_section_urgency(const char *key, const char *value,
+                      struct urgency_config *conf,
+                      const char *path, unsigned lineno)
+{
+    if (strcmp(key, "background") == 0) {
+        pixman_color_t bg;
+        if (!str_to_color(value, &bg, path, lineno))
+            return false;
+
+        conf->bg = bg;
+    }
+
+    else if (strcmp(key, "border-color") == 0) {
+        pixman_color_t color;
+        if (!str_to_color(value, &color, path, lineno))
+            return false;
+
+        conf->border.color = color;
+    }
+
+    else if (strcmp(key, "border-size") == 0) {
+        unsigned long sz;
+        if (!str_to_ulong(value, 10, &sz)) {
+            LOG_ERR("%s:%u: invalid border-size (expected an integer): %s",
+                    path, lineno, value);
+            return false;
+        }
+
+        conf->border.size = sz;
+    }
+
+    else if (strcmp(key, "title-font") == 0 ||
+             strcmp(key, "summary-font") == 0 ||
+             strcmp(key, "body-font") == 0 ||
+             strcmp(key, "action-font") == 0)
+    {
+        struct font *font;
+        if ((font = str_to_font(value, path, lineno)) == NULL)
+            return false;
+
+        struct font **f =
+            strcmp(key, "title-font") == 0 ? &conf->app.font :
+            strcmp(key, "summary-font") == 0 ? &conf->summary.font :
+            strcmp(key, "body-font") == 0 ? &conf->body.font :
+            strcmp(key, "action-font") == 0 ? &conf->action.font : NULL;
+
+        assert(f != NULL);
+        font_destroy(*f);
+        *f = font;
+    }
+
+    else if (strcmp(key, "title-color") == 0 ||
+             strcmp(key, "summary-color") == 0 ||
+             strcmp(key, "body-color") == 0 ||
+             strcmp(key, "action-color") == 0)
+    {
+        pixman_color_t color;
+        if (!str_to_color(value, &color, path, lineno))
+            return false;
+
+        pixman_color_t *c =
+            strcmp(key, "title-color") == 0 ? &conf->app.color :
+            strcmp(key, "summary-color") == 0 ? &conf->summary.color :
+            strcmp(key, "body-color") == 0 ? &conf->body.color :
+            strcmp(key, "action-color") == 0 ? &conf->action.color : NULL;
+
+        assert(c != NULL);
+        *c = color;
+    }
+
+    else {
+        LOG_ERR("%s:%u: invalid key: %s", path, lineno, key);
+        return false;
+    }
+
+    return true;
+}
+
+static bool
+parse_section_low(const char *key, const char *value, struct config *conf,
+                  const char *path, unsigned lineno)
+{
+    return parse_section_urgency(
+        key, value, &conf->by_urgency[0], path, lineno);
+}
+
+static bool
+parse_section_normal(const char *key, const char *value, struct config *conf,
+                     const char *path, unsigned lineno)
+{
+    return parse_section_urgency(
+        key, value, &conf->by_urgency[1], path, lineno);
+}
+
+static bool
+parse_section_critical(const char *key, const char *value, struct config *conf,
+                       const char *path, unsigned lineno)
+{
+    return parse_section_urgency(
+        key, value, &conf->by_urgency[2], path, lineno);
+}
+
+static bool
 parse_section_main(const char *key, const char *value, struct config *conf,
                    const char *path, unsigned lineno)
 {
@@ -271,6 +374,9 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
 {
     enum section {
         SECTION_MAIN,
+        SECTION_LOW,
+        SECTION_NORMAL,
+        SECTION_CRITICAL,
     } section = SECTION_MAIN;
 
     /* Function pointer, called for each key/value line */
@@ -281,11 +387,17 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
     /* Maps sections to line parser functions */
     static const parser_fun_t section_parser_map[] = {
         [SECTION_MAIN] = &parse_section_main,
+        [SECTION_LOW] = &parse_section_low,
+        [SECTION_NORMAL] = &parse_section_normal,
+        [SECTION_CRITICAL] = &parse_section_critical,
     };
 
 #if defined(LOG_ENABLE_DBG) && LOG_ENABLE_DBG
     static const char *const section_names[] = {
         [SECTION_MAIN] = "main",
+        [SECTION_LOW] = "low",
+        [SECTION_NORMAL] = "normal",
+        [SECTION_CRITICAL] = "critical",
     };
 #endif
 
@@ -338,16 +450,17 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
 
             *end = '\0';
 
-#if 0
-            if (strcmp(&line[1], "colors") == 0)
-                section = SECTION_COLORS;
-            else if (strcmp(&line[1], "cursor") == 0)
-                section = SECTION_CURSOR;
+            if (strcmp(&line[1], "low") == 0)
+                section = SECTION_LOW;
+            else if (strcmp(&line[1], "normal") == 0)
+                section = SECTION_NORMAL;
+            else if (strcmp(&line[1], "critical") == 0)
+                section = SECTION_CRITICAL;
             else {
                 LOG_ERR("%s:%d: invalid section name: %s", path, lineno, &line[1]);
                 goto err;
             }
-#endif
+
             free(_line);
             continue;
         }
