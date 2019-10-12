@@ -31,6 +31,11 @@ icon_load(const char *name, int icon_size, icon_theme_list_t themes)
 
     if (name[0] == '/') {
         LOG_DBG("loading %s directly", name);
+
+        pixman_image_t *pix = svg_load(name, icon_size);
+        if (pix != NULL)
+            return pix;
+
         return png_load(name);
     }
 
