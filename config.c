@@ -144,6 +144,11 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         conf->max_height = h;
     }
 
+    else if (strcmp(key, "icon-theme") == 0) {
+        free(conf->icon_theme_name);
+        conf->icon_theme_name = strdup(value);
+    }
+
     else if (strcmp(key, "max-icon-size") == 0) {
         unsigned long sz;
         if (!str_to_ulong(value, 10, &sz)) {
@@ -397,6 +402,7 @@ config_load(struct config *conf)
     *conf = (struct config){
         .max_width = 400,
         .max_height = 200,
+        .icon_theme_name = strdup("hicolor"),
         .max_icon_size = 32,
         .margin = {
             .top = 25,

@@ -42,7 +42,7 @@ main(int argc, const char *const *argv)
     struct notif_mgr *mgr = NULL;
     icon_theme_list_t icon_theme = tll_init();
 
-    icon_theme = icon_load_theme("hicolor");
+    icon_theme = icon_load_theme(conf.icon_theme_name);
 
     if ((fdm = fdm_init()) == NULL)
         goto err;

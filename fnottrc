@@ -3,6 +3,7 @@
 # Global values
 # max-width=400
 # max-height=200
+# icon-theme=hicolor
 # max-icon-size=32
 
 # Default values, may be overridden in 'urgency' specific sections
