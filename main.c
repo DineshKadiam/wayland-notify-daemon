@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <locale.h>
+#include <getopt.h>
 
 #define LOG_MODULE "main"
 #define LOG_ENABLE_DBG 1
@@ -25,9 +26,40 @@ sig_handler(int signo)
     aborted = 1;
 }
 
-int
-main(int argc, const char *const *argv)
+static void
+print_usage(const char *prog)
 {
+    printf("Usage: %s\n", prog);
+}
+
+int
+main(int argc, char *const *argv)
+{
+    static const struct option longopts[] = {
+        {"help", no_argument, 0, 'h'},
+        {NULL,   no_argument, 0, 0},
+    };
+
+    while (true) {
+        int c = getopt_long(argc, argv, ":h", longopts, NULL);
+        if (c == -1)
+            break;
+
+        switch (c) {
+        case 'h':
+            print_usage(argv[0]);
+            return EXIT_SUCCESS;
+
+        case ':':
+            fprintf(stderr, "error: -%c: missing required argument\n", optopt);
+            return EXIT_FAILURE;
+
+        case '?':
+            fprintf(stderr, "error: -%c: invalid option\n", optopt);
+            return EXIT_FAILURE;
+        }
+    }
+
     int ret = EXIT_FAILURE;
     setlocale(LC_ALL, "");
 
