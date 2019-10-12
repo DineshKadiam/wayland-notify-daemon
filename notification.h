@@ -42,3 +42,7 @@ void notif_set_body(struct notif *notif, const char *text);
 void notif_set_urgency(struct notif *notif, enum urgency urgency);
 void notif_set_image(struct notif *notif, pixman_image_t *pix);
 void notif_add_action(struct notif *notif, const char *id, const char *label);
+
+size_t notif_get_actions(
+    const struct notif *notif, const char *ids[], const char *labels[],
+    size_t max_count);
