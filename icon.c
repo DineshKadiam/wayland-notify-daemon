@@ -333,7 +333,7 @@ icon_load_theme(const char *name)
 
         /*
          * Check if we've already loaded this theme. Example:
-         * "Arc" inherits "Moka,Faba,elementary,Adwaita,ghome,hicolor
+         * "Arc" inherits "Moka,Faba,elementary,Adwaita,gnome,hicolor
          * "Moka" inherits "Faba"
          * "Faba" inherits "elementary,gnome,hicolor"
          */
