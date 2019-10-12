@@ -154,9 +154,7 @@ icon_load(const char *name, int icon_size, icon_theme_list_t themes)
 static bool
 dir_is_usable(const char *path, const char *context, const char *type)
 {
-    return path != NULL &&
-        context != NULL &&
-        strcasecmp(context, "applications") == 0;
+    return path != NULL && context != NULL;
 }
 
 static void
