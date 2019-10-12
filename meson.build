@@ -93,6 +93,7 @@ executable(
   'notification.c', 'notification.h',
   'png.c', 'png-fnott.h',
   'shm.c', 'shm.h',
+  'svg.c', 'svg.h',
   'stride.h',
   'tllist.h',
   'wayland.c', 'wayland.h',

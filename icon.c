@@ -10,10 +10,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "3rd-party/nanosvg.h"
+#include "3rd-party/nanosvgrast.h"
+
 #define LOG_MODULE "icon"
 #define LOG_ENABLE_DBG 1
 #include "log.h"
 #include "png-fnott.h"
+#include "svg.h"
 #include "tllist.h"
 #include "xdg.h"
 
@@ -83,9 +87,14 @@ icon_load(const char *name, int icon_size, icon_theme_list_t themes)
                     /* Use anyone available */
                 }
 
-                /* TODO: SVG */
+                pixman_image_t *pix = svg_load(full_path, icon_size);
+                if (pix != NULL) {
+                    LOG_DBG("%s: SVG", full_path);
+                    free(full_path);
+                    return pix;
+                }
 
-                pixman_image_t *pix = png_load(full_path);
+                pix = png_load(full_path);
                 if (pix != NULL) {
                     if (scalable)
                         LOG_DBG("%s: %s: scalable", name, full_path);
@@ -114,11 +123,17 @@ icon_load(const char *name, int icon_size, icon_theme_list_t themes)
                   strlen("pixmaps") + 1 +
                   strlen(name) + strlen(".png") + 1];
 
-        /* TODO: SVG */
+        sprintf(path, "%s/pixmaps/%s.svg", it->item, name);
+        pixman_image_t *pix = svg_load(path, icon_size);
+        if (pix != NULL) {
+            LOG_DBG("%s: %s: pixman (SVG)", name, path);
+            xdg_data_dirs_destroy(dirs);
+            return pix;
+        }
 
         /* No SVG, look for PNG instead */
         sprintf(path, "%s/pixmaps/%s.png", it->item, name);
-        pixman_image_t *pix = png_load(path);
+        pix = png_load(path);
         if (pix != NULL) {
             LOG_DBG("%s: %s: pixmap", name, path);
             xdg_data_dirs_destroy(dirs);
