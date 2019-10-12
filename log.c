@@ -17,7 +17,7 @@ static void __attribute__((constructor))
 init(void)
 {
     colorize = isatty(STDOUT_FILENO);
-    openlog(NULL, /*LOG_PID*/0, LOG_USER);
+    openlog(NULL, /*LOG_PID*/0, LOG_DAEMON);
     setlogmask(LOG_UPTO(LOG_WARNING));
 }
 
