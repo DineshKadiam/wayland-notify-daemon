@@ -508,12 +508,14 @@ config_load(struct config *conf)
     fclose(f);
 
 out:
+    free(path);
     return ret;
 }
 
 void
 config_destroy(struct config conf)
 {
+    free(conf.icon_theme_name);
     for (int i  = 0; i < 3; i++) {
         font_destroy(conf.by_urgency[i].app.font);
         font_destroy(conf.by_urgency[i].summary.font);
