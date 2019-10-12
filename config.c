@@ -160,6 +160,28 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         conf->max_icon_size = sz;
     }
 
+    else if (strcmp(key, "margin-top") == 0 ||
+             strcmp(key, "margin-right") == 0 ||
+             strcmp(key, "margin-bottom") == 0 ||
+             strcmp(key, "margin-left") == 0)
+    {
+        unsigned long m;
+        if (!str_to_ulong(value, 10, &m)) {
+            LOG_ERR("%s:%u: invalid margin (expected an integer): %s",
+                    path, lineno, value);
+            return false;
+        }
+
+        int *margin =
+            strcmp(key, "margin-top") == 0 ? &conf->margin.top :
+            strcmp(key, "margin-right") == 0 ? &conf->margin.right :
+            strcmp(key, "margin-bottom") == 0 ? &conf->margin.bottom :
+            strcmp(key, "margin-left") == 0 ? &conf->margin.left : NULL;
+
+        assert(margin != NULL);
+        *margin = m;
+    }
+
     else if (strcmp(key, "background") == 0) {
         pixman_color_t bg;
         if (!str_to_color(value, &bg, path, lineno))
