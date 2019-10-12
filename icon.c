@@ -367,6 +367,33 @@ icon_load_theme(const char *name)
         free(theme_name);
     }
 
+    /* *Always* add 'hicolor' to the end of the list */
+    const char *theme_name = "hicolor";
+
+    bool theme_already_loaded = false;
+    tll_foreach(themes, it) {
+        if (strcasecmp(it->item.name, theme_name) == 0) {
+            theme_already_loaded = true;
+            break;
+        }
+    }
+
+    if (!theme_already_loaded) {
+        tll_foreach(dirs, dir_it) {
+            char path[strlen(dir_it->item) + 1 +
+                      strlen("icons") + 1 +
+                      strlen(theme_name) + 1];
+            sprintf(path, "%s/icons/%s", dir_it->item, theme_name);
+
+            struct icon_theme theme = {0};
+            if (load_theme_in(path, &theme, &themes_to_load)) {
+                theme.name = strdup(theme_name);
+                tll_push_back(themes, theme);
+                break;
+            }
+        }
+    }
+
     xdg_data_dirs_destroy(dirs);
     return themes;
 }
