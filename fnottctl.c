@@ -30,7 +30,7 @@ main(int argc, const char *const *argv)
 
     const char *cmd_word = argv[1];
 
-    enum command_type cmd_type;
+    enum ctrl_command cmd_type;
     uint32_t id;
 
     if (strcmp(cmd_word, "quit") == 0) {
@@ -94,7 +94,7 @@ main(int argc, const char *const *argv)
     }
 
     /* TODO: endianness */
-    struct command cmd = {
+    struct ctrl_request cmd = {
         .cmd = cmd_type,
         .id = id,
     };

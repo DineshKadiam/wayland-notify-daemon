@@ -30,7 +30,7 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     struct ctrl *ctrl = data;
 
     bool ret = false;
-    struct command cmd;
+    struct ctrl_request cmd;
 
     ssize_t count = recv(fd, &cmd, sizeof(cmd), 0);
     if (count == -1 || count != sizeof(cmd)) {
