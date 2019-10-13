@@ -29,23 +29,33 @@ sig_handler(int signo)
 static void
 print_usage(const char *prog)
 {
-    printf("Usage: %s\n", prog);
+    printf("Usage: %s\n"
+           "       %s --version\n"
+           "\n"
+           "Options:\n"
+           "  -v,--version                show the version number and quit\n",
+           prog, prog);
 }
 
 int
 main(int argc, char *const *argv)
 {
     static const struct option longopts[] = {
-        {"help", no_argument, 0, 'h'},
-        {NULL,   no_argument, 0, 0},
+        {"version", no_argument, 0, 'v'},
+        {"help",    no_argument, 0, 'h'},
+        {NULL,      no_argument, 0, 0},
     };
 
     while (true) {
-        int c = getopt_long(argc, argv, ":h", longopts, NULL);
+        int c = getopt_long(argc, argv, ":vh", longopts, NULL);
         if (c == -1)
             break;
 
         switch (c) {
+        case 'v':
+            printf("fnott version %s\n", FNOTT_VERSION);
+            return EXIT_SUCCESS;
+
         case 'h':
             print_usage(argv[0]);
             return EXIT_SUCCESS;
