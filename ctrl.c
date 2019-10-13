@@ -71,6 +71,9 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         break;
     }
 
+    LOG_DBG("client: FD=%d, reply: result=%s",
+            fd, reply.result == CTRL_OK ? "ok" : "fail");
+
     count = write(fd, &reply, sizeof(reply));
     if (count != sizeof(reply)) {
         LOG_ERRNO("client: FD=%d: failed to send reply", fd);
