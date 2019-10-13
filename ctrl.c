@@ -37,32 +37,44 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         if (events & EPOLLHUP)
             ret = true;
         else
-            LOG_ERRNO("failed to receive command");
+            LOG_ERRNO("client: FD=%d: failed to receive command", fd);
         goto err;
     }
 
     /* TODO: endianness */
 
+    struct ctrl_reply reply;
+
     switch (cmd.cmd) {
     case CMD_QUIT:
         LOG_DBG("client: FD=%d, quit", fd);
         aborted = 1;
+        reply.result = CTRL_OK;
         break;
 
     case CMD_DISMISS_CURRENT:
         LOG_DBG("client: FD=%d, dismiss current", fd);
-        notif_mgr_dismiss_current(ctrl->notif_mgr);
+        reply.result = notif_mgr_dismiss_current(ctrl->notif_mgr)
+            ? CTRL_OK : CTRL_FAIL;
         break;
 
     case CMD_DISMISS_BY_ID:
         LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, cmd.id);
-        notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id);
+        reply.result = notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id)
+            ? CTRL_OK : CTRL_FAIL;
         break;
 
     case CMD_DISMISS_ALL:
         LOG_DBG("client: FD=%d, dismiss all", fd);
-        notif_mgr_dismiss_all(ctrl->notif_mgr);
+        reply.result = notif_mgr_dismiss_all(ctrl->notif_mgr)
+            ? CTRL_OK : CTRL_FAIL;
         break;
+    }
+
+    count = write(fd, &reply, sizeof(reply));
+    if (count != sizeof(reply)) {
+        LOG_ERRNO("client: FD=%d: failed to send reply", fd);
+        goto err;
     }
 
     ret = true;

@@ -105,7 +105,14 @@ main(int argc, const char *const *argv)
         goto err;
     }
 
-    ret = EXIT_SUCCESS;
+    struct ctrl_reply reply;
+    ssize_t rcvd = read(fd, &reply, sizeof(reply));
+    if (rcvd != sizeof(reply)) {
+        LOG_ERRNO("failed to read reply");
+        goto err;
+    }
+
+    ret = reply.result == CTRL_OK ? EXIT_SUCCESS : EXIT_FAILURE;
 
 err:
     if (fd != -1)
