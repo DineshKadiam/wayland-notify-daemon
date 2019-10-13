@@ -63,43 +63,6 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         LOG_DBG("client: FD=%d, dismiss all", fd);
         notif_mgr_dismiss_all(ctrl->notif_mgr);
         break;
-
-    case CMD_GET_ACTIONS_CURRENT:
-    case CMD_GET_ACTIONS_BY_ID: {
-        LOG_DBG("client: FD=%d, get actions %s",
-                fd, cmd.cmd == CMD_GET_ACTIONS_CURRENT ? "current" : "by-id");
-
-        assert((cmd.cmd == CMD_GET_ACTIONS_CURRENT && cmd.id == 0) ||
-               cmd.cmd == CMD_GET_ACTIONS_BY_ID);
-
-        struct notif *notif = notif_mgr_get_notif(ctrl->notif_mgr, cmd.id);
-
-        if (notif != NULL) {
-            size_t count = notif_get_actions(notif, NULL, NULL, 0);
-
-            const char *ids[count];
-            const char *labels[count];
-            notif_get_actions(notif, ids, labels, count);
-
-            struct get_action_reply reply = {.count = count};
-            write(fd, &reply, sizeof(reply));
-
-            for (size_t i = 0; i < count; i++) {
-                struct get_action_reply_action action = {
-                    .id_length = strlen(ids[i]),
-                    .label_length = strlen(labels[i]),
-                };
-
-                write(fd, &action, sizeof(action));
-                write(fd, ids[i], action.id_length);
-                write(fd, labels[i], action.label_length);
-            }
-        } else {
-            struct get_action_reply reply = {.count = 0};
-            write(fd, &reply, sizeof(reply));
-        }
-        break;
-    }
     }
 
     ret = true;
