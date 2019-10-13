@@ -1,7 +1,10 @@
 #pragma once
 #include <stdint.h>
 
-enum ctrl_command { CMD_QUIT, CMD_DISMISS_CURRENT, CMD_DISMISS_BY_ID, CMD_DISMISS_ALL};
+enum ctrl_command {
+    CTRL_QUIT,
+    CTRL_DISMISS_CURRENT, CTRL_DISMISS_BY_ID, CTRL_DISMISS_ALL
+};
 
 struct ctrl_request {
     enum ctrl_command cmd;

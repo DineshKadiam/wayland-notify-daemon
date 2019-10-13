@@ -46,25 +46,25 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     struct ctrl_reply reply;
 
     switch (cmd.cmd) {
-    case CMD_QUIT:
+    case CTRL_QUIT:
         LOG_DBG("client: FD=%d, quit", fd);
         aborted = 1;
         reply.result = CTRL_OK;
         break;
 
-    case CMD_DISMISS_CURRENT:
+    case CTRL_DISMISS_CURRENT:
         LOG_DBG("client: FD=%d, dismiss current", fd);
         reply.result = notif_mgr_dismiss_current(ctrl->notif_mgr)
             ? CTRL_OK : CTRL_FAIL;
         break;
 
-    case CMD_DISMISS_BY_ID:
+    case CTRL_DISMISS_BY_ID:
         LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, cmd.id);
         reply.result = notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id)
             ? CTRL_OK : CTRL_FAIL;
         break;
 
-    case CMD_DISMISS_ALL:
+    case CTRL_DISMISS_ALL:
         LOG_DBG("client: FD=%d, dismiss all", fd);
         reply.result = notif_mgr_dismiss_all(ctrl->notif_mgr)
             ? CTRL_OK : CTRL_FAIL;
