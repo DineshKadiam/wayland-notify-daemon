@@ -62,6 +62,11 @@ main(int argc, const char *const *argv)
         }
     }
 
+    else if (strcmp(cmd_word, "actions") == 0) {
+        cmd_type = CTRL_ACTIONS_BY_ID;
+        id = 0;  /* 'current' */
+    }
+
     else {
         LOG_ERR("%s: invalid command", cmd_word);
         return EXIT_FAILURE;

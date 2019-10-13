@@ -69,6 +69,11 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         reply.result = notif_mgr_dismiss_all(ctrl->notif_mgr)
             ? CTRL_OK : CTRL_FAIL;
         break;
+
+    case CTRL_ACTIONS_BY_ID:
+        LOG_DBG("client: FD=%d, actions by-id: %u", fd, cmd.id);
+        reply.result = CTRL_FAIL;
+        break;
     }
 
     LOG_DBG("client: FD=%d, reply: result=%s",
