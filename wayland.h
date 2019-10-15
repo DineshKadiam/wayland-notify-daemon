@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <wayland-client.h>
 
+#include "config.h"
 #include "fdm.h"
 #include "notification.h"
 #include "shm.h"
@@ -27,7 +28,7 @@ struct monitor {
     int scale;
 };
 
-struct wayland *wayl_init(struct fdm *fdm, struct notif_mgr *notif_mgr);
+struct wayland *wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mgr);
 void wayl_destroy(struct wayland *wayl);
 
 struct wl_compositor *wayl_compositor(const struct wayland *wayl);
