@@ -408,7 +408,7 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
         if (glyph == NULL || !glyph->valid)
             continue;
 
-        if (x + glyph->x_advance + right_pad > conf->max_width) {
+        if (x + glyph->x_advance + right_pad > conf->max_width || *wc == L'\n') {
             *width = max(*width, x + right_pad);
             *height += font->fextents.height;
 
