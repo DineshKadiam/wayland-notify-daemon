@@ -20,6 +20,7 @@
 #include "tllist.h"
 
 struct wayland {
+    const struct config *conf;
     struct fdm *fdm;
     struct notif_mgr *notif_mgr;
     struct wl_display *display;
@@ -414,9 +415,10 @@ fdm_handler(struct fdm *fdm, int fd, int events, void *data)
 }
 
 struct wayland *
-wayl_init(struct fdm *fdm, struct notif_mgr *notif_mgr)
+wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mgr)
 {
     struct wayland *wayl = calloc(1, sizeof(*wayl));
+    wayl->conf = conf;
     wayl->notif_mgr = notif_mgr;
 
     wayl->display = wl_display_connect(NULL);
@@ -456,7 +458,11 @@ wayl_init(struct fdm *fdm, struct notif_mgr *notif_mgr)
     tll_foreach(wayl->monitors, it) {
         LOG_DBG("%s: %dx%d+%dx%d (scale=%d)", it->item.name, it->item.width_px,
                 it->item.height_px, it->item.x, it->item.y, it->item.scale);
-        wayl->monitor = &it->item;
+
+        if (wayl->conf->output == NULL)
+            wayl->monitor = &it->item;
+        else if (strcmp(it->item.name, wayl->conf->output) == 0)
+            wayl->monitor = &it->item;
     }
 
     if (wayl->monitor == NULL) {

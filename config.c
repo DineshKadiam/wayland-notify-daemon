@@ -225,7 +225,12 @@ static bool
 parse_section_main(const char *key, const char *value, struct config *conf,
                    const char *path, unsigned lineno)
 {
-    if (strcmp(key, "max-width") == 0) {
+    if (strcmp(key, "output") == 0) {
+        free(conf->output);
+        conf->output = strdup(value);
+    }
+
+    else if (strcmp(key, "max-width") == 0) {
         unsigned long w;
         if (!str_to_ulong(value, 10, &w)) {
             LOG_ERR("%s:%u: invalid max-width (expected an integer): %s",
@@ -535,6 +540,7 @@ config_load(struct config *conf)
     tll_free(default_font_names);
 
     *conf = (struct config){
+        .output = NULL,
         .max_width = 400,
         .max_height = 200,
         .icon_theme_name = strdup("hicolor"),
@@ -650,6 +656,7 @@ out:
 void
 config_destroy(struct config conf)
 {
+    free(conf.output);
     free(conf.icon_theme_name);
     for (int i  = 0; i < 3; i++) {
         font_destroy(conf.by_urgency[i].app.font);

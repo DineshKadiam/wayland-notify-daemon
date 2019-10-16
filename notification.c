@@ -479,7 +479,7 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
         if (glyph == NULL || !glyph->valid)
             continue;
 
-        if (x + glyph->x_advance + right_pad > conf->max_width) {
+        if (x + glyph->x_advance + right_pad > conf->max_width || *wc == L'\n') {
             *width = max(*width, x + right_pad);
             *height += font->fextents.height;
 
@@ -501,6 +501,8 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
     *width = max(*width, x + right_pad);
     *height += font->fextents.height;
 
+    assert(*width <= conf->max_width);
+
 #undef max
 }
 
@@ -508,6 +510,7 @@ static int
 notif_show(struct notif *notif, int y)
 {
 #define max(x, y) ((x) > (y) ? (x) : (y))
+#define min(x, y) ((x) < (y) ? (x) : (y))
 
     const struct notif_mgr *mgr = notif->mgr;
     const struct config *conf = mgr->conf;
@@ -558,7 +561,10 @@ notif_show(struct notif *notif, int y)
         height = max(height, pad_vertical + notif->image_height);
     height += pad_vertical;
 
+    height = min(height, conf->max_height);
+
 #undef max
+#undef min
 
     struct wayland *wayl = notif->mgr->wayl;
     const int scale = wayl_monitor(wayl)->scale;
