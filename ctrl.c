@@ -72,10 +72,21 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
             ? CTRL_OK : CTRL_FAIL;
         break;
 
-    case CTRL_ACTIONS_BY_ID:
+    case CTRL_ACTIONS_BY_ID: {
         LOG_DBG("client: FD=%d, actions by-id: %u", fd, cmd.id);
         reply.result = CTRL_FAIL;
+
+        struct notif *notif = notif_mgr_get_notif(ctrl->notif_mgr, cmd.id);
+        if (notif != NULL) {
+            const char *action = notif_select_action(notif);
+            if (action != NULL) {
+                LOG_INFO("selection action: %s", action);
+                if (dbus_signal_action(ctrl->bus, notif_id(notif), action))
+                    reply.result = CTRL_OK;
+            }
+        }
         break;
+    }
     }
 
     LOG_DBG("client: FD=%d, reply: result=%s",
