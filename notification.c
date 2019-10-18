@@ -299,8 +299,11 @@ notif_set_image(struct notif *notif, pixman_image_t *pix)
 {
     const int max_size = notif->mgr->conf->max_icon_size;
 
-    if (notif->pix != NULL)
+    if (notif->pix != NULL) {
+        free(pixman_image_get_data(notif->pix));
         pixman_image_unref(notif->pix);
+        notif->pix = NULL;
+    }
 
     notif->pix = pix;
     notif->image_width = pixman_image_get_width(pix);
