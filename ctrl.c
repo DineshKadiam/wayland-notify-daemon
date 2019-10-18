@@ -12,6 +12,7 @@
 #define LOG_ENABLE_DBG 1
 #include "log.h"
 #include "ctrl-protocol.h"
+#include "dbus.h"
 #include "tllist.h"
 
 extern volatile sig_atomic_t aborted;
@@ -19,6 +20,7 @@ extern volatile sig_atomic_t aborted;
 struct ctrl {
     struct fdm *fdm;
     struct notif_mgr *notif_mgr;
+    struct dbus *bus;
     int server_fd;
     char *socket_path;
     tll(int) clients;
@@ -148,7 +150,7 @@ get_socket_path(void)
 }
 
 struct ctrl *
-ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr)
+ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr, struct dbus *bus)
 {
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1) {
@@ -178,6 +180,7 @@ ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr)
     struct ctrl *ctrl = malloc(sizeof(*ctrl));
     *ctrl = (struct ctrl){
         .fdm = fdm,
+        .bus = bus,
         .notif_mgr = notif_mgr,
         .server_fd = fd,
         .socket_path = sock_path,
