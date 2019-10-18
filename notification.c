@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <wchar.h>
+#include <unistd.h>
+
+#include <sys/wait.h>
 
 #include <pixman.h>
 #include <wayland-client.h>
@@ -705,4 +708,92 @@ notif_mgr_dismiss_all(struct notif_mgr *mgr)
 
     notif_mgr_refresh(mgr);
     return ret;
+}
+
+const char *
+notif_select_action(const struct notif *notif)
+{
+    int to_child[2] = {-1, -1};
+    int from_child[2] = {-1, -1};
+
+    if (pipe(to_child) < 0 || pipe(from_child) < 0) {
+        LOG_ERRNO("failed to create pipe");
+        if (to_child[0] != -1)
+            close(to_child[0]);
+        if (to_child[1] != -1)
+            close(to_child[1]);
+        if (from_child[0] != -1)
+            close(from_child[0]);
+        if (from_child[1] != -1)
+            close(from_child[1]);
+        return NULL;
+    }
+
+    int pid = fork();
+    if (pid == -1) {
+        LOG_ERRNO("failed to fork");
+        close(to_child[0]);
+        close(to_child[1]);
+        close(from_child[0]);
+        close(from_child[1]);
+        return NULL;
+    }
+
+
+    if (pid == 0) {
+        /* Child */
+        close(to_child[1]);
+        close(from_child[0]);
+
+        dup2(to_child[0], STDIN_FILENO);
+        dup2(from_child[1], STDOUT_FILENO);
+
+        close(to_child[0]);
+        close(from_child[1]);
+
+        execlp("fuzzel", "fuzzel", "--dmenu");
+        _exit(1);
+    }
+
+    /* Parent */
+    close(to_child[0]);
+    close(from_child[1]);
+
+    /* Write action labels on child's stdin */
+    size_t max_len = 0;
+    tll_foreach(notif->actions, it) {
+        size_t len = strlen(it->item.label);
+        write(to_child[1], it->item.label, len);
+        write(to_child[1], "\n", 1);
+
+        if (len > max_len)
+            max_len = len;
+    }
+
+    /* Close child's stdin, to signal there are no more labels */
+    close(to_child[1]);
+
+    /* Read reply */
+    char choosen[max_len];
+    ssize_t count = read(from_child[0], choosen, max_len);
+    close(from_child[0]);
+
+    /* Wait for child to die */
+    int status;
+    waitpid(pid, &status, 0);
+    LOG_DBG("child exited");
+
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        LOG_DBG("child returned non-zero exit code: %d", WEXITSTATUS(status));
+        return NULL;
+    }
+
+    /* Map returned label to action ID */
+    tll_foreach(notif->actions, it) {
+        if (strncmp(it->item.label, choosen, count) == 0)
+            return it->item.id;
+    }
+
+    LOG_WARN("could not map choosen action label to action ID: %s", choosen);
+    return NULL;
 }
