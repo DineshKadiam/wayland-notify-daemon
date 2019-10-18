@@ -435,6 +435,26 @@ dbus_signal_closed(struct dbus *bus, uint32_t id)
     return signal_notification_closed(bus, id, 2);
 }
 
+bool
+dbus_signal_action(struct dbus *bus, uint32_t id, const char *action_id)
+{
+    DBusMessage *signal = dbus_message_new_signal(
+        "/org/freedesktop/Notifications",
+        "org.freedesktop.Notifications",
+        "ActionInvoked");
+
+    if (signal == NULL)
+        return false;
+
+    DBusMessageIter iter;
+    dbus_message_iter_init_append(signal, &iter);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &action_id);
+    dbus_connection_send(bus->conn, signal, NULL);
+    dbus_message_unref(signal);
+    return true;
+}
+
 static bool
 fdm_handler(struct fdm *fdm, int fd, int events, void *data)
 {
