@@ -243,8 +243,11 @@ notify(struct dbus *bus, DBusMessage *msg)
             }
 
             if (format != 0) {
-                if (pix != NULL)
+                if (pix != NULL) {
+                    free(pixman_image_get_data(pix));
                     pixman_image_unref(pix);
+                    pix = NULL;
+                }
 
                 pix = pixman_image_create_bits_no_clear(
                     format, width, height, (uint32_t *)image_data, stride);
