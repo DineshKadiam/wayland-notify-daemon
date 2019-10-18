@@ -72,8 +72,8 @@ get_capabilities(struct dbus *bus, DBusMessage *msg)
 
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"body"});
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"body-markup"});
-#if 0
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"actions"});
+#if 0
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"icon-static"});
 #endif
 
