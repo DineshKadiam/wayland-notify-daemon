@@ -349,26 +349,6 @@ notif_add_action(struct notif *notif, const char *id, const char *label)
             .label = strdup(label), .wlabel = wlabel}));
 }
 
-size_t
-notif_get_actions(const struct notif *notif, const char *ids[],
-                  const char *labels[], size_t max_count)
-{
-    size_t count = 0;
-    tll_foreach(notif->actions, it) {
-        const struct action *action = &it->item;
-
-        if (ids != NULL)
-            ids[count] = action->id;
-        if (labels != NULL)
-            labels[count] = action->label;
-
-        if (++count >= max_count && max_count > 0)
-            break;
-    }
-
-    return count;
-}
-
 static void frame_callback(
     void *data, struct wl_callback *wl_callback, uint32_t callback_data);
 
