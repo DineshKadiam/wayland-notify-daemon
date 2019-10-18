@@ -134,9 +134,26 @@ notify(struct dbus *bus, DBusMessage *msg)
     bool ret = false;
     LOG_DBG("app: %s, icon: %s, summary: %s, body: %s", app_name, app_icon, summary, body);
 
-    pix = icon_load(
-        strlen(app_icon) > 0 ? app_icon : app_name,
-        bus->conf->max_icon_size, *bus->icon_theme);
+    {
+        char *app_name_locase = NULL;
+        const char *icon_name = NULL;
+
+        if (strlen(app_icon) > 0)
+            icon_name = app_icon;
+        else {
+            app_name_locase = malloc(strlen(app_name) + 1);
+            for (size_t i = 0; i < strlen(app_name); i++)
+                app_name_locase[i] = tolower(app_name[i]);
+            app_name_locase[strlen(app_name)] = '\0';
+            icon_name = app_name_locase;
+        }
+
+        pix = icon_load(
+            icon_name,
+            bus->conf->max_icon_size, *bus->icon_theme);
+
+        free(app_name_locase);
+    }
 
     dbus_message_iter_next(&args_iter);
     dbus_message_iter_next(&args_iter);
