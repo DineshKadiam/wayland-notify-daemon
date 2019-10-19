@@ -509,7 +509,7 @@ notif_show(struct notif *notif, int y)
     const struct config *conf = mgr->conf;
     const struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
-    const int pad_horizontal = urgency->body.font->fextents.max_x_advance;
+    const int pad_horizontal = urgency->body.font->fextents.height;
     const int pad_vertical = urgency->body.font->fextents.height;
 
     int width = 0;
