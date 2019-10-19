@@ -132,7 +132,7 @@ fdm_server(struct fdm *fdm, int fd, int events, void *data)
 
     struct sockaddr_un addr;
     socklen_t addr_size = sizeof(addr);
-    int client_fd = accept(ctrl->server_fd, (struct sockaddr *)&addr, &addr_size);
+    int client_fd = accept4(ctrl->server_fd, (struct sockaddr *)&addr, &addr_size, SOCK_CLOEXEC);
 
     if (client_fd == -1) {
         LOG_ERRNO("failed to accept client connection");
