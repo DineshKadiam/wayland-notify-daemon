@@ -290,6 +290,11 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         *margin = m;
     }
 
+    else if (strcmp(key, "selection-helper") == 0) {
+        free(conf->selection_helper);
+        conf->selection_helper = strdup(value);
+    }
+
     else if (strcmp(key, "background") == 0) {
         pixman_color_t bg;
         if (!str_to_color(value, &bg, path, lineno))
@@ -623,6 +628,7 @@ config_load(struct config *conf)
                 },
             },
         },
+        .selection_helper = strdup("dmenu"),
     };
 
     font_destroy(font_default);
@@ -664,4 +670,5 @@ config_destroy(struct config conf)
         font_destroy(conf.by_urgency[i].body.font);
         font_destroy(conf.by_urgency[i].action.font);
     }
+    free(conf.selection_helper);
 }

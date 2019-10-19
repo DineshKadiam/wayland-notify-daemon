@@ -6,6 +6,7 @@
 #include <wayland-client.h>
 
 #include "config.h"
+#include "fdm.h"
 #include "tllist.h"
 
 /* forward declarations, to avoid circular includes */
@@ -13,7 +14,7 @@ struct wayland;
 struct dbus;
 
 struct notif_mgr;
-struct notif_mgr *notif_mgr_new(const struct config *conf);
+struct notif_mgr *notif_mgr_new(const struct config *conf, struct fdm *fdm);
 void notif_mgr_destroy(struct notif_mgr *mgr);
 
 void notif_mgr_configure(
@@ -29,6 +30,7 @@ bool notif_mgr_dismiss_surface(struct notif_mgr *mgr, struct wl_surface *surface
 enum urgency { URGENCY_LOW, URGENCY_NORMAL, URGENCY_CRITICAL };
 
 struct notif;
+struct notif *notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id);
 struct notif *notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_del_notif(struct notif_mgr *mgr, uint32_t id);
 
@@ -40,3 +42,10 @@ void notif_set_summary(struct notif *notif, const char *text);
 void notif_set_body(struct notif *notif, const char *text);
 void notif_set_urgency(struct notif *notif, enum urgency urgency);
 void notif_set_image(struct notif *notif, pixman_image_t *pix);
+void notif_add_action(struct notif *notif, const char *id, const char *label);
+
+typedef void (*notif_select_action_cb)(
+    uint32_t notif_id, const char *action_id, void *data);
+
+void notif_select_action(
+    const struct notif *notif, notif_select_action_cb completion_cb, void *data);

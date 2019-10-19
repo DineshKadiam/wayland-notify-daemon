@@ -74,9 +74,7 @@ get_capabilities(struct dbus *bus, DBusMessage *msg)
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"body"});
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"body-markup"});
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"actions"});
-#if 0
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"icon-static"});
-#endif
 
     dbus_message_iter_close_container(&iter, &arr);
     if (!dbus_connection_send(bus->conn, reply, NULL))
@@ -167,6 +165,12 @@ notify(struct dbus *bus, DBusMessage *msg)
     DBusMessageIter actions_iter;
     dbus_message_iter_recurse(&args_iter, &actions_iter);
 
+    struct action {
+        const char *id;
+        const char *label;
+    };
+
+    tll(struct action) actions = tll_init();
     while (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_INVALID) {
         const char *id;
         const char *label;
@@ -175,6 +179,7 @@ notify(struct dbus *bus, DBusMessage *msg)
         dbus_message_iter_get_basic(&actions_iter, &label);
         dbus_message_iter_next(&actions_iter);
         LOG_DBG("action: %s %s", id, label);
+        tll_push_back(actions, ((struct action){id, label}));
     }
     dbus_message_iter_next(&args_iter);
 
@@ -280,7 +285,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     dbus_message_iter_get_basic(&args_iter, &timeout_ms);
     LOG_DBG("timeout = %dms", timeout_ms);
 
-    struct notif *notif = notif_mgr_get_notif(bus->notif_mgr, replaces_id);
+    struct notif *notif = notif_mgr_create_notif(bus->notif_mgr, replaces_id);
     notif_set_application(notif, app_name);
     notif_set_summary(notif, summary);
     notif_set_body(notif, body);
@@ -288,6 +293,9 @@ notify(struct dbus *bus, DBusMessage *msg)
 
     if (pix != NULL)
         notif_set_image(notif, pix);
+
+    tll_foreach(actions, it)
+        notif_add_action(notif, it->item.id, it->item.label);
 
     notif_mgr_refresh(bus->notif_mgr);
 
@@ -307,6 +315,7 @@ notify(struct dbus *bus, DBusMessage *msg)
 
     ret = true;
 err:
+    tll_free(actions);
     dbus_message_unref(reply);
     return ret;
 }
@@ -427,6 +436,26 @@ dbus_signal_closed(struct dbus *bus, uint32_t id)
     return signal_notification_closed(bus, id, 2);
 }
 
+bool
+dbus_signal_action(struct dbus *bus, uint32_t id, const char *action_id)
+{
+    DBusMessage *signal = dbus_message_new_signal(
+        "/org/freedesktop/Notifications",
+        "org.freedesktop.Notifications",
+        "ActionInvoked");
+
+    if (signal == NULL)
+        return false;
+
+    DBusMessageIter iter;
+    dbus_message_iter_init_append(signal, &iter);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &action_id);
+    dbus_connection_send(bus->conn, signal, NULL);
+    dbus_message_unref(signal);
+    return true;
+}
+
 static bool
 fdm_handler(struct fdm *fdm, int fd, int events, void *data)
 {
@@ -519,7 +548,7 @@ dbus_init(const struct config *conf, struct fdm *fdm, struct wayland *wayl,
     }
 
     assert(bus->bus_fd != -1);
-    if (!fdm_add(fdm, bus->bus_fd, fdm_handler, bus)) {
+    if (!fdm_add(fdm, bus->bus_fd, EPOLLIN, fdm_handler, bus)) {
         LOG_ERR("failed to register with FDM");
         goto err;
     }

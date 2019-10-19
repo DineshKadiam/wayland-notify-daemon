@@ -89,7 +89,7 @@ main(int argc, char *const *argv)
     if ((fdm = fdm_init()) == NULL)
         goto err;
 
-    if ((mgr = notif_mgr_new(&conf)) == NULL)
+    if ((mgr = notif_mgr_new(&conf, fdm)) == NULL)
         goto err;
 
     if ((wayl = wayl_init(&conf, fdm, mgr)) == NULL)
@@ -98,7 +98,7 @@ main(int argc, char *const *argv)
     if ((bus = dbus_init(&conf, fdm, wayl, mgr, &icon_theme)) == NULL)
         goto err;
 
-    if ((ctrl = ctrl_init(fdm, mgr)) == NULL)
+    if ((ctrl = ctrl_init(fdm, mgr, bus)) == NULL)
         goto err;
 
     notif_mgr_configure(mgr, wayl, bus);

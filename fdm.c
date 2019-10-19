@@ -56,7 +56,7 @@ fdm_destroy(struct fdm *fdm)
 }
 
 bool
-fdm_add(struct fdm *fdm, int fd, fdm_handler_t handler, void *data)
+fdm_add(struct fdm *fdm, int fd, int events, fdm_handler_t handler, void *data)
 {
 #if defined(_DEBUG)
     tll_foreach(fdm->fds, it) {
@@ -69,7 +69,7 @@ fdm_add(struct fdm *fdm, int fd, fdm_handler_t handler, void *data)
         fdm->fds, ((struct fd){.fd = fd, .data = data, .handler = handler}));
 
     struct epoll_event ev = {
-        .events = EPOLLIN,
+        .events = events,
         .data = {.ptr = &tll_back(fdm->fds)},
     };
 
@@ -88,13 +88,14 @@ fdm_del(struct fdm *fdm, int fd)
     tll_foreach(fdm->fds, it) {
         if (it->item.fd == fd) {
             if (epoll_ctl(fdm->epoll_fd, EPOLL_CTL_DEL, fd, NULL) < 0)
-                LOG_ERRNO("failed to unregister FD from epoll");
+                LOG_ERRNO("failed to unregister FD=%d from epoll", fd);
 
             tll_remove(fdm->fds, it);
             return true;
         }
     }
 
+    LOG_ERR("no such FD: %d", fd);
     return false;
 }
 

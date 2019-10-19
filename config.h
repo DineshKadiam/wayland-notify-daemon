@@ -49,6 +49,8 @@ struct config {
     } margin;
 
     struct urgency_config by_urgency[3];
+
+    char *selection_helper;
 };
 
 bool config_load(struct config *conf);

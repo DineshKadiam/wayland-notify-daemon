@@ -30,11 +30,11 @@ main(int argc, const char *const *argv)
 
     const char *cmd_word = argv[1];
 
-    enum command_type cmd_type;
+    enum ctrl_command cmd_type;
     uint32_t id;
 
     if (strcmp(cmd_word, "quit") == 0) {
-        cmd_type = CMD_QUIT;
+        cmd_type = CTRL_QUIT;
         id = 0;
     }
 
@@ -42,7 +42,7 @@ main(int argc, const char *const *argv)
         if (argc >= 3) {
             const char *id_or_all = argv[2];
             if (strcmp(id_or_all, "all") == 0) {
-                cmd_type = CMD_DISMISS_ALL;
+                cmd_type = CTRL_DISMISS_ALL;
                 id = 0;
             } else {
                 char *end = NULL;
@@ -54,12 +54,17 @@ main(int argc, const char *const *argv)
                     return EXIT_FAILURE;
                 }
 
-                cmd_type = CMD_DISMISS_BY_ID;
+                cmd_type = CTRL_DISMISS_BY_ID;
             }
         } else {
-            cmd_type = CMD_DISMISS_CURRENT;
+            cmd_type = CTRL_DISMISS_CURRENT;
             id = 0;
         }
+    }
+
+    else if (strcmp(cmd_word, "actions") == 0) {
+        cmd_type = CTRL_ACTIONS_BY_ID;
+        id = 0;  /* 'current' */
     }
 
     else {
@@ -94,7 +99,7 @@ main(int argc, const char *const *argv)
     }
 
     /* TODO: endianness */
-    struct command cmd = {
+    struct ctrl_request cmd = {
         .cmd = cmd_type,
         .id = id,
     };
@@ -105,7 +110,14 @@ main(int argc, const char *const *argv)
         goto err;
     }
 
-    ret = EXIT_SUCCESS;
+    struct ctrl_reply reply;
+    ssize_t rcvd = read(fd, &reply, sizeof(reply));
+    if (rcvd != sizeof(reply)) {
+        LOG_ERRNO("failed to read reply");
+        goto err;
+    }
+
+    ret = reply.result == CTRL_OK ? EXIT_SUCCESS : EXIT_FAILURE;
 
 err:
     if (fd != -1)

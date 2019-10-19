@@ -4,14 +4,18 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <sys/un.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #define LOG_MODULE "ctrl"
 #define LOG_ENABLE_DBG 1
 #include "log.h"
 #include "ctrl-protocol.h"
+#include "dbus.h"
 #include "tllist.h"
 
 extern volatile sig_atomic_t aborted;
@@ -19,10 +23,64 @@ extern volatile sig_atomic_t aborted;
 struct ctrl {
     struct fdm *fdm;
     struct notif_mgr *notif_mgr;
+    struct dbus *bus;
     int server_fd;
     char *socket_path;
     tll(int) clients;
 };
+
+
+static bool
+send_reply(int fd, const struct ctrl_reply *reply)
+{
+    LOG_DBG("client: FD=%d, reply: result=%s",
+            fd, reply->result == CTRL_OK ? "ok" : "fail");
+
+    if (write(fd, reply, sizeof(*reply)) != sizeof(*reply)) {
+        LOG_ERRNO("client: FD=%d: failed to send reply", fd);
+        return false;
+    }
+
+    return true;
+}
+
+struct actions_cb_data {
+    struct ctrl *ctrl;
+    int client_fd;
+};
+
+static void
+actions_complete(uint32_t notif_id, const char *action_id, void *data)
+{
+    struct actions_cb_data *info = data;
+    struct ctrl_reply reply = {.result = CTRL_FAIL};
+
+    LOG_DBG("actions callback: notif=%u, ID=%s", notif_id, action_id);
+
+    if (action_id == NULL)
+        goto out;
+
+    reply.result = dbus_signal_action(info->ctrl->bus, notif_id, action_id)
+        ? CTRL_OK : CTRL_FAIL;
+
+out:
+    send_reply(info->client_fd, &reply);
+    free(info);
+}
+
+static bool
+actions_by_id(struct ctrl *ctrl, int fd, uint32_t id)
+{
+    struct notif *notif = notif_mgr_get_notif(ctrl->notif_mgr, id);
+    if (notif == NULL)
+        return false;
+
+    struct actions_cb_data *info = malloc(sizeof(*info));
+    *info = (struct actions_cb_data){.ctrl = ctrl, .client_fd = fd};
+
+    notif_select_action(notif, &actions_complete, info);
+    return true;
+}
 
 static bool
 fdm_client(struct fdm *fdm, int fd, int events, void *data)
@@ -30,38 +88,59 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     struct ctrl *ctrl = data;
 
     bool ret = false;
-    struct command cmd;
+    struct ctrl_request cmd;
 
     ssize_t count = recv(fd, &cmd, sizeof(cmd), 0);
     if (count == -1 || count != sizeof(cmd)) {
-        LOG_ERRNO("failed to receive command");
+        if (events & EPOLLHUP)
+            ret = true;
+        else
+            LOG_ERRNO("client: FD=%d: failed to receive command", fd);
         goto err;
     }
 
     /* TODO: endianness */
 
+    struct ctrl_reply reply;
+
     switch (cmd.cmd) {
-    case CMD_QUIT:
+    case CTRL_QUIT:
         LOG_DBG("client: FD=%d, quit", fd);
         aborted = 1;
+        reply.result = CTRL_OK;
         break;
 
-    case CMD_DISMISS_CURRENT:
+    case CTRL_DISMISS_CURRENT:
         LOG_DBG("client: FD=%d, dismiss current", fd);
-        notif_mgr_dismiss_current(ctrl->notif_mgr);
+        reply.result = notif_mgr_dismiss_current(ctrl->notif_mgr)
+            ? CTRL_OK : CTRL_FAIL;
         break;
 
-    case CMD_DISMISS_BY_ID:
+    case CTRL_DISMISS_BY_ID:
         LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, cmd.id);
-        notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id);
+        reply.result = notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id)
+            ? CTRL_OK : CTRL_FAIL;
         break;
 
-    case CMD_DISMISS_ALL:
+    case CTRL_DISMISS_ALL:
         LOG_DBG("client: FD=%d, dismiss all", fd);
-        notif_mgr_dismiss_all(ctrl->notif_mgr);
+        reply.result = notif_mgr_dismiss_all(ctrl->notif_mgr)
+            ? CTRL_OK : CTRL_FAIL;
         break;
+
+    case CTRL_ACTIONS_BY_ID:
+        LOG_DBG("client: FD=%d, actions by-id: %u", fd, cmd.id);
+        if (actions_by_id(ctrl, fd, cmd.id)) {
+            /* Action selection helper successully started, wait for
+             * response before sending reply to fnottctl */
+            goto no_reply;
+        }
     }
 
+    if (!send_reply(fd, &reply))
+        goto err;
+
+no_reply:
     ret = true;
 
 err:
@@ -93,7 +172,7 @@ fdm_server(struct fdm *fdm, int fd, int events, void *data)
 
     struct sockaddr_un addr;
     socklen_t addr_size = sizeof(addr);
-    int client_fd = accept(ctrl->server_fd, (struct sockaddr *)&addr, &addr_size);
+    int client_fd = accept4(ctrl->server_fd, (struct sockaddr *)&addr, &addr_size, SOCK_CLOEXEC);
 
     if (client_fd == -1) {
         LOG_ERRNO("failed to accept client connection");
@@ -103,7 +182,7 @@ fdm_server(struct fdm *fdm, int fd, int events, void *data)
     LOG_DBG("client FD=%d connected", client_fd);
 
     tll_push_back(ctrl->clients, client_fd);
-    if (!fdm_add(ctrl->fdm, client_fd, &fdm_client, ctrl)) {
+    if (!fdm_add(ctrl->fdm, client_fd, EPOLLIN, &fdm_client, ctrl)) {
         LOG_ERR("failed to register client FD with FDM");
         tll_pop_back(ctrl->clients);
         return false;
@@ -125,7 +204,7 @@ get_socket_path(void)
 }
 
 struct ctrl *
-ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr)
+ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr, struct dbus *bus)
 {
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1) {
@@ -138,6 +217,11 @@ ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr)
         goto err;
 
     unlink(sock_path);
+
+    if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | FD_CLOEXEC) < 0) {
+        LOG_ERRNO("failed to set FD_CLOEXEC on socket");
+        goto err;
+    }
 
     struct sockaddr_un addr = {.sun_family = AF_UNIX};
     strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
@@ -155,13 +239,14 @@ ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr)
     struct ctrl *ctrl = malloc(sizeof(*ctrl));
     *ctrl = (struct ctrl){
         .fdm = fdm,
+        .bus = bus,
         .notif_mgr = notif_mgr,
         .server_fd = fd,
         .socket_path = sock_path,
         .clients = tll_init(),
     };
 
-    if (!fdm_add(fdm, fd, &fdm_server, ctrl)) {
+    if (!fdm_add(fdm, fd, EPOLLIN, &fdm_server, ctrl)) {
         LOG_ERR("failed to register with FDM");
         goto err;
     }
