@@ -178,6 +178,11 @@ ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr, struct dbus *bus)
 
     unlink(sock_path);
 
+    if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | FD_CLOEXEC) < 0) {
+        LOG_ERRNO("failed to set FD_CLOEXEC on socket");
+        goto err;
+    }
+
     struct sockaddr_un addr = {.sun_family = AF_UNIX};
     strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
 
