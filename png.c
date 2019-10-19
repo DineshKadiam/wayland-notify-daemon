@@ -63,6 +63,11 @@ png_load(const char *path)
     png_byte color_type = png_get_color_type(png_ptr, info_ptr);
     png_byte bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 
+    if (bit_depth != 8) {
+        LOG_ERR("%s: unsupported bit depth: %hhu", path, bit_depth);
+        goto err;
+    }
+
     png_read_update_info(png_ptr, info_ptr);
 
     LOG_DBG("%s: %dx%d@%hhubpp (color-type=%hhu)",
