@@ -6,6 +6,7 @@
 #include <wayland-client.h>
 
 #include "config.h"
+#include "fdm.h"
 #include "tllist.h"
 
 /* forward declarations, to avoid circular includes */
@@ -13,7 +14,7 @@ struct wayland;
 struct dbus;
 
 struct notif_mgr;
-struct notif_mgr *notif_mgr_new(const struct config *conf);
+struct notif_mgr *notif_mgr_new(const struct config *conf, struct fdm *fdm);
 void notif_mgr_destroy(struct notif_mgr *mgr);
 
 void notif_mgr_configure(

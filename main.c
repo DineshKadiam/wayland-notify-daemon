@@ -89,7 +89,7 @@ main(int argc, char *const *argv)
     if ((fdm = fdm_init()) == NULL)
         goto err;
 
-    if ((mgr = notif_mgr_new(&conf)) == NULL)
+    if ((mgr = notif_mgr_new(&conf, fdm)) == NULL)
         goto err;
 
     if ((wayl = wayl_init(&conf, fdm, mgr)) == NULL)

@@ -49,6 +49,7 @@ struct notif {
 
 struct notif_mgr {
     const struct config *conf;
+    struct fdm *fdm;
     struct wayland *wayl;
     struct dbus *bus;
 
@@ -58,11 +59,12 @@ struct notif_mgr {
 static size_t next_id = 1;
 
 struct notif_mgr *
-notif_mgr_new(const struct config *conf)
+notif_mgr_new(const struct config *conf, struct fdm *fdm)
 {
     struct notif_mgr *mgr = malloc(sizeof(*mgr));
     *mgr = (struct notif_mgr) {
         .conf = conf,
+        .fdm = fdm,
         .wayl = NULL,   /* notif_mgr_configure() */
         .bus = NULL,    /* notif_mgr_configure() */
         .notifs = tll_init(),
