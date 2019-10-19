@@ -60,8 +60,10 @@ fdm_add(struct fdm *fdm, int fd, int events, fdm_handler_t handler, void *data)
 {
 #if defined(_DEBUG)
     tll_foreach(fdm->fds, it) {
-        if (it->item.fd == fd)
+        if (it->item.fd == fd) {
+            LOG_ERR("FD=%d already registered", fd);
             return false;
+        }
     }
 #endif
 
