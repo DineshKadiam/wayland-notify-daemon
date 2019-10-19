@@ -16,7 +16,7 @@
 #include "fdm.h"
 #include "icon.h"
 #include "wayland.h"
-
+#include "version.h"
 
 volatile sig_atomic_t aborted = 0;
 

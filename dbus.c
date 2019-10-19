@@ -15,6 +15,7 @@
 #include "log.h"
 #include "notification.h"
 #include "icon.h"
+#include "version.h"
 
 struct dbus {
     DBusConnection *conn;
