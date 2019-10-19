@@ -142,7 +142,7 @@ fdm_server(struct fdm *fdm, int fd, int events, void *data)
     LOG_DBG("client FD=%d connected", client_fd);
 
     tll_push_back(ctrl->clients, client_fd);
-    if (!fdm_add(ctrl->fdm, client_fd, &fdm_client, ctrl)) {
+    if (!fdm_add(ctrl->fdm, client_fd, EPOLLIN, &fdm_client, ctrl)) {
         LOG_ERR("failed to register client FD with FDM");
         tll_pop_back(ctrl->clients);
         return false;
@@ -201,7 +201,7 @@ ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr, struct dbus *bus)
         .clients = tll_init(),
     };
 
-    if (!fdm_add(fdm, fd, &fdm_server, ctrl)) {
+    if (!fdm_add(fdm, fd, EPOLLIN, &fdm_server, ctrl)) {
         LOG_ERR("failed to register with FDM");
         goto err;
     }

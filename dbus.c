@@ -547,7 +547,7 @@ dbus_init(const struct config *conf, struct fdm *fdm, struct wayland *wayl,
     }
 
     assert(bus->bus_fd != -1);
-    if (!fdm_add(fdm, bus->bus_fd, fdm_handler, bus)) {
+    if (!fdm_add(fdm, bus->bus_fd, EPOLLIN, fdm_handler, bus)) {
         LOG_ERR("failed to register with FDM");
         goto err;
     }

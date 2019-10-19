@@ -470,7 +470,7 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
         goto err;
     }
 
-    if (!fdm_add(fdm, wl_display_get_fd(wayl->display), &fdm_handler, wayl)) {
+    if (!fdm_add(fdm, wl_display_get_fd(wayl->display), EPOLLIN, &fdm_handler, wayl)) {
         LOG_ERR("failed to register with FDM");
         goto err;
     }
