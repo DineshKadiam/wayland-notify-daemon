@@ -14,7 +14,7 @@
 #include "3rd-party/nanosvgrast.h"
 
 #define LOG_MODULE "icon"
-#define LOG_ENABLE_DBG 1
+#define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "png-fnott.h"
 #include "svg.h"

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #define LOG_MODULE "svg"
-#define LOG_ENABLE_DBG 1
+#define LOG_ENABLE_DBG 0
 #include "log.h"
 
 #include "3rd-party/nanosvg.h"

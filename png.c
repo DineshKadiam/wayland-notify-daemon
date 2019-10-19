@@ -10,7 +10,7 @@
 #include <pixman.h>
 
 #define LOG_MODULE "png"
-#define LOG_ENABLE_DBG 1
+#define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "stride.h"
 

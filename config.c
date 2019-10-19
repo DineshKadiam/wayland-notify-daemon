@@ -9,7 +9,7 @@
 #include <pwd.h>
 
 #define LOG_MODULE "config"
-#define LOG_ENABLE_DBG 1
+#define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "tllist.h"
 

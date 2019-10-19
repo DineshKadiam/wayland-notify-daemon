@@ -12,7 +12,7 @@
 #include <fcntl.h>
 
 #define LOG_MODULE "ctrl"
-#define LOG_ENABLE_DBG 1
+#define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "ctrl-protocol.h"
 #include "dbus.h"

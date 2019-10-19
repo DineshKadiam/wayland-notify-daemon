@@ -11,7 +11,7 @@
 #include <dbus/dbus.h>
 
 #define LOG_MODULE "dbus"
-#define LOG_ENABLE_DBG 1
+#define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "notification.h"
 #include "icon.h"

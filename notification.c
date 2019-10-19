@@ -17,7 +17,7 @@
 #include <wlr-layer-shell-unstable-v1.h>
 
 #define LOG_MODULE "notification"
-#define LOG_ENABLE_DBG 1
+#define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "dbus.h"
 #include "wayland.h"

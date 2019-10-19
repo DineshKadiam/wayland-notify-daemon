@@ -7,7 +7,7 @@
 #include <sys/epoll.h>
 
 #define LOG_MODULE "fdm"
-#define LOG_ENABLE_DBG 1
+#define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "tllist.h"
 
