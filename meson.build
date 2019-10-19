@@ -54,13 +54,12 @@ foreach prot : [
     command: [wscanner_prog, 'private-code', '@INPUT@', '@OUTPUT@'])
 endforeach
 
-sh = find_program('sh', native: true)
 generate_version_sh = files('generate-version.sh')
 version = custom_target(
   'generate_version',
   build_always_stale: true,
   output: 'version.h',
-  command: [sh, generate_version_sh, meson.project_version(), '@SOURCE_DIR@', '@OUTPUT@'])
+  command: [generate_version_sh, meson.project_version(), '@SOURCE_DIR@', '@OUTPUT@'])
 
 executable(
   'fnott',
