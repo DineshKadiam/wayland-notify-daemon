@@ -1,6 +1,7 @@
 # -*- conf -*-
 
 # Global values
+# output=<undefined>
 # max-width=400
 # max-height=200
 # icon-theme=hicolor
