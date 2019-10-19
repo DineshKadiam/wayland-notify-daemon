@@ -4,9 +4,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <sys/un.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #define LOG_MODULE "ctrl"
 #define LOG_ENABLE_DBG 1
@@ -26,18 +29,57 @@ struct ctrl {
     tll(int) clients;
 };
 
+
 static bool
-actions_by_id(struct ctrl *ctrl, uint32_t id)
+send_reply(int fd, const struct ctrl_reply *reply)
+{
+    LOG_DBG("client: FD=%d, reply: result=%s",
+            fd, reply->result == CTRL_OK ? "ok" : "fail");
+
+    if (write(fd, reply, sizeof(*reply)) != sizeof(*reply)) {
+        LOG_ERRNO("client: FD=%d: failed to send reply", fd);
+        return false;
+    }
+
+    return true;
+}
+
+struct actions_cb_data {
+    struct ctrl *ctrl;
+    int client_fd;
+};
+
+static void
+actions_complete(uint32_t notif_id, const char *action_id, void *data)
+{
+    struct actions_cb_data *info = data;
+    struct ctrl_reply reply = {.result = CTRL_FAIL};
+
+    LOG_DBG("actions callback: notif=%u, ID=%s", notif_id, action_id);
+
+    if (action_id == NULL)
+        goto out;
+
+    reply.result = dbus_signal_action(info->ctrl->bus, notif_id, action_id)
+        ? CTRL_OK : CTRL_FAIL;
+
+out:
+    send_reply(info->client_fd, &reply);
+    free(info);
+}
+
+static bool
+actions_by_id(struct ctrl *ctrl, int fd, uint32_t id)
 {
     struct notif *notif = notif_mgr_get_notif(ctrl->notif_mgr, id);
     if (notif == NULL)
         return false;
 
-    const char *action = notif_select_action(notif);
-    if (action == NULL)
-        return false;
+    struct actions_cb_data *info = malloc(sizeof(*info));
+    *info = (struct actions_cb_data){.ctrl = ctrl, .client_fd = fd};
 
-    return dbus_signal_action(ctrl->bus, notif_id(notif), action);
+    notif_select_action(notif, &actions_complete, info);
+    return true;
 }
 
 static bool
@@ -88,19 +130,17 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
 
     case CTRL_ACTIONS_BY_ID:
         LOG_DBG("client: FD=%d, actions by-id: %u", fd, cmd.id);
-        reply.result = actions_by_id(ctrl, cmd.id) ? CTRL_OK : CTRL_FAIL;
-        break;
+        if (actions_by_id(ctrl, fd, cmd.id)) {
+            /* Action selection helper successully started, wait for
+             * response before sending reply to fnottctl */
+            goto no_reply;
+        }
     }
 
-    LOG_DBG("client: FD=%d, reply: result=%s",
-            fd, reply.result == CTRL_OK ? "ok" : "fail");
-
-    count = write(fd, &reply, sizeof(reply));
-    if (count != sizeof(reply)) {
-        LOG_ERRNO("client: FD=%d: failed to send reply", fd);
+    if (!send_reply(fd, &reply))
         goto err;
-    }
 
+no_reply:
     ret = true;
 
 err:

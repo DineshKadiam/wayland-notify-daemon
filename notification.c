@@ -3,9 +3,14 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <wchar.h>
+#include <ctype.h>
 #include <unistd.h>
+#include <errno.h>
 
+#include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/epoll.h>
+#include <fcntl.h>
 
 #include <pixman.h>
 #include <wayland-client.h>
@@ -712,90 +717,368 @@ notif_mgr_dismiss_all(struct notif_mgr *mgr)
     return ret;
 }
 
-const char *
-notif_select_action(const struct notif *notif)
+struct action_async {
+    struct fdm *fdm;
+    struct notif_mgr *mgr;
+
+    /* The notification may be dismissed while we're waiting for the
+     * action selection. So, store the ID, and re-retreieve the
+     * notification when we're done */
+    uint32_t notif_id;
+
+    pid_t pid;
+    int to_child;      /* Child's stdin */
+    int from_child;    /* Child's stdout */
+
+    char *input;       /* Data to be sent to child (action labels) */
+    size_t input_idx;  /* Where to start next write() */
+    size_t input_len;  /* Total amount of data */
+
+    char *output;      /* Output from child */
+    size_t output_len; /* Amount of output received (so far) */
+
+    notif_select_action_cb completion_cb;
+    void *data;
+};
+
+static bool
+fdm_action_writer(struct fdm *fdm, int fd, int events, void *data)
 {
-    int to_child[2] = {-1, -1};
-    int from_child[2] = {-1, -1};
+    struct action_async *async = data;
+
+    ssize_t count = write(
+        async->to_child,
+        &async->input[async->input_idx],
+        async->input_len - async->input_idx);
+
+    if (count < 0) {
+        LOG_ERRNO("could not write actions to actions selection helper");
+        goto done;
+    }
+
+    async->input_idx += count;
+    if (async->input_idx >= async->input_len) {
+        /* Close child's stdin, to signal there are no more labels */
+        LOG_DBG("all input sent to child");
+        goto done;
+    }
+
+    return true;
+
+done:
+    fdm_del(async->fdm, async->to_child);
+    close(async->to_child);
+    async->to_child = -1;
+    return true;
+}
+
+static bool
+fdm_action_reader(struct fdm *fdm, int fd, int events, void *data)
+{
+    struct action_async *async = data;
+
+    const size_t chunk_sz = 128;
+    char buf[chunk_sz];
+
+    ssize_t count = read(async->from_child, buf, chunk_sz);
+    if (count < 0) {
+        LOG_ERRNO("failed to read from actions selection helper");
+        goto check_pollhup;
+    }
+
+    /* Append to previously received response */
+    size_t new_len = async->output_len + count;
+    async->output = realloc(async->output, new_len);
+    memcpy(&async->output[async->output_len], buf, count);
+    async->output_len = new_len;
+
+check_pollhup:
+
+    if (!(events & EPOLLHUP))
+        return true;
+
+    /* Strip trailing spaces/newlines */
+    while (async->output_len > 0 && isspace(async->output[--async->output_len]))
+        async->output[async->output_len] = '\0';
+
+    /* Extract the data we need from the info struct, then free it */
+    struct notif_mgr *mgr = async->mgr;
+    pid_t pid = async->pid;
+    uint32_t notif_id = async->notif_id;
+    notif_select_action_cb completion_cb = async->completion_cb;
+    void *cb_data = async->data;
+    char *choosen = async->output;
+    size_t choosen_len = async->output_len;
+
+    if (async->to_child != -1) {
+        /* This is an error case - normally, the writer should have
+         * completed and closed this already */
+        fdm_del(async->fdm, async->to_child);
+        close(async->to_child);
+    }
+
+    fdm_del(async->fdm, async->from_child);
+    close(async->from_child);
+
+    free(async->input);
+    free(async);
+   
+    /* Wait for child to die */
+    int status;
+    waitpid(pid, &status, 0);
+    LOG_DBG("child exited with status 0x%08x", status);
+
+    const char *action_id = NULL;
+
+    if (!WIFEXITED(status)) {
+        LOG_ERR("child did not exit normally");
+        goto done;
+    }
+
+    if (WEXITSTATUS(status) != 0) {
+        uint8_t code = WEXITSTATUS(status);
+        if (code >> 1)
+            LOG_ERRNO_P("failed to execute action selection helper", code & 0x7f);
+
+        goto done;
+    }
+
+    struct notif *notif = notif_mgr_get_notif(mgr, notif_id);
+    if (notif == NULL) {
+        LOG_WARN("notification was dismissed before we could signal action: %.*s",
+                 (int)choosen_len, choosen);
+        goto done;
+    }
+
+    /* Map returned label to action ID */
+    tll_foreach(notif->actions, it) {
+        if (strncmp(it->item.label, choosen, choosen_len) == 0) {
+            action_id = it->item.id;
+            goto done;
+        }
+    }
+
+    LOG_WARN("could not map choosen action label to action ID: %.*s", (int)choosen_len, choosen);
+
+done:
+    completion_cb(notif_id, action_id, cb_data);
+    free(choosen);
+    return true;
+}
+
+static bool
+push_argv(char ***argv, size_t *size, char *arg, size_t *argc)
+{
+    if (arg != NULL && arg[0] == '%')
+        return true;
+
+    if (*argc >= *size) {
+        size_t new_size = *size > 0 ? 2 * *size : 10;
+        char **new_argv = realloc(*argv, new_size * sizeof(new_argv[0]));
+
+        if (new_argv == NULL)
+            return false;
+
+        *argv = new_argv;
+        *size = new_size;
+    }
+
+    (*argv)[(*argc)++] = arg;
+    return true;
+}
+
+static bool
+tokenize_cmdline(char *cmdline, char ***argv)
+{
+    *argv = NULL;
+    size_t argv_size = 0;
+
+    bool first_token_is_quoted = cmdline[0] == '"' || cmdline[0] == '\'';
+    char delim = first_token_is_quoted ? cmdline[0] : ' ';
+
+    char *p = first_token_is_quoted ? &cmdline[1] : &cmdline[0];
+
+    size_t idx = 0;
+    while (*p != '\0') {
+        char *end = strchr(p, delim);
+        if (end == NULL) {
+            if (delim != ' ') {
+                LOG_ERR("unterminated %s quote\n", delim == '"' ? "double" : "single");
+                free(*argv);
+                return false;
+            }
+
+            if (!push_argv(argv, &argv_size, p, &idx) ||
+                !push_argv(argv, &argv_size, NULL, &idx))
+            {
+                goto err;
+            } else
+                return true;
+        }
+
+        *end = '\0';
+
+        if (!push_argv(argv, &argv_size, p, &idx))
+            goto err;
+
+        p = end + 1;
+        while (*p == delim)
+            p++;
+
+        while (*p == ' ')
+            p++;
+
+        if (*p == '"' || *p == '\'') {
+            delim = *p;
+            p++;
+        } else
+            delim = ' ';
+    }
+
+    if (!push_argv(argv, &argv_size, NULL, &idx))
+        goto err;
+
+    return true;
+
+err:
+    free(*argv);
+    return false;
+}
+
+void
+notif_select_action(
+    const struct notif *notif, notif_select_action_cb completion_cb, void *data)
+{
+    char *copy = strdup(notif->mgr->conf->selection_helper);
+    char **argv = NULL;
+    int to_child[2] = {-1, -1};    /* Pipe to child's STDIN */
+    int from_child[2] = {-1, -1};  /* Pipe to child's STDOUT */
+
+    if (!tokenize_cmdline(copy, &argv))
+        goto err_before_fork;
 
     if (pipe(to_child) < 0 || pipe(from_child) < 0) {
         LOG_ERRNO("failed to create pipe");
-        if (to_child[0] != -1)
-            close(to_child[0]);
-        if (to_child[1] != -1)
-            close(to_child[1]);
-        if (from_child[0] != -1)
-            close(from_child[0]);
-        if (from_child[1] != -1)
-            close(from_child[1]);
-        return NULL;
+        goto err_before_fork;
     }
 
     int pid = fork();
     if (pid == -1) {
         LOG_ERRNO("failed to fork");
-        close(to_child[0]);
-        close(to_child[1]);
-        close(from_child[0]);
-        close(from_child[1]);
-        return NULL;
+        goto err_before_fork;
     }
-
 
     if (pid == 0) {
-        /* Child */
+        /*
+         * Child
+         */
+
         close(to_child[1]);
         close(from_child[0]);
 
-        dup2(to_child[0], STDIN_FILENO);
-        dup2(from_child[1], STDOUT_FILENO);
+        /* Rewire pipes to child's STDIN/STDOUT */
+        if (dup2(to_child[0], STDIN_FILENO) < 0 ||
+            dup2(from_child[1], STDOUT_FILENO) < 0)
+        {
+            goto child_exit;
+        }
 
         close(to_child[0]);
         close(from_child[1]);
 
-        execlp("fuzzel", "fuzzel", "--dmenu");
-        _exit(1);
+        execvp(argv[0], argv);
+
+    child_exit:
+        _exit(1 << 7 | errno);
     }
 
-    /* Parent */
+    assert(pid > 0);
+
+    /*
+     * Parent
+     */
+
+    free(copy);
+    free(argv);
     close(to_child[0]);
     close(from_child[1]);
 
-    /* Write action labels on child's stdin */
-    size_t max_len = 0;
-    tll_foreach(notif->actions, it) {
-        size_t len = strlen(it->item.label);
-        write(to_child[1], it->item.label, len);
-        write(to_child[1], "\n", 1);
+    /*
+     * Writing the action labels and waiting for the response can take
+     * a *very* long time, and we can't block execution.
+     *
+     * Make our pipe ends non-blocking, and use the FDM to write/read
+     * them asynchronously.
+     */
+    
+    struct action_async *async = NULL;
+    size_t input_len = 0;
+    char *input = NULL;
 
-        if (len > max_len)
-            max_len = len;
+    if (fcntl(to_child[1], F_SETFL, fcntl(to_child[1], F_GETFL) | O_NONBLOCK) < 0 ||
+        fcntl(from_child[0], F_SETFL, fcntl(from_child[0], F_GETFL) | O_NONBLOCK) < 0)
+    {
+        LOG_ERRNO("failed to make pipes non blocking");
+        goto err_in_parent;
     }
 
-    /* Close child's stdin, to signal there are no more labels */
+    /* Construct a single string consisting of all the action labels
+     * separated by newlines */
+    tll_foreach(notif->actions, it)
+        input_len += strlen(it->item.label) + 1;
+
+    input = malloc(input_len + 1);
+    input[0] = '\0';
+    tll_foreach(notif->actions, it) {
+        strcat(input, it->item.label);
+        strcat(input, "\n");
+    }
+
+    /* FDM callback data. Shared by both the write and read callback,
+     * but *only* freed by the *read* handler. */
+    async = malloc(sizeof(*async));
+    *async = (struct action_async) {
+        .fdm = notif->mgr->fdm,
+        .mgr = notif->mgr,
+        .notif_id = notif->id,
+        .to_child = to_child[1],
+        .from_child = from_child[0],
+        .input = input,
+        .input_len = input_len,
+        .input_idx = 0,
+        .output = NULL,
+        .output_len = 0,
+        .completion_cb = completion_cb,
+        .data = data,
+    };
+
+    if (!fdm_add(notif->mgr->fdm, to_child[1], EPOLLOUT, &fdm_action_writer, async) ||
+        !fdm_add(notif->mgr->fdm, from_child[0], EPOLLIN, &fdm_action_reader, async))
+    {
+        goto err_in_parent;
+    }
+
+    return;
+
+err_before_fork:
+    if (to_child[0] != -1) close(to_child[0]);
+    if (to_child[1] != -1) close(to_child[1]);
+    if (from_child[0] != -1) close(from_child[0]);
+    if (from_child[1] != -1) close(from_child[1]);
+
+    free(copy);
+    free(argv);
+
+    completion_cb(notif->id, NULL, data);
+    return;
+
+err_in_parent:
+    free(async);
+    free(input);
+    fdm_del(notif->mgr->fdm, to_child[1]);
+    fdm_del(notif->mgr->fdm, from_child[0]);
     close(to_child[1]);
-
-    /* Read reply */
-    char choosen[max_len];
-    ssize_t count = read(from_child[0], choosen, max_len);
     close(from_child[0]);
-
-    /* Wait for child to die */
-    int status;
-    waitpid(pid, &status, 0);
-    LOG_DBG("child exited");
-
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        LOG_DBG("child returned non-zero exit code: %d", WEXITSTATUS(status));
-        return NULL;
-    }
-
-    /* Map returned label to action ID */
-    tll_foreach(notif->actions, it) {
-        if (strncmp(it->item.label, choosen, count) == 0)
-            return it->item.id;
-    }
-
-    LOG_WARN("could not map choosen action label to action ID: %s", choosen);
-    return NULL;
+    completion_cb(notif->id, NULL, data);
+    return;
 }
