@@ -124,12 +124,6 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         }
         break;
 
-    case CTRL_DISMISS_CURRENT:
-        LOG_DBG("client: FD=%d, dismiss current", fd);
-        reply.result = notif_mgr_dismiss_current(ctrl->notif_mgr)
-            ? CTRL_OK : CTRL_INVALID_ID;
-        break;
-
     case CTRL_DISMISS_BY_ID:
         LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, cmd.id);
         reply.result = notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id)

@@ -667,7 +667,7 @@ notif_dismiss(struct notif *notif)
     return true;
 }
 
-bool
+static bool
 notif_mgr_dismiss_current(struct notif_mgr *mgr)
 {
     if (tll_length(mgr->notifs) == 0)
@@ -681,6 +681,9 @@ notif_mgr_dismiss_current(struct notif_mgr *mgr)
 bool
 notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id)
 {
+    if (id == 0)
+        return notif_mgr_dismiss_current(mgr);
+
     tll_foreach(mgr->notifs, it) {
         if (it->item->id != id)
             continue;
@@ -1022,7 +1025,7 @@ notif_select_action(
      * Make our pipe ends non-blocking, and use the FDM to write/read
      * them asynchronously.
      */
-    
+
     struct action_async *async = NULL;
     size_t input_len = 0;
     char *input = NULL;
