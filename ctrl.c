@@ -53,7 +53,7 @@ static void
 actions_complete(uint32_t notif_id, const char *action_id, void *data)
 {
     struct actions_cb_data *info = data;
-    struct ctrl_reply reply = {.result = CTRL_FAIL};
+    struct ctrl_reply reply = {.result = CTRL_INVALID_ID};
 
     LOG_DBG("actions callback: notif=%u, ID=%s", notif_id, action_id);
 
@@ -61,7 +61,7 @@ actions_complete(uint32_t notif_id, const char *action_id, void *data)
         goto out;
 
     reply.result = dbus_signal_action(info->ctrl->bus, notif_id, action_id)
-        ? CTRL_OK : CTRL_FAIL;
+        ? CTRL_OK : CTRL_ERROR;
 
 out:
     send_reply(info->client_fd, &reply);
@@ -115,10 +115,9 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     case CTRL_LIST:
         id_count = notif_mgr_get_ids(ctrl->notif_mgr, NULL, 0);
         LOG_INFO("got %lu IDs", id_count);
-        reply.result = id_count >= 0 ? CTRL_OK : CTRL_FAIL;
-        if (id_count < 0)
-            reply.result = CTRL_FAIL;
-        else {
+        reply.result = id_count >= 0 ? CTRL_OK : CTRL_ERROR;
+
+        if (id_count >= 0) {
             if (id_count > 0)
                 ids = calloc(id_count, sizeof(ids[0]));
             notif_mgr_get_ids(ctrl->notif_mgr, ids, id_count);
@@ -128,19 +127,19 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     case CTRL_DISMISS_CURRENT:
         LOG_DBG("client: FD=%d, dismiss current", fd);
         reply.result = notif_mgr_dismiss_current(ctrl->notif_mgr)
-            ? CTRL_OK : CTRL_FAIL;
+            ? CTRL_OK : CTRL_INVALID_ID;
         break;
 
     case CTRL_DISMISS_BY_ID:
         LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, cmd.id);
         reply.result = notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id)
-            ? CTRL_OK : CTRL_FAIL;
+            ? CTRL_OK : CTRL_INVALID_ID;
         break;
 
     case CTRL_DISMISS_ALL:
         LOG_DBG("client: FD=%d, dismiss all", fd);
         reply.result = notif_mgr_dismiss_all(ctrl->notif_mgr)
-            ? CTRL_OK : CTRL_FAIL;
+            ? CTRL_OK : CTRL_ERROR;
         break;
 
     case CTRL_ACTIONS_BY_ID:
@@ -149,7 +148,8 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
             /* Action selection helper successully started, wait for
              * response before sending reply to fnottctl */
             goto no_reply;
-        }
+        } else
+            reply.result = CTRL_INVALID_ID;
     }
 
     if (!send_reply(fd, &reply))

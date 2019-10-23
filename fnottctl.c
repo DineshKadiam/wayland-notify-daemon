@@ -11,15 +11,15 @@
 #define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "ctrl-protocol.h"
+#include "version.h"
 
 static void
 print_usage(const char *prog)
 {
-    printf("Usage: %s dismiss [all | <id>]\n"
-           "       %s actions [<id>]\n"
-           "       %s list\n"
-           "       %s quit\n",
-           prog, prog, prog, prog);
+    printf("Usage: %s dismiss | actions [<id>]\n"
+           "       %s list | quit\n"
+           "       %s [ --version, --help ]\n",
+           prog, prog, prog);
 }
 
 int
@@ -66,7 +66,20 @@ main(int argc, const char *const *argv)
 
     else if (strcmp(cmd_word, "actions") == 0) {
         cmd_type = CTRL_ACTIONS_BY_ID;
-        id = 0;  /* 'current' */
+
+        if (argc >= 3) {
+            const char *id_str = argv[2];
+
+            char *end = NULL;
+            errno = 0;
+            id = strtoul(id_str, &end, 0);
+
+            if (errno != 0 || *end != '\0') {
+                LOG_ERR("%s: invalid notification ID (expected an integer)", id_str);
+                return EXIT_FAILURE;
+            }
+        } else
+            id = 0;  /* 'current' */
     }
 
     else if (strcmp(cmd_word, "list") == 0) {
@@ -139,6 +152,19 @@ main(int argc, const char *const *argv)
             }
             printf("%u\n", notif_id);
         }
+    }
+
+    switch (reply.result) {
+    case CTRL_OK:
+        break;
+
+    case CTRL_INVALID_ID:
+        fprintf(stderr, "%u: invalid ID\n", id);
+        break;
+
+    case CTRL_ERROR:
+        fprintf(stderr, "unknown error\n");
+        break;
     }
 
     ret = reply.result == CTRL_OK ? EXIT_SUCCESS : EXIT_FAILURE;
