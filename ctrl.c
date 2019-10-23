@@ -88,8 +88,10 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     struct ctrl *ctrl = data;
 
     bool ret = false;
-    struct ctrl_request cmd;
+    uint32_t *ids = NULL;
+    int64_t id_count = -1;
 
+    struct ctrl_request cmd;
     ssize_t count = recv(fd, &cmd, sizeof(cmd), 0);
     if (count == -1 || count != sizeof(cmd)) {
         if (events & EPOLLHUP)
@@ -108,6 +110,19 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         LOG_DBG("client: FD=%d, quit", fd);
         aborted = 1;
         reply.result = CTRL_OK;
+        break;
+
+    case CTRL_LIST:
+        id_count = notif_mgr_get_ids(ctrl->notif_mgr, NULL, 0);
+        LOG_INFO("got %lu IDs", id_count);
+        reply.result = id_count >= 0 ? CTRL_OK : CTRL_FAIL;
+        if (id_count < 0)
+            reply.result = CTRL_FAIL;
+        else {
+            if (id_count > 0)
+                ids = calloc(id_count, sizeof(ids[0]));
+            notif_mgr_get_ids(ctrl->notif_mgr, ids, id_count);
+        }
         break;
 
     case CTRL_DISMISS_CURRENT:
@@ -140,10 +155,18 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     if (!send_reply(fd, &reply))
         goto err;
 
+    if (reply.result == CTRL_OK && id_count >= 0) {
+        write(fd, &id_count, sizeof(id_count));
+        for (size_t i = 0; i < id_count; i++)
+            write(fd, &ids[i], sizeof(ids[i]));
+    }
+
 no_reply:
     ret = true;
 
 err:
+    free(ids);
+
     if (events & EPOLLHUP) {
         /* Client disconnected */
         LOG_DBG("client: FD=%d disconnected", fd);

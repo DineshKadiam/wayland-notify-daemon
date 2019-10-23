@@ -3,6 +3,7 @@
 
 enum ctrl_command {
     CTRL_QUIT,
+    CTRL_LIST,
     CTRL_DISMISS_CURRENT, CTRL_DISMISS_BY_ID, CTRL_DISMISS_ALL,
     CTRL_ACTIONS_BY_ID,
 };

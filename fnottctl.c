@@ -16,8 +16,10 @@ static void
 print_usage(const char *prog)
 {
     printf("Usage: %s dismiss [all | <id>]\n"
+           "       %s actions [<id>]\n"
+           "       %s list\n"
            "       %s quit\n",
-           prog, prog);
+           prog, prog, prog, prog);
 }
 
 int
@@ -65,6 +67,11 @@ main(int argc, const char *const *argv)
     else if (strcmp(cmd_word, "actions") == 0) {
         cmd_type = CTRL_ACTIONS_BY_ID;
         id = 0;  /* 'current' */
+    }
+
+    else if (strcmp(cmd_word, "list") == 0) {
+        cmd_type = CTRL_LIST;
+        id = 0;  /* Ignored */
     }
 
     else {
@@ -115,6 +122,16 @@ main(int argc, const char *const *argv)
     if (rcvd != sizeof(reply)) {
         LOG_ERRNO("failed to read reply");
         goto err;
+    }
+
+    if (reply.result == CTRL_OK && cmd_type == CTRL_LIST) {
+        uint64_t count;
+        read(fd, &count, sizeof(count));
+        for (size_t i = 0; i < count; i++) {
+            uint32_t notif_id;
+            read(fd, &notif_id, sizeof(notif_id));
+            printf("%u\n", notif_id);
+        }
     }
 
     ret = reply.result == CTRL_OK ? EXIT_SUCCESS : EXIT_FAILURE;
