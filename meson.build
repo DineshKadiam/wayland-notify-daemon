@@ -94,3 +94,5 @@ executable(
 
 install_data('fnott.desktop', install_dir: join_paths(get_option('datadir'), 'applications'))
 install_data('fnottrc', install_dir: join_paths(get_option('datadir'), 'fnott'))
+
+subdir('completions')

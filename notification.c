@@ -647,6 +647,18 @@ notif_mgr_refresh(struct notif_mgr *mgr)
         y += notif_show(it->item, y) + mgr->conf->margin.top;
 }
 
+ssize_t
+notif_mgr_get_ids(const struct notif_mgr *mgr, uint32_t *ids, size_t max)
+{
+    size_t count = 0;
+    tll_foreach(mgr->notifs, it) {
+        if (++count <= max && ids != NULL)
+            ids[count - 1] = it->item->id;
+    }
+
+    return count;
+}
+
 static bool
 notif_dismiss(struct notif *notif)
 {
@@ -655,7 +667,7 @@ notif_dismiss(struct notif *notif)
     return true;
 }
 
-bool
+static bool
 notif_mgr_dismiss_current(struct notif_mgr *mgr)
 {
     if (tll_length(mgr->notifs) == 0)
@@ -669,6 +681,9 @@ notif_mgr_dismiss_current(struct notif_mgr *mgr)
 bool
 notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id)
 {
+    if (id == 0)
+        return notif_mgr_dismiss_current(mgr);
+
     tll_foreach(mgr->notifs, it) {
         if (it->item->id != id)
             continue;
@@ -1010,7 +1025,7 @@ notif_select_action(
      * Make our pipe ends non-blocking, and use the FDM to write/read
      * them asynchronously.
      */
-    
+
     struct action_async *async = NULL;
     size_t input_len = 0;
     char *input = NULL;

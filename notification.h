@@ -22,7 +22,8 @@ void notif_mgr_configure(
 
 void notif_mgr_refresh(struct notif_mgr *mgr);
 
-bool notif_mgr_dismiss_current(struct notif_mgr *mgr);
+ssize_t notif_mgr_get_ids(const struct notif_mgr *mgr, uint32_t *ids, size_t max);
+
 bool notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_dismiss_all(struct notif_mgr *mgr);
 bool notif_mgr_dismiss_surface(struct notif_mgr *mgr, struct wl_surface *surface);

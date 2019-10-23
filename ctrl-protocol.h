@@ -3,7 +3,8 @@
 
 enum ctrl_command {
     CTRL_QUIT,
-    CTRL_DISMISS_CURRENT, CTRL_DISMISS_BY_ID, CTRL_DISMISS_ALL,
+    CTRL_LIST,
+    CTRL_DISMISS_BY_ID, CTRL_DISMISS_ALL,
     CTRL_ACTIONS_BY_ID,
 };
 
@@ -12,7 +13,7 @@ struct ctrl_request {
     uint32_t id;
 } __attribute__((packed));
 
-enum ctrl_result { CTRL_OK, CTRL_FAIL };
+enum ctrl_result { CTRL_OK, CTRL_INVALID_ID, CTRL_ERROR };
 struct ctrl_reply {
     enum ctrl_result result;
 } __attribute__((packed));

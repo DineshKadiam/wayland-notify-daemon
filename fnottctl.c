@@ -4,6 +4,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <getopt.h>
+
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -11,65 +13,110 @@
 #define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "ctrl-protocol.h"
+#include "version.h"
 
 static void
 print_usage(const char *prog)
 {
-    printf("Usage: %s dismiss [all | <id>]\n"
-           "       %s quit\n",
-           prog, prog);
+    printf("Usage: %s dismiss | actions [<id>]\n"
+           "       %s list | quit\n"
+           "       %s --version\n"
+           "\n"
+           "Options:\n"
+           "  id                          notification ID to dismiss or show actions for\n"
+           "  -v,--version                show the version number and quit\n",
+           prog, prog, prog);
 }
 
 int
-main(int argc, const char *const *argv)
+main(int argc, char *const *argv)
 {
-    if (argc < 2) {
-        print_usage(argv[0]);
-        return EXIT_FAILURE;
-    }
+    const char *const prog = argv[0];
 
-    const char *cmd_word = argv[1];
+    static const struct option longopts[] = {
+        {"version", no_argument, 0, 'v'},
+        {"help",    no_argument, 0, 'h'},
+        {NULL,      no_argument, 0,   0},
+    };
 
-    enum ctrl_command cmd_type;
-    uint32_t id;
+    while (true) {
+        int c = getopt_long(argc, argv, "+:vh", longopts, NULL);
+        if (c == -1)
+            break;
 
-    if (strcmp(cmd_word, "quit") == 0) {
-        cmd_type = CTRL_QUIT;
-        id = 0;
-    }
+        switch (c) {
+        case 'v':
+            printf("fnottctl version %s\n", FNOTT_VERSION);
+            return EXIT_SUCCESS;
 
-    else if (strcmp(cmd_word, "dismiss") == 0) {
-        if (argc >= 3) {
-            const char *id_or_all = argv[2];
-            if (strcmp(id_or_all, "all") == 0) {
-                cmd_type = CTRL_DISMISS_ALL;
-                id = 0;
-            } else {
-                char *end = NULL;
-                errno = 0;
-                id = strtoul(id_or_all, &end, 0);
+        case 'h':
+            print_usage(prog);
+            return EXIT_SUCCESS;
 
-                if (errno != 0 || *end != '\0') {
-                    LOG_ERR("%s: invalid notification ID (expected an integer)", id_or_all);
-                    return EXIT_FAILURE;
-                }
+        case ':':
+            fprintf(stderr, "error: -%c: missing required argument\n", optopt);
+            return EXIT_FAILURE;
 
-                cmd_type = CTRL_DISMISS_BY_ID;
-            }
-        } else {
-            cmd_type = CTRL_DISMISS_CURRENT;
-            id = 0;
+        case '?':
+            fprintf(stderr, "error: -%c: invalid option\n", optopt);
+            return EXIT_FAILURE;
         }
     }
 
-    else if (strcmp(cmd_word, "actions") == 0) {
-        cmd_type = CTRL_ACTIONS_BY_ID;
-        id = 0;  /* 'current' */
+    argc -= optind;
+    argv += optind;
+
+    if (argc < 1) {
+        print_usage(prog);
+        return EXIT_FAILURE;
     }
 
+    bool have_id = argc >= 2;
+    const char *cmd_word = argv[0];
+    const char *id_str = have_id ? argv[1] : NULL;
+
+    /* Which command should we execute? */
+    enum ctrl_command cmd_type;
+    if (strcmp(cmd_word, "quit") == 0)
+        cmd_type = CTRL_QUIT;
+    else if (strcmp(cmd_word, "dismiss") == 0) {
+        cmd_type = have_id && strcmp(id_str, "all") == 0
+            ? CTRL_DISMISS_ALL : CTRL_DISMISS_BY_ID;
+    } else if (strcmp(cmd_word, "actions") == 0)
+        cmd_type = CTRL_ACTIONS_BY_ID;
+    else if (strcmp(cmd_word, "list") == 0)
+        cmd_type = CTRL_LIST;
     else {
         LOG_ERR("%s: invalid command", cmd_word);
         return EXIT_FAILURE;
+    }
+
+    /* With which ID? */
+    uint32_t id;
+    switch (cmd_type) {
+    case CTRL_DISMISS_BY_ID:
+    case CTRL_ACTIONS_BY_ID:
+        if (have_id) {
+            char *end = NULL;
+            errno = 0;
+
+            id = strtoul(id_str, &end, 0);
+
+            if (errno != 0 || *end != '\0') {
+                LOG_ERR(
+                    "%s: invalid notification ID (expected an integer)",
+                    id_str);
+                return EXIT_FAILURE;
+            }
+        } else
+            id = 0;
+        break;
+
+    case CTRL_QUIT:
+    case CTRL_LIST:
+    case CTRL_DISMISS_ALL:
+        id  = 0;
+        break;
     }
 
     int ret = EXIT_FAILURE;
@@ -115,6 +162,36 @@ main(int argc, const char *const *argv)
     if (rcvd != sizeof(reply)) {
         LOG_ERRNO("failed to read reply");
         goto err;
+    }
+
+    if (reply.result == CTRL_OK && cmd_type == CTRL_LIST) {
+        uint64_t count;
+        if (read(fd, &count, sizeof(count)) != sizeof(count)) {
+            LOG_ERRNO("failed to read 'list' response");
+            goto err;
+        }
+
+        for (size_t i = 0; i < count; i++) {
+            uint32_t notif_id;
+            if (read(fd, &notif_id, sizeof(notif_id)) != sizeof(notif_id)) {
+                LOG_ERRNO("failed to read 'list' response");
+                goto err;
+            }
+            printf("%u\n", notif_id);
+        }
+    }
+
+    switch (reply.result) {
+    case CTRL_OK:
+        break;
+
+    case CTRL_INVALID_ID:
+        fprintf(stderr, "%u: invalid ID\n", id);
+        break;
+
+    case CTRL_ERROR:
+        fprintf(stderr, "unknown error\n");
+        break;
     }
 
     ret = reply.result == CTRL_OK ? EXIT_SUCCESS : EXIT_FAILURE;
