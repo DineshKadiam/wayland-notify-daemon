@@ -647,6 +647,18 @@ notif_mgr_refresh(struct notif_mgr *mgr)
         y += notif_show(it->item, y) + mgr->conf->margin.top;
 }
 
+ssize_t
+notif_mgr_get_ids(const struct notif_mgr *mgr, uint32_t *ids, size_t max)
+{
+    size_t count = 0;
+    tll_foreach(mgr->notifs, it) {
+        if (++count <= max && ids != NULL)
+            ids[count - 1] = it->item->id;
+    }
+
+    return count;
+}
+
 static bool
 notif_dismiss(struct notif *notif)
 {
