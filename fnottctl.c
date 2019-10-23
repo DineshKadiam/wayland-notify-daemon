@@ -126,10 +126,17 @@ main(int argc, const char *const *argv)
 
     if (reply.result == CTRL_OK && cmd_type == CTRL_LIST) {
         uint64_t count;
-        read(fd, &count, sizeof(count));
+        if (read(fd, &count, sizeof(count)) != sizeof(count)) {
+            LOG_ERRNO("failed to read 'list' response");
+            goto err;
+        }
+
         for (size_t i = 0; i < count; i++) {
             uint32_t notif_id;
-            read(fd, &notif_id, sizeof(notif_id));
+            if (read(fd, &notif_id, sizeof(notif_id)) != sizeof(notif_id)) {
+                LOG_ERRNO("failed to read 'list' response");
+                goto err;
+            }
             printf("%u\n", notif_id);
         }
     }
