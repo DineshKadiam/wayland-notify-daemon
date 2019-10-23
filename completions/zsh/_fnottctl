@@ -1,32 +1,22 @@
 #compdef fnottctl
 
-local -a global_opts
-global_opts=('--version:show the version number and quit'
-             '--help:show help message and quit')
-
 _arguments \
-    -C \
-    ${opts} \
+    -C -s \
+    '(-v --version)'{-v,--version}'[show the version number and quit]' \
+    '(-h --help)'{-h,--help}'[shoiw help message and quit]' \
     ':cmd:->cmds' \
-    '*:: :->args' \
-  && ret=0
+    ':id:->id'
 
 case ${state} in
     (cmds)
         local -a commands;
         commands=('dismiss:dismiss a notification'
                   'actions:show and apply actions for a notification')
-        _describe -t commands 'command' commands && ret=0
+        _describe -t commands 'command' commands
         ;;
 
-    (args)
-        case ${line[1]} in
-            # TODO: get list of notification IDs via fnottctl
-            # (dismiss)
-            #     _arguments \
-            #         kjdfkjdkf
-            # ;;
-        esac
+    (id)
+        _values 'notification IDs' 1 2 3
         ;;
 esac
 
