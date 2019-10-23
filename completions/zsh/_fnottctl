@@ -11,7 +11,8 @@ case ${state} in
     (cmds)
         local -a commands;
         commands=('dismiss:dismiss a notification'
-                  'actions:show and apply actions for a notification')
+                  'actions:show and apply actions for a notification'
+                  'list:list IDs of all active notifications')
         _describe -t commands 'command' commands
         ;;
 
