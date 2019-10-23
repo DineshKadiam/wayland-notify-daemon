@@ -156,9 +156,17 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         goto err;
 
     if (reply.result == CTRL_OK && id_count >= 0) {
-        write(fd, &id_count, sizeof(id_count));
-        for (size_t i = 0; i < id_count; i++)
-            write(fd, &ids[i], sizeof(ids[i]));
+        if (write(fd, &id_count, sizeof(id_count)) != sizeof(id_count)) {
+            LOG_ERRNO("failed to write 'list' response");
+            goto err;
+        }
+
+        for (size_t i = 0; i < id_count; i++) {
+            if (write(fd, &ids[i], sizeof(ids[i])) != sizeof(ids[i])) {
+                LOG_ERRNO("failed to write 'list' response");
+                goto err;
+            }
+        }
     }
 
 no_reply:
