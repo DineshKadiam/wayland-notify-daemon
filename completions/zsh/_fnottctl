@@ -18,7 +18,15 @@ case ${state} in
         ;;
 
     (id)
-        _values 'notification IDs' 1 2 3
+        case ${line[1]} in
+            (actions)
+                _values 'notification IDs' $(fnottctl list)
+                ;;
+
+            (dismiss)
+                _values 'notification IDs' all $(fnottctl list)
+                ;;
+        esac
         ;;
 esac
 
