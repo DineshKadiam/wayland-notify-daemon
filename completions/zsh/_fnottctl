@@ -3,7 +3,7 @@
 _arguments \
     -C -s \
     '(-v --version)'{-v,--version}'[show the version number and quit]' \
-    '(-h --help)'{-h,--help}'[shoiw help message and quit]' \
+    '(-h --help)'{-h,--help}'[show help message and quit]' \
     ':cmd:->cmds' \
     ':id:->id'
 
