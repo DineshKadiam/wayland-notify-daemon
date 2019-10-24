@@ -264,6 +264,18 @@ notif_set_summary(struct notif *notif, const char *text)
     mbstowcs(notif->summary, text, chars + 1);
 }
 
+char *
+notif_get_summary(const struct notif *notif)
+{
+    if (notif->summary == NULL)
+        return NULL;
+
+    size_t chars = wcstombs(NULL, notif->summary, 0);
+    char *ret = malloc(chars + 1);
+    wcstombs(ret, notif->summary, chars + 1);
+    return ret;
+}
+
 void
 notif_set_body(struct notif *notif, const char *text)
 {
