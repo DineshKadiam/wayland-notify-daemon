@@ -156,10 +156,25 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         }
 
         for (size_t i = 0; i < id_count; i++) {
-            if (write(fd, &ids[i], sizeof(ids[i])) != sizeof(ids[i])) {
+            char *summary = NULL;
+            uint32_t len = 0;
+
+            const struct notif *notif = notif_mgr_get_notif(ctrl->notif_mgr, ids[i]);
+            if (notif != NULL) {
+                summary = notif_get_summary(notif);
+                len = strlen(summary);
+            }
+
+            if (write(fd, &ids[i], sizeof(ids[i])) != sizeof(ids[i]) ||
+                write(fd, &len, sizeof(len)) != sizeof(len) ||
+                write(fd, summary != NULL ? summary : "", len) != len)
+            {
                 LOG_ERRNO("failed to write 'list' response");
+                free(summary);
                 goto err;
             }
+
+            free(summary);
         }
     }
 

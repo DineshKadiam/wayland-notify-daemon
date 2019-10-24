@@ -173,11 +173,21 @@ main(int argc, char *const *argv)
 
         for (size_t i = 0; i < count; i++) {
             uint32_t notif_id;
-            if (read(fd, &notif_id, sizeof(notif_id)) != sizeof(notif_id)) {
+            uint32_t summary_len;
+            if (read(fd, &notif_id, sizeof(notif_id)) != sizeof(notif_id) ||
+                read(fd, &summary_len, sizeof(summary_len)) != sizeof(summary_len))
+            {
                 LOG_ERRNO("failed to read 'list' response");
                 goto err;
             }
-            printf("%u\n", notif_id);
+
+            char *summary = malloc(summary_len + 1);
+            if (read(fd, summary, summary_len) != summary_len) {
+                LOG_ERRNO("failed to read 'list' response");
+                free(summary);
+                goto err;
+            }
+            printf("%u: %.*s\n", notif_id, summary_len, summary);
         }
     }
 
