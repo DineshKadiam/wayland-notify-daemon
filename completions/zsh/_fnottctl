@@ -1,30 +1,36 @@
 #compdef fnottctl
 
 _arguments \
-    -C -s \
-    '(-v --version)'{-v,--version}'[show the version number and quit]' \
-    '(-h --help)'{-h,--help}'[show help message and quit]' \
-    ':cmd:->cmds' \
+    -C \
+    '1:cmd:->cmds' \
     ':id:->id'
 
 case ${state} in
     (cmds)
-        local -a commands;
+        local -a commands
         commands=('dismiss:dismiss a notification'
-                  'actions:show and apply actions for a notification'
-                  'list:list IDs of all active notifications'
-                  'quit:stop the fnott daemon')
-        _describe -t commands 'command' commands
+                   'actions:show and apply actions for a notification'
+                   'list:list IDs of all active notifications'
+                   'quit:stop the fnott daemon')
+
+        _arguments \
+            -s \
+            '(-v --version)'{-v,--version}'[show the version number and quit]' \
+            '(-h --help)'{-h,--help}'[show help message and quit]'
+        _describe 'command' commands
         ;;
 
     (id)
         case ${line[1]} in
-            (actions)
-                _values 'notification IDs' $(fnottctl list)
-                ;;
+            (actions|dismiss)
+                local -a ids
+                ids=("${(f)$(fnottctl list)}")
 
-            (dismiss)
-                _values 'notification IDs' all $(fnottctl list)
+                if [[ "${line[1]}" == "dismiss" ]]; then
+                    ids+=('all:all notifications')
+                fi
+
+                _describe 'notification' ids
                 ;;
         esac
         ;;
