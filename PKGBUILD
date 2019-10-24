@@ -1,5 +1,5 @@
 pkgname=fnott
-pkgver=0.0.0.r0.gb630264
+pkgver=0.0.0.r93.gcd3b00b
 pkgrel=1
 pkgdesc="Lightweight notification daemon for Wayland"
 arch=('x86_64')
@@ -12,8 +12,8 @@ depends=(
 source=()
 
 pkgver() {
-  [ -d ../.git ] && git describe --tags --long | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
-  [ ! -d ../.git ] && head -3 ../meson.build | grep version | cut -d "'" -f 2
+  cd ../.git &> /dev/null && git describe --tags --long | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' ||
+      head -3 ../meson.build | grep version | cut -d "'" -f 2
 }
 
 build() {
