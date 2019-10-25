@@ -23,6 +23,7 @@ png_load(const char *path)
     png_structp png_ptr = NULL;
     png_infop info_ptr = NULL;
     png_bytepp row_pointers = NULL;
+    uint8_t *image_data = NULL;
 
     /* open file and test for it being a png */
     if ((fp = fopen(path, "rb")) == NULL) {
@@ -115,8 +116,8 @@ png_load(const char *path)
 
     size_t row_bytes __attribute__((unused)) = png_get_rowbytes(png_ptr, info_ptr);
     int stride = stride_for_format_and_width(format, width);
-    uint8_t *image_data = malloc(height * stride);
-    
+    image_data = malloc(height * stride);
+
     LOG_DBG("stride=%d, row-bytes=%zu", stride, row_bytes);
     assert(stride >= row_bytes);
 
