@@ -62,7 +62,7 @@ shm_get_buffer(struct wl_shm *shm, int width, int height)
     pixman_image_t *pix = NULL;
 
     /* Backing memory for SHM */
-    pool_fd = memfd_create("f00sel-wayland-shm-buffer-pool", MFD_CLOEXEC);
+    pool_fd = memfd_create("fnott-wayland-shm-buffer-pool", MFD_CLOEXEC);
     if (pool_fd == -1) {
         LOG_ERRNO("failed to create SHM backing memory file");
         goto err;
