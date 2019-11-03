@@ -330,6 +330,17 @@ static const struct wl_seat_listener seat_listener = {
 };
 
 
+static bool
+verify_iface_version(const char *iface, uint32_t version, uint32_t wanted)
+{
+    if (version >= wanted)
+        return true;
+
+    LOG_ERR("%s: need interface version %u, but compositor only implements %u",
+            iface, wanted, version);
+    return false;
+}
+
 static void
 handle_global(void *data, struct wl_registry *registry,
               uint32_t name, const char *interface, uint32_t version)
@@ -337,24 +348,41 @@ handle_global(void *data, struct wl_registry *registry,
     struct wayland *wayl = data;
 
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
+        const uint32_t required = 4;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
         wayl->compositor = wl_registry_bind(
-            wayl->registry, name, &wl_compositor_interface, 4);
+            wayl->registry, name, &wl_compositor_interface, required);
     }
 
     else if (strcmp(interface, wl_shm_interface.name) == 0) {
-        wayl->shm = wl_registry_bind(wayl->registry, name, &wl_shm_interface, 1);
+        const uint32_t required = 1;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
+        wayl->shm = wl_registry_bind(
+            wayl->registry, name, &wl_shm_interface, required);
         wl_shm_add_listener(wayl->shm, &shm_listener, wayl);
         wl_display_roundtrip(wayl->display);
     }
 
     else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
+        const uint32_t required = 1;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
         wayl->layer_shell = wl_registry_bind(
-            wayl->registry, name, &zwlr_layer_shell_v1_interface, 1);
+            wayl->registry, name, &zwlr_layer_shell_v1_interface, required);
     }
 
     else if (strcmp(interface, wl_output_interface.name) == 0) {
+        const uint32_t required = 3;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
         struct wl_output *output = wl_registry_bind(
-            wayl->registry, name, &wl_output_interface, 3);
+            wayl->registry, name, &wl_output_interface, required);
 
         tll_push_back(wayl->monitors, ((struct monitor){
             .wayl = wayl, .output = output}
@@ -370,20 +398,31 @@ handle_global(void *data, struct wl_registry *registry,
          */
 
         assert(wayl->xdg_output_manager != NULL);
-        mon->xdg = zxdg_output_manager_v1_get_xdg_output(
-            wayl->xdg_output_manager, mon->output);
+        if (wayl->xdg_output_manager != NULL) {
+            mon->xdg = zxdg_output_manager_v1_get_xdg_output(
+                wayl->xdg_output_manager, mon->output);
 
-        zxdg_output_v1_add_listener(mon->xdg, &xdg_output_listener, mon);
+            zxdg_output_v1_add_listener(mon->xdg, &xdg_output_listener, mon);
+        }
         wl_display_roundtrip(wayl->display);
     }
 
     else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
+        const uint32_t required = 2;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
         wayl->xdg_output_manager = wl_registry_bind(
-            wayl->registry, name, &zxdg_output_manager_v1_interface, 2);
+            wayl->registry, name, &zxdg_output_manager_v1_interface, required);
     }
 
     else if (strcmp(interface, wl_seat_interface.name) == 0) {
-        wayl->seat = wl_registry_bind(wayl->registry, name, &wl_seat_interface, 4);
+        const uint32_t required = 4;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
+        wayl->seat = wl_registry_bind(
+            wayl->registry, name, &wl_seat_interface, required);
         wl_seat_add_listener(wayl->seat, &seat_listener, wayl);
         wl_display_roundtrip(wayl->display);
     }
