@@ -9,7 +9,6 @@
 #include <sys/epoll.h>
 #include <sys/un.h>
 #include <sys/types.h>
-#include <fcntl.h>
 
 #define LOG_MODULE "ctrl"
 #define LOG_ENABLE_DBG 0
@@ -246,7 +245,7 @@ get_socket_path(void)
 struct ctrl *
 ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr, struct dbus *bus)
 {
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (fd == -1) {
         LOG_ERRNO("failed to create UNIX socket");
         return NULL;
@@ -257,11 +256,6 @@ ctrl_init(struct fdm *fdm, struct notif_mgr *notif_mgr, struct dbus *bus)
         goto err;
 
     unlink(sock_path);
-
-    if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | FD_CLOEXEC) < 0) {
-        LOG_ERRNO("failed to set FD_CLOEXEC on socket");
-        goto err;
-    }
 
     struct sockaddr_un addr = {.sun_family = AF_UNIX};
     strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
