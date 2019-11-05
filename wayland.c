@@ -555,7 +555,7 @@ wayl_destroy(struct wayland *wayl)
         return;
 
     if (wayl->fdm != NULL)
-        fdm_del(wayl->fdm, wl_display_get_fd(wayl->display));
+        fdm_del_no_close(wayl->fdm, wl_display_get_fd(wayl->display));
 
     tll_foreach(wayl->monitors, it) {
         free(it->item.name);

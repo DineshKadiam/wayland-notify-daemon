@@ -568,7 +568,7 @@ dbus_destroy(struct dbus *bus)
     if (bus == NULL)
         return;
 
-    fdm_del(bus->fdm, bus->bus_fd);
+    fdm_del_no_close(bus->fdm, bus->bus_fd);
     dbus_connection_close(bus->conn);
     free(bus);
 }

@@ -794,7 +794,6 @@ fdm_action_writer(struct fdm *fdm, int fd, int events, void *data)
 
 done:
     fdm_del(async->fdm, async->to_child);
-    close(async->to_child);
     async->to_child = -1;
     return true;
 }
@@ -841,15 +840,13 @@ check_pollhup:
         /* This is an error case - normally, the writer should have
          * completed and closed this already */
         fdm_del(async->fdm, async->to_child);
-        close(async->to_child);
     }
 
     fdm_del(async->fdm, async->from_child);
-    close(async->from_child);
 
     free(async->input);
     free(async);
-   
+
     /* Wait for child to die */
     int status;
     waitpid(pid, &status, 0);
@@ -1104,8 +1101,6 @@ err_in_parent:
     free(input);
     fdm_del(notif->mgr->fdm, to_child[1]);
     fdm_del(notif->mgr->fdm, from_child[0]);
-    close(to_child[1]);
-    close(from_child[0]);
     completion_cb(notif->id, NULL, data);
     return;
 }

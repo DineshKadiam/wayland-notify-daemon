@@ -187,7 +187,6 @@ err:
         /* Client disconnected */
         LOG_DBG("client: FD=%d disconnected", fd);
         fdm_del(fdm, fd);
-        close(fd);
 
         tll_foreach(ctrl->clients, it) {
             if (it->item == fd) {
@@ -302,7 +301,6 @@ ctrl_destroy(struct ctrl *ctrl)
         return;
 
     fdm_del(ctrl->fdm, ctrl->server_fd);
-    close(ctrl->server_fd);
 
     if (ctrl->socket_path != NULL)
         unlink(ctrl->socket_path);
