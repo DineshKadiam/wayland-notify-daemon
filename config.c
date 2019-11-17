@@ -8,10 +8,11 @@
 #include <sys/types.h>
 #include <pwd.h>
 
+#include <tllist.h>
+
 #define LOG_MODULE "config"
 #define LOG_ENABLE_DBG 0
 #include "log.h"
-#include "tllist.h"
 
 static char *
 get_config_path_user_config(void)

@@ -13,12 +13,13 @@
 #include "3rd-party/nanosvg.h"
 #include "3rd-party/nanosvgrast.h"
 
+#include <tllist.h>
+
 #define LOG_MODULE "icon"
 #define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "png-fnott.h"
 #include "svg.h"
-#include "tllist.h"
 #include "xdg.h"
 
 typedef tll(char *) theme_names_t;

@@ -10,12 +10,13 @@
 #include <sys/un.h>
 #include <sys/types.h>
 
+#include <tllist.h>
+
 #define LOG_MODULE "ctrl"
 #define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "ctrl-protocol.h"
 #include "dbus.h"
-#include "tllist.h"
 
 extern volatile sig_atomic_t aborted;
 
