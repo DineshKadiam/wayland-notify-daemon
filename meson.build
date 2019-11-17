@@ -61,6 +61,8 @@ version = custom_target(
   output: 'version.h',
   command: [generate_version_sh, meson.project_version(), '@SOURCE_DIR@', '@OUTPUT@'])
 
+tllist = subproject('tllist').get_variable('tllist')
+
 executable(
   'fnott',
   'main.c',
@@ -78,11 +80,11 @@ executable(
   'shm.c', 'shm.h',
   'svg.c', 'svg.h',
   'stride.h',
-  'tllist.h',
   'wayland.c', 'wayland.h',
   'xdg.c', 'xdg.h',
   wl_proto_src + wl_proto_headers, version,
-  dependencies: [threads, math, freetype, fontconfig, pixman, png, wayland_client, wayland_cursor, dbus],
+  dependencies: [threads, math, freetype, fontconfig, pixman, png, wayland_client, wayland_cursor, dbus,
+                tllist],
   install: true)
 
 executable(
