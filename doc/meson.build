@@ -2,7 +2,7 @@ sh = find_program('sh', native: true)
 scdoc = dependency('scdoc', native: true)
 scdoc_prog = find_program(scdoc.get_pkgconfig_variable('scdoc'), native: true)
 
-foreach man_src : ['fnott.1.scd', 'fnottctl.1.scd']
+foreach man_src : ['fnott.1.scd', 'fnott.5.scd', 'fnottctl.1.scd']
   parts = man_src.split('.')
   name = parts[-3]
   section = parts[-2]
