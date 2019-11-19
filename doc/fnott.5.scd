@@ -125,3 +125,7 @@ list of font name and font options.
 _Examples_:
 - Dina:weight=bold:slant=italic
 - Courier New:size=12
+
+# SEE ALSO
+
+*fnott*(1)
