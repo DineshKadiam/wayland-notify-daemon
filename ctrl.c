@@ -68,18 +68,21 @@ out:
     free(info);
 }
 
-static bool
+static enum ctrl_result
 actions_by_id(struct ctrl *ctrl, int fd, uint32_t id)
 {
     struct notif *notif = notif_mgr_get_notif(ctrl->notif_mgr, id);
     if (notif == NULL)
-        return false;
+        return CTRL_INVALID_ID;
+
+    if (notif_action_count(notif) == 0)
+        return CTRL_NO_ACTIONS;
 
     struct actions_cb_data *info = malloc(sizeof(*info));
     *info = (struct actions_cb_data){.ctrl = ctrl, .client_fd = fd};
 
     notif_select_action(notif, &actions_complete, info);
-    return true;
+    return CTRL_OK;
 }
 
 static bool
@@ -138,12 +141,11 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
 
     case CTRL_ACTIONS_BY_ID:
         LOG_DBG("client: FD=%d, actions by-id: %u", fd, cmd.id);
-        if (actions_by_id(ctrl, fd, cmd.id)) {
+        if ((reply.result = actions_by_id(ctrl, fd, cmd.id)) == CTRL_OK) {
             /* Action selection helper successully started, wait for
              * response before sending reply to fnottctl */
             goto no_reply;
-        } else
-            reply.result = CTRL_INVALID_ID;
+        }
     }
 
     if (!send_reply(fd, &reply))

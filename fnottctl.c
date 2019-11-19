@@ -199,6 +199,10 @@ main(int argc, char *const *argv)
         fprintf(stderr, "%u: invalid ID\n", id);
         break;
 
+    case CTRL_NO_ACTIONS:
+        fprintf(stderr, "%u: no actions\n", id);
+        break;
+
     case CTRL_ERROR:
         fprintf(stderr, "unknown error\n");
         break;

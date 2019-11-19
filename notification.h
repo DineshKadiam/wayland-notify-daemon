@@ -50,5 +50,6 @@ char *notif_get_summary(const struct notif *notif);
 typedef void (*notif_select_action_cb)(
     uint32_t notif_id, const char *action_id, void *data);
 
+size_t notif_action_count(const struct notif *notif);
 void notif_select_action(
     const struct notif *notif, notif_select_action_cb completion_cb, void *data);

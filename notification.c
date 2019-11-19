@@ -969,6 +969,12 @@ err:
     return false;
 }
 
+size_t
+notif_action_count(const struct notif *notif)
+{
+    return tll_length(notif->actions);
+}
+
 void
 notif_select_action(
     const struct notif *notif, notif_select_action_cb completion_cb, void *data)
