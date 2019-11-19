@@ -13,7 +13,7 @@ It implements (parts of) the Desktop Notification Specification.
 * Body
 * Actions (requires a dmenu-like utility to display and let user select action)
 * Urgency
-* Icons
+* Icons (PNG + SVG)
 
 
 ## Planned features
