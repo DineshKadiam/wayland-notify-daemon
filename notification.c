@@ -978,6 +978,9 @@ notif_select_action(
     int to_child[2] = {-1, -1};    /* Pipe to child's STDIN */
     int from_child[2] = {-1, -1};  /* Pipe to child's STDOUT */
 
+    if (tll_length(notif->actions) == 0)
+        goto err_before_fork;
+
     if (!tokenize_cmdline(copy, &argv))
         goto err_before_fork;
 
