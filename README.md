@@ -35,3 +35,6 @@ Use `fnottctl dismiss` to dismiss the oldest notification, `fnottctl
 dismiss all` to dismiss **all** notifications, or `fnottctl dismiss
 <id>` to dismiss a specific notification (use `fnottctl list` to list
 currently active notifications).
+
+Note: you probably want to bind at least `fnottctl dismiss` to a
+keyboard shortcut in your Wayland compositor configuration.
