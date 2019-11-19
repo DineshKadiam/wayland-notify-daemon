@@ -3,7 +3,7 @@
 Fnott is a keyboard driven and lightweight notification daemon for
 wlroots-based Wayland compositors.
 
-It implements (parts of) the Desktop Notification Specification.
+It implements (parts of) the [Desktop Notification Specification](https://developer.gnome.org/notification-spec/).
 
 ![screenshot](screenshot.png "Hello World screenshot")
 
