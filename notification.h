@@ -14,7 +14,7 @@ struct wayland;
 struct dbus;
 
 struct notif_mgr;
-struct notif_mgr *notif_mgr_new(const struct config *conf, struct fdm *fdm);
+struct notif_mgr *notif_mgr_new(struct config *conf, struct fdm *fdm);
 void notif_mgr_destroy(struct notif_mgr *mgr);
 
 void notif_mgr_configure(

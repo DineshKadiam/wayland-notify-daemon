@@ -53,7 +53,7 @@ struct notif {
 };
 
 struct notif_mgr {
-    const struct config *conf;
+    struct config *conf;
     struct fdm *fdm;
     struct wayland *wayl;
     struct dbus *bus;
@@ -64,7 +64,7 @@ struct notif_mgr {
 static size_t next_id = 1;
 
 struct notif_mgr *
-notif_mgr_new(const struct config *conf, struct fdm *fdm)
+notif_mgr_new(struct config *conf, struct fdm *fdm)
 {
     struct notif_mgr *mgr = malloc(sizeof(*mgr));
     *mgr = (struct notif_mgr) {
@@ -517,9 +517,9 @@ notif_show(struct notif *notif, int y)
 #define max(x, y) ((x) > (y) ? (x) : (y))
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
-    const struct notif_mgr *mgr = notif->mgr;
-    const struct config *conf = mgr->conf;
-    const struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
+    struct notif_mgr *mgr = notif->mgr;
+    struct config *conf = mgr->conf;
+    struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
     const int pad_horizontal = urgency->body.font->fextents.height;
     const int pad_vertical = urgency->body.font->fextents.height;
