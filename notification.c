@@ -415,6 +415,11 @@ struct glyph_layout {
     const struct glyph *glyph;
     const pixman_color_t *color;
     int x, y;
+    struct {
+        bool draw;
+        int y;
+        int thickness;
+    } underline;
 };
 
 typedef tll(struct glyph_layout) glyph_list_t;
@@ -493,11 +498,30 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             y += font->fextents.height;
         }
 
+        int underline_location = 0;
+        int underline_thickness = 0;
+
+        if (underline) {
+            int diff = font->fextents.height - (font->fextents.ascent + font->fextents.descent);
+            int _baseline = font->fextents.height - diff / 2 - font->fextents.descent;
+
+            int baseline = y + _baseline;
+            int width = font->underline.thickness;
+            int y_under = baseline - font->underline.position - width / 2;
+            underline_location = y_under;
+            underline_thickness = width;
+        }
+
         struct glyph_layout layout = {
             .glyph = glyph,
             .color = color,
             .x = x,
             .y = y + font->fextents.ascent,
+            .underline = {
+                .draw = underline,
+                .y = underline_location,
+                .thickness = underline_thickness,
+            }
         };
 
         tll_push_back(*glyphs, layout);
@@ -634,6 +658,14 @@ notif_show(struct notif *notif, int y)
                 it->item.x + glyph->x, it->item.y - glyph->y,
                 glyph->width, glyph->height);
             pixman_image_unref(src);
+        }
+
+        if (it->item.underline.draw) {
+            pixman_image_fill_rectangles(
+                PIXMAN_OP_OVER, buf->pix, it->item.color,
+                1, &(pixman_rectangle16_t){
+                    it->item.x, it->item.underline.y,
+                    glyph->x_advance, it->item.underline.thickness});
         }
     }
 
