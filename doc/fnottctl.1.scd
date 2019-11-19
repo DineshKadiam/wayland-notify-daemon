@@ -4,11 +4,11 @@ fnottctl(1)
 fnottctl - utility to interact with *fnott*(1)
 
 # SYNOPSIS
-*fnottctl* dismiss [_id_]++
-*fnottctl* actions [_id_]++
-*fnottctl* list++
-*fnottctl* quit++
-*fnottctl* --version
+*fnottctl* *dismiss* [_id_]++
+*fnottctl* *actions* [_id_]++
+*fnottctl* *list*++
+*fnottctl* *quit*++
+*fnottctl* *--version*
 
 # OPTIONS
 

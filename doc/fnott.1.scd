@@ -5,7 +5,7 @@ fnott - keyboard driven notification daemon for Wayland
 
 # SYNOPSIS
 *fnott*++
-*fnott* --version
+*fnott* *--version*
 
 # OPTIONS
 *-v*,*--version*
