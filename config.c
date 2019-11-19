@@ -14,6 +14,28 @@
 #define LOG_ENABLE_DBG 0
 #include "log.h"
 
+static void
+font_set_destroy(struct font_set *set)
+{
+    font_destroy(set->regular);
+    font_destroy(set->bold);
+    font_destroy(set->italic);
+    font_destroy(set->bold_italic);
+
+    set->regular = set->bold = set->italic = set->bold_italic = NULL;
+}
+
+static struct font_set
+font_set_clone(const struct font_set *set)
+{
+    return (struct font_set) {
+        .regular = font_clone(set->regular),
+        .bold = font_clone(set->bold),
+        .italic = font_clone(set->italic),
+        .bold_italic = font_clone(set->bold_italic),
+    };
+}
+
 static char *
 get_config_path_user_config(void)
 {
@@ -105,18 +127,26 @@ str_to_color(const char *s, pixman_color_t *color, const char *path, int lineno)
     return true;
 }
 
-static struct font *
+static struct font_set
 str_to_font(const char *s, const char *path, int lineno)
 {
     font_list_t font_names = tll_init();
     tll_push_back(font_names, s);
 
-    struct font *font;
-    if ((font = font_from_name(font_names, "")) == NULL)
+    struct font *regular;
+    struct font *bold;
+    struct font *italic;
+    struct font *bold_italic;
+
+    if ((regular = font_from_name(font_names, "")) == NULL)
         LOG_ERR("%s:%u: invalid font: %s", path, lineno, s);
 
+    bold = font_from_name(font_names, "weight=bold");
+    italic = font_from_name(font_names, "slant=italic");
+    bold_italic = font_from_name(font_names, "weight=bold:slant=italic");
+
     tll_free(font_names);
-    return font;
+    return (struct font_set){regular, bold, italic, bold_italic};
 }
 
 static bool
@@ -156,19 +186,19 @@ parse_section_urgency(const char *key, const char *value,
              strcmp(key, "body-font") == 0 ||
              strcmp(key, "action-font") == 0)
     {
-        struct font *font;
-        if ((font = str_to_font(value, path, lineno)) == NULL)
+        struct font_set fonts = str_to_font(value, path, lineno);
+        if (fonts.regular == NULL)
             return false;
 
-        struct font **f =
-            strcmp(key, "title-font") == 0 ? &conf->app.font :
-            strcmp(key, "summary-font") == 0 ? &conf->summary.font :
-            strcmp(key, "body-font") == 0 ? &conf->body.font :
-            strcmp(key, "action-font") == 0 ? &conf->action.font : NULL;
+        struct font_set *f =
+            strcmp(key, "title-font") == 0 ? &conf->app.fonts :
+            strcmp(key, "summary-font") == 0 ? &conf->summary.fonts :
+            strcmp(key, "body-font") == 0 ? &conf->body.fonts :
+            strcmp(key, "action-font") == 0 ? &conf->action.fonts : NULL;
 
         assert(f != NULL);
-        font_destroy(*f);
-        *f = font;
+        font_set_destroy(f);
+        *f = fonts;
     }
 
     else if (strcmp(key, "title-color") == 0 ||
@@ -320,23 +350,23 @@ parse_section_main(const char *key, const char *value, struct config *conf,
              strcmp(key, "body-font") == 0 ||
              strcmp(key, "action-font") == 0)
     {
-        struct font *font;
-        if ((font = str_to_font(value, path, lineno)) == NULL)
+        struct font_set fonts = str_to_font(value, path, lineno);
+        if (fonts.regular == NULL)
             return false;
 
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
-            struct font **f =
-                strcmp(key, "title-font") == 0 ? &urgency->app.font :
-                strcmp(key, "summary-font") == 0 ? &urgency->summary.font :
-                strcmp(key, "body-font") == 0 ? &urgency->body.font :
-                strcmp(key, "action-font") == 0 ? &urgency->action.font : NULL;
+            struct font_set *f =
+                strcmp(key, "title-font") == 0 ? &urgency->app.fonts :
+                strcmp(key, "summary-font") == 0 ? &urgency->summary.fonts :
+                strcmp(key, "body-font") == 0 ? &urgency->body.fonts :
+                strcmp(key, "action-font") == 0 ? &urgency->action.fonts : NULL;
 
             assert(f != NULL);
-            font_destroy(*f);
-            *f = font_clone(font);
+            font_set_destroy(f);
+            *f = font_set_clone(&fonts);
         }
-        font_destroy(font);
+        font_set_destroy(&fonts);
     }
 
     else if (strcmp(key, "title-color") == 0 ||
@@ -526,12 +556,15 @@ config_load(struct config *conf)
     font_list_t default_font_names = tll_init();
     tll_push_back(default_font_names, "sans serif");
 
-    struct font *font_default;
-    if ((font_default = font_from_name(default_font_names, "")) == NULL) {
+    struct font_set font_default;
+    if ((font_default.regular = font_from_name(default_font_names, "")) == NULL) {
         LOG_ERR("%s: failed to instantiate default font", tll_front(default_font_names));
         tll_free(default_font_names);
         return false;
     }
+    font_default.bold = font_from_name(default_font_names, "weight=bold");
+    font_default.italic = font_from_name(default_font_names, "slant=italic");
+    font_default.bold_italic = font_from_name(default_font_names, "weight=bold:slant=italic");
     tll_free(default_font_names);
 
     *conf = (struct config){
@@ -550,19 +583,19 @@ config_load(struct config *conf)
                     .size = 1,
                 },
                 .app = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .summary = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .body = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .action = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
             },
@@ -573,19 +606,19 @@ config_load(struct config *conf)
                     .size = 1,
                 },
                 .app = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .summary = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .body = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .action = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
             },
@@ -596,19 +629,19 @@ config_load(struct config *conf)
                     .size = 1,
                 },
                 .app = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .summary = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .body = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .action = {
-                    .font = font_clone(font_default),
+                    .fonts = font_set_clone(&font_default),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
             },
@@ -616,7 +649,7 @@ config_load(struct config *conf)
         .selection_helper = strdup("dmenu"),
     };
 
-    font_destroy(font_default);
+    font_set_destroy(&font_default);
 
     bool ret = false;
 
@@ -650,10 +683,25 @@ config_destroy(struct config conf)
     free(conf.output);
     free(conf.icon_theme_name);
     for (int i  = 0; i < 3; i++) {
-        font_destroy(conf.by_urgency[i].app.font);
-        font_destroy(conf.by_urgency[i].summary.font);
-        font_destroy(conf.by_urgency[i].body.font);
-        font_destroy(conf.by_urgency[i].action.font);
+        font_destroy(conf.by_urgency[i].app.fonts.regular);
+        font_destroy(conf.by_urgency[i].app.fonts.bold);
+        font_destroy(conf.by_urgency[i].app.fonts.italic);
+        font_destroy(conf.by_urgency[i].app.fonts.bold_italic);
+
+        font_destroy(conf.by_urgency[i].summary.fonts.regular);
+        font_destroy(conf.by_urgency[i].summary.fonts.bold);
+        font_destroy(conf.by_urgency[i].summary.fonts.italic);
+        font_destroy(conf.by_urgency[i].summary.fonts.bold_italic);
+
+        font_destroy(conf.by_urgency[i].body.fonts.regular);
+        font_destroy(conf.by_urgency[i].body.fonts.bold);
+        font_destroy(conf.by_urgency[i].body.fonts.italic);
+        font_destroy(conf.by_urgency[i].body.fonts.bold_italic);
+
+        font_destroy(conf.by_urgency[i].action.fonts.regular);
+        font_destroy(conf.by_urgency[i].action.fonts.bold);
+        font_destroy(conf.by_urgency[i].action.fonts.italic);
+        font_destroy(conf.by_urgency[i].action.fonts.bold_italic);
     }
     free(conf.selection_helper);
 }

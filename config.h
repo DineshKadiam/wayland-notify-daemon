@@ -4,6 +4,13 @@
 
 #include "font.h"
 
+struct font_set {
+    struct font *regular;
+    struct font *bold;
+    struct font *italic;
+    struct font *bold_italic;
+};
+
 struct urgency_config {
     pixman_color_t bg;
 
@@ -13,22 +20,22 @@ struct urgency_config {
     } border;
 
     struct {
-        struct font *font;
+        struct font_set fonts;
         pixman_color_t color;
     } app;
 
     struct {
-        struct font *font;
+        struct font_set fonts;
         pixman_color_t color;
     } summary;
 
     struct {
-        struct font *font;
+        struct font_set fonts;
         pixman_color_t color;
     } body;
 
     struct {
-        struct font *font;
+        struct font_set fonts;
         pixman_color_t color;
     } action;
 };
