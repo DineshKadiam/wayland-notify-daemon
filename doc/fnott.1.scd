@@ -48,4 +48,4 @@ See *fnott*(5)
 
 # SEE ALSO
 
-*fnott*(5)*, *fnottctl*(1)
+*fnott*(5), *fnottctl*(1)
