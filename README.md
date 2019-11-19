@@ -32,10 +32,11 @@ daemonize or background itself.
 
 Test it with e.g. `notify-send "this is the summary" "this is the body"`.
 
-Use `fnottctl dismiss` to dismiss the oldest notification, `fnottctl
-dismiss all` to dismiss **all** notifications, or `fnottctl dismiss
-<id>` to dismiss a specific notification (use `fnottctl list` to list
-currently active notifications).
+Use `fnottctl dismiss` to dismiss the highest priority notification
+(usually the oldest), `fnottctl dismiss all` to dismiss **all**
+notifications, or `fnottctl dismiss <id>` to dismiss a specific
+notification (use `fnottctl list` to list currently active
+notifications).
 
 Note: you probably want to bind at least `fnottctl dismiss` to a
 keyboard shortcut in your Wayland compositor configuration.
