@@ -581,10 +581,10 @@ notif_show(struct notif *notif, int y)
     zwlr_layer_surface_v1_set_size(notif->layer_surface, width / scale, height / scale);
     zwlr_layer_surface_v1_set_margin(
         notif->layer_surface,
-        y / scale,                   /* top */
-        conf->margin.right / scale,  /* right */
-        conf->margin.bottom / scale, /* bottom */
-        conf->margin.left / scale);  /* left */
+        y / scale,              /* top */
+        conf->margin / scale,   /* right */
+        conf->margin / scale,   /* bottom */
+        conf->margin / scale);  /* left */
     wayl_roundtrip(wayl);
 
     struct buffer *buf = wayl_get_buffer(wayl, width, height);
@@ -654,9 +654,9 @@ notif_show(struct notif *notif, int y)
 void
 notif_mgr_refresh(struct notif_mgr *mgr)
 {
-    int y = mgr->conf->margin.top;
+    int y = mgr->conf->margin;
     tll_rforeach(mgr->notifs, it)
-        y += notif_show(it->item, y) + mgr->conf->margin.top;
+        y += notif_show(it->item, y) + mgr->conf->margin;
 }
 
 ssize_t

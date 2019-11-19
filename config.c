@@ -269,11 +269,7 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         conf->max_icon_size = sz;
     }
 
-    else if (strcmp(key, "margin-top") == 0 ||
-             strcmp(key, "margin-right") == 0 ||
-             strcmp(key, "margin-bottom") == 0 ||
-             strcmp(key, "margin-left") == 0)
-    {
+    else if (strcmp(key, "margin") == 0) {
         unsigned long m;
         if (!str_to_ulong(value, 10, &m)) {
             LOG_ERR("%s:%u: invalid margin (expected an integer): %s",
@@ -281,14 +277,7 @@ parse_section_main(const char *key, const char *value, struct config *conf,
             return false;
         }
 
-        int *margin =
-            strcmp(key, "margin-top") == 0 ? &conf->margin.top :
-            strcmp(key, "margin-right") == 0 ? &conf->margin.right :
-            strcmp(key, "margin-bottom") == 0 ? &conf->margin.bottom :
-            strcmp(key, "margin-left") == 0 ? &conf->margin.left : NULL;
-
-        assert(margin != NULL);
-        *margin = m;
+        conf->margin = m;
     }
 
     else if (strcmp(key, "selection-helper") == 0) {
@@ -551,12 +540,7 @@ config_load(struct config *conf)
         .max_height = 200,
         .icon_theme_name = strdup("hicolor"),
         .max_icon_size = 32,
-        .margin = {
-            .top = 25,
-            .right = 25,
-            .bottom = 25,
-            .left = 25,
-        },
+        .margin = 10,
         .by_urgency = {
             /* urgency == low */
             {
