@@ -5,6 +5,7 @@ wlroots-based Wayland compositors.
 
 It implements (parts of) the Desktop Notification Specification.
 
+![screenshot](screenshot.png "Hello World screenshot")
 
 ## Supported features
 
