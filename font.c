@@ -337,6 +337,9 @@ font_from_name(font_list_t names, const char *attributes)
 struct font *
 font_clone(const struct font *font)
 {
+    if (font == NULL)
+        return NULL;
+
     struct font *ret = (struct font *)font;
     assert(ret->ref_counter >= 1);
     ret->ref_counter++;
