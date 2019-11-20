@@ -15,10 +15,6 @@ It implements (parts of) the [Desktop Notification Specification](https://develo
 * Urgency
 * Icons (PNG + SVG)
 * Markup
-
-
-## Planned features
-
 * Timeout
 
 
