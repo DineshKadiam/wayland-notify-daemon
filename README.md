@@ -34,5 +34,7 @@ notifications, or `fnottctl dismiss <id>` to dismiss a specific
 notification (use `fnottctl list` to list currently active
 notifications).
 
+You can also click on a notification to dismiss it.
+
 Note: you probably want to bind at least `fnottctl dismiss` to a
 keyboard shortcut in your Wayland compositor configuration.

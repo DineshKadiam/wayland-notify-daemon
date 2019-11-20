@@ -30,6 +30,8 @@ Use *fnottctl*(1) to interact with it:
 
 	fnottctl dismiss
 
+Or simply click on a notification to dismiss it.
+
 Notifications are prioritized in the following way:
 
 - urgency - normal notifications always have higher priority than
