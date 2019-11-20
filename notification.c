@@ -49,7 +49,7 @@ struct notif {
     int image_height;
 
     struct buffer *pending;
-    bool frame_is_scheduled;
+    struct wl_callback *frame_callback;
 };
 
 struct notif_mgr {
@@ -212,6 +212,9 @@ notif_destroy(struct notif *notif)
 {
     if (notif == NULL)
         return;
+
+    if (notif->frame_callback != NULL)
+        wl_callback_destroy(notif->frame_callback);
 
     if (notif->layer_surface)
         zwlr_layer_surface_v1_destroy(notif->layer_surface);
@@ -388,10 +391,10 @@ commit_buffer(struct notif *notif, struct buffer *buf)
     wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
     wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
 
-    struct wl_callback *cb = wl_surface_frame(notif->surface);
-    wl_callback_add_listener(cb, &frame_listener, notif);
+    assert(notif->frame_callback == NULL);
+    notif->frame_callback = wl_surface_frame(notif->surface);
+    wl_callback_add_listener(notif->frame_callback, &frame_listener, notif);
 
-    notif->frame_is_scheduled = true;
     wl_surface_commit(notif->surface);
     wayl_flush(wayl);
 }
@@ -402,7 +405,8 @@ frame_callback(void *data, struct wl_callback *wl_callback, uint32_t callback_da
     struct notif *notif = data;
 
     LOG_DBG("frame callback");
-    notif->frame_is_scheduled = false;
+    assert(notif->frame_callback == wl_callback);
+    notif->frame_callback = NULL;
     wl_callback_destroy(wl_callback);
 
     if (notif->pending != NULL) {
@@ -683,7 +687,7 @@ notif_show(struct notif *notif, int y)
 
     tll_free(glyphs);
 
-    if (notif->frame_is_scheduled) {
+    if (notif->frame_callback != NULL) {
         if (notif->pending != NULL)
             notif->pending->busy = false;
         notif->pending = buf;
