@@ -31,7 +31,7 @@ It implements (parts of) the [Desktop Notification Specification](https://develo
 * dbus
 
 \* Fnott must be run in a Wayland compositor that implements the
-wlroots protocols
+wlroots protocols.
 
 ### Building
 
