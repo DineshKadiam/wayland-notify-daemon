@@ -451,9 +451,9 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
     const struct config *conf = notif->mgr->conf;
     int x = left_pad;
 
-    bool bold __attribute__((unused)) = false;
-    bool italic __attribute__((unused)) = false;
-    bool underline __attribute__((unused)) = false;
+    bool bold = false;
+    bool italic = false;
+    bool underline = false;
 
     for (const wchar_t *wc = text; *wc != L'\0'; wc++) {
 
