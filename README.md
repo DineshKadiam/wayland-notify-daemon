@@ -18,6 +18,29 @@ It implements (parts of) the [Desktop Notification Specification](https://develo
 * Timeout
 
 
+## Requirements
+
+### Running
+
+* fontconfig
+* freetype
+* pixman
+* libpng
+* wayland (_client_ and _cursor_ libraries)
+* wlroots
+* dbus
+
+
+### Building
+
+In addition to the dev variant of the packages above, you need:
+
+* meson
+* ninja
+* scdoc
+* wayland-protocols
+
+
 ## Usage
 
 Copy the example `fnottrc` to `${HOME}/.config/fnottrc` and edit to
