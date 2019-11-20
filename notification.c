@@ -425,6 +425,20 @@ struct glyph_layout {
 typedef tll(struct glyph_layout) glyph_list_t;
 
 static void
+glyph_underline_position(const struct font *font, int *position, int *thickness)
+{
+    /* Font baseline, relative */
+    int diff = font->fextents.height - (font->fextents.ascent + font->fextents.descent);
+    int baseline = font->fextents.height - diff / 2 - font->fextents.descent;
+
+    /* Font baseline, absolute */
+    //int baseline = y + _baseline;
+
+    *thickness = font->underline.thickness;
+    *position = baseline - font->underline.position - *thickness / 2;
+}
+
+static void
 notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *color,
              const wchar_t *text, int left_pad, int right_pad,
              int y, int *width, int *height, glyph_list_t *glyphs)
@@ -498,18 +512,16 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             y += font->fextents.height;
         }
 
-        int underline_location = 0;
-        int underline_thickness = 0;
+        int underline_position = -1;
+        int underline_thickness = -1;
 
         if (underline) {
-            int diff = font->fextents.height - (font->fextents.ascent + font->fextents.descent);
-            int _baseline = font->fextents.height - diff / 2 - font->fextents.descent;
+            /* Get underline *relative* position + thickness */
+            glyph_underline_position(
+                font, &underline_position, &underline_thickness);
 
-            int baseline = y + _baseline;
-            int width = font->underline.thickness;
-            int y_under = baseline - font->underline.position - width / 2;
-            underline_location = y_under;
-            underline_thickness = width;
+            /* Absolute position */
+            underline_position += y;
         }
 
         struct glyph_layout layout = {
@@ -519,7 +531,7 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             .y = y + font->fextents.ascent,
             .underline = {
                 .draw = underline,
-                .y = underline_location,
+                .y = underline_position,
                 .thickness = underline_thickness,
             }
         };
