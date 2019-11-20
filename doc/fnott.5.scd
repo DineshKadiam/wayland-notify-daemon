@@ -6,7 +6,7 @@ fnott - configuration file
 # DESCRIPTION
 
 *fnott* uses the standard _unix configuration format_, with section
-based key/value pairs. THe default (global) section is unnamed
+based key/value pairs. The default (global) section is unnamed
 (i.e. not prefixed with a _[section]_).
 
 fnott will search for a configuration file in the following locations,
