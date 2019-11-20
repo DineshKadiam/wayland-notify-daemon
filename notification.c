@@ -53,7 +53,7 @@ struct notif {
 };
 
 struct notif_mgr {
-    const struct config *conf;
+    struct config *conf;
     struct fdm *fdm;
     struct wayland *wayl;
     struct dbus *bus;
@@ -64,7 +64,7 @@ struct notif_mgr {
 static size_t next_id = 1;
 
 struct notif_mgr *
-notif_mgr_new(const struct config *conf, struct fdm *fdm)
+notif_mgr_new(struct config *conf, struct fdm *fdm)
 {
     struct notif_mgr *mgr = malloc(sizeof(*mgr));
     *mgr = (struct notif_mgr) {
@@ -415,12 +415,31 @@ struct glyph_layout {
     const struct glyph *glyph;
     const pixman_color_t *color;
     int x, y;
+    struct {
+        bool draw;
+        int y;
+        int thickness;
+    } underline;
 };
 
 typedef tll(struct glyph_layout) glyph_list_t;
 
 static void
-notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color,
+glyph_underline_position(const struct font *font, int *position, int *thickness)
+{
+    /* Font baseline, relative */
+    int diff = font->fextents.height - (font->fextents.ascent + font->fextents.descent);
+    int baseline = font->fextents.height - diff / 2 - font->fextents.descent;
+
+    /* Font baseline, absolute */
+    //int baseline = y + _baseline;
+
+    *thickness = font->underline.thickness;
+    *position = baseline - font->underline.position - *thickness / 2;
+}
+
+static void
+notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *color,
              const wchar_t *text, int left_pad, int right_pad,
              int y, int *width, int *height, glyph_list_t *glyphs)
 {
@@ -432,9 +451,9 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
     const struct config *conf = notif->mgr->conf;
     int x = left_pad;
 
-    bool bold __attribute__((unused)) = false;
-    bool italic __attribute__((unused)) = false;
-    bool underline __attribute__((unused)) = false;
+    bool bold = false;
+    bool italic = false;
+    bool underline = false;
 
     for (const wchar_t *wc = text; *wc != L'\0'; wc++) {
 
@@ -470,15 +489,16 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
 
         /* TODO: filter out href and img tags */
 
-#if 0
-        char attrs[1024] = {0};
-        if (bold)
-            strcat(attrs, "weight=bold:");
-        if (italic)
-            strcat(attrs, "slant=italic:");
-        if (strlen(attrs) > 0)
-            attrs[strlen(attrs) - 1] = '\0';
-#endif
+        struct font *font = NULL;
+        if (bold && italic)
+            font = fonts->bold_italic;
+        else if (bold)
+            font = fonts->bold;
+        else if (italic)
+            font = fonts->italic;
+
+        if (font == NULL)
+            font = fonts->regular;
 
         const struct glyph *glyph = font_glyph_for_wc(font, *wc);
         if (glyph == NULL || !glyph->valid)
@@ -492,11 +512,28 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
             y += font->fextents.height;
         }
 
+        int underline_position = -1;
+        int underline_thickness = -1;
+
+        if (underline) {
+            /* Get underline *relative* position + thickness */
+            glyph_underline_position(
+                font, &underline_position, &underline_thickness);
+
+            /* Absolute position */
+            underline_position += y;
+        }
+
         struct glyph_layout layout = {
             .glyph = glyph,
             .color = color,
             .x = x,
             .y = y + font->fextents.ascent,
+            .underline = {
+                .draw = underline,
+                .y = underline_position,
+                .thickness = underline_thickness,
+            }
         };
 
         tll_push_back(*glyphs, layout);
@@ -504,7 +541,7 @@ notif_layout(struct notif *notif, struct font *font, const pixman_color_t *color
     }
 
     *width = max(*width, x + right_pad);
-    *height += font->fextents.height;
+    *height += fonts->regular->fextents.height;
 
     assert(*width <= conf->max_width);
 
@@ -517,12 +554,12 @@ notif_show(struct notif *notif, int y)
 #define max(x, y) ((x) > (y) ? (x) : (y))
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
-    const struct notif_mgr *mgr = notif->mgr;
-    const struct config *conf = mgr->conf;
-    const struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
+    struct notif_mgr *mgr = notif->mgr;
+    struct config *conf = mgr->conf;
+    struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
-    const int pad_horizontal = urgency->body.font->fextents.height;
-    const int pad_vertical = urgency->body.font->fextents.height;
+    const int pad_horizontal = urgency->body.fonts.regular->fextents.height;
+    const int pad_vertical = urgency->body.fonts.regular->fextents.height;
 
     int width = 0;
     int height = pad_vertical;
@@ -535,28 +572,28 @@ notif_show(struct notif *notif, int y)
         indent += notif->image_width + pad_horizontal;
 
     /* App */
-    notif_layout(notif, urgency->app.font, &urgency->app.color, notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    notif_layout(notif, &urgency->app.fonts, &urgency->app.color, notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     if (tll_length(notif->actions) > 0) {
         /* TODO: better 'action' indicator */
         int _a, _b;
-        notif_layout(notif, urgency->app.font, &urgency->app.color, L"*", _w - pad_horizontal, pad_horizontal, height, &_a, &_b, &glyphs);
+        notif_layout(notif, &urgency->app.fonts, &urgency->app.color, L"*", _w - pad_horizontal, pad_horizontal, height, &_a, &_b, &glyphs);
     }
     width = max(width, _w);
     height += _h;
 
     /* Summary */
-    notif_layout(notif, urgency->summary.font, &urgency->summary.color, notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    notif_layout(notif, &urgency->summary.fonts, &urgency->summary.color, notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Body */
-    notif_layout(notif, urgency->body.font, &urgency->body.color, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    notif_layout(notif, &urgency->body.fonts, &urgency->body.color, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
 #if 0
     tll_foreach(notif->actions, it) {
-        notif_layout(notif, urgency->action.font, &urgency->action.color, it->item.label, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+        notif_layout(notif, &urgency->action.fonts, &urgency->action.color, it->item.label, indent, pad_horizontal, height, &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
@@ -633,6 +670,14 @@ notif_show(struct notif *notif, int y)
                 it->item.x + glyph->x, it->item.y - glyph->y,
                 glyph->width, glyph->height);
             pixman_image_unref(src);
+        }
+
+        if (it->item.underline.draw) {
+            pixman_image_fill_rectangles(
+                PIXMAN_OP_OVER, buf->pix, it->item.color,
+                1, &(pixman_rectangle16_t){
+                    it->item.x, it->item.underline.y,
+                    glyph->x_advance, it->item.underline.thickness});
         }
     }
 

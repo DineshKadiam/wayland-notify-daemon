@@ -14,12 +14,12 @@ It implements (parts of) the [Desktop Notification Specification](https://develo
 * Actions (requires a dmenu-like utility to display and let user select action)
 * Urgency
 * Icons (PNG + SVG)
+* Markup
 
 
 ## Planned features
 
 * Timeout
-* Markup (markup tags are already filtered out, but not applied)
 
 
 ## Usage
