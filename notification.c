@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/epoll.h>
+#include <sys/timerfd.h>
 #include <fcntl.h>
 
 #include <pixman.h>
@@ -39,10 +40,16 @@ struct notif {
 
     uint32_t id;
     enum urgency urgency;
+
     wchar_t *app;
     wchar_t *summary;
     wchar_t *body;
     tll(struct action) actions;
+
+    struct {
+        int ms;
+        int fd;
+    } timeout;
 
     pixman_image_t *pix;
     int image_width;
@@ -169,6 +176,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .id = next_id++,
         .urgency = URGENCY_NORMAL,
         .actions = tll_init(),
+        .timeout = {.ms = 0, .fd = -1},
     };
 
     bool inserted = false;
@@ -212,6 +220,8 @@ notif_destroy(struct notif *notif)
 {
     if (notif == NULL)
         return;
+
+    fdm_del(notif->mgr->fdm, notif->timeout.fd);
 
     if (notif->frame_callback != NULL)
         wl_callback_destroy(notif->frame_callback);
@@ -352,6 +362,82 @@ notif_set_image(struct notif *notif, pixman_image_t *pix)
     pixman_transform_init_scale(
         &t, pixman_double_to_fixed(scale), pixman_double_to_fixed(scale));
     pixman_image_set_transform(pix, &t);
+}
+
+static bool
+fdm_timeout(struct fdm *fdm, int fd, int events, void *data)
+{
+    if (events & EPOLLHUP)
+        return false;
+
+    struct notif *notif = data;
+
+    uint64_t unused;
+    ssize_t ret = read(fd, &unused, sizeof(unused));
+
+    if (ret < 0) {
+        if (errno == EAGAIN)
+            return true;
+
+        LOG_ERRNO("failed to read notification timeout timer");
+        return false;
+    }
+
+    notif_mgr_dismiss_id(notif->mgr, notif->id);
+    return true;
+}
+
+void
+notif_set_timeout(struct notif *notif, int timeout_ms)
+{
+    /* Delete previous timer, if any */
+    if (notif->timeout.fd != -1) {
+        fdm_del(notif->mgr->fdm, notif->timeout.fd);
+        notif->timeout.ms = 0;
+        notif->timeout.fd = -1;
+    }
+
+    if (timeout_ms == 0)
+        return;
+
+    notif->timeout.fd = timerfd_create(
+        CLOCK_BOOTTIME, TFD_CLOEXEC | TFD_NONBLOCK);
+
+    if (notif->timeout.fd == -1) {
+        LOG_ERRNO("failed to create notification timeout timer FD");
+        return;
+    }
+
+    long nsecs = (long)timeout_ms * 1000000;
+    time_t secs = nsecs / 1000000000l;
+    nsecs %= 1000000000l;
+
+    LOG_DBG("ms=%d: secs=%ld, nsecs=%ld", timeout_ms, secs, nsecs);
+
+    struct itimerspec timeout = {
+        .it_value = {.tv_sec = secs, .tv_nsec = nsecs}
+    };
+
+    if (timerfd_settime(notif->timeout.fd, 0, &timeout, NULL) < 0) {
+        LOG_ERRNO("failed to configure notification timeout timer FD");
+        goto fail;
+    }
+
+    if (!fdm_add(notif->mgr->fdm, notif->timeout.fd, EPOLLIN,
+                 &fdm_timeout, notif))
+    {
+        LOG_ERR("failed to add notification timeout timer to FDM");
+        goto fail;
+    }
+
+    notif->timeout.ms = timeout_ms;
+    return;
+
+fail:
+    if (notif->timeout.fd != -1)
+        close(notif->timeout.fd);
+    notif->timeout.fd = -1;
+    notif->timeout.ms = 0;
 }
 
 void
