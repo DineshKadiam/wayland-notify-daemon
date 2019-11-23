@@ -52,6 +52,8 @@ get_server_information(struct dbus *bus, DBusMessage *msg)
     if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
+    if (dbus_connection_has_messages_to_send(bus->conn))
+        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     ret = true;
 
 err:
@@ -80,6 +82,8 @@ get_capabilities(struct dbus *bus, DBusMessage *msg)
     if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
+    if (dbus_connection_has_messages_to_send(bus->conn))
+        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     ret = true;
 
 err:
@@ -314,6 +318,8 @@ notify(struct dbus *bus, DBusMessage *msg)
     if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
+    if (dbus_connection_has_messages_to_send(bus->conn))
+        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     ret = true;
 err:
     tll_free(actions);
@@ -361,6 +367,8 @@ close_notification(struct dbus *bus, DBusMessage *msg)
     if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
+    if (dbus_connection_has_messages_to_send(bus->conn))
+        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     ret = true;
 
 err:
@@ -416,6 +424,8 @@ signal_notification_closed(struct dbus *bus, uint32_t id, uint32_t reason)
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &reason);
     dbus_connection_send(bus->conn, signal, NULL);
     dbus_message_unref(signal);
+    if (dbus_connection_has_messages_to_send(bus->conn))
+        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     return true;
 }
 
@@ -454,6 +464,8 @@ dbus_signal_action(struct dbus *bus, uint32_t id, const char *action_id)
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &action_id);
     dbus_connection_send(bus->conn, signal, NULL);
     dbus_message_unref(signal);
+    if (dbus_connection_has_messages_to_send(bus->conn))
+        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     return true;
 }
 
@@ -463,10 +475,22 @@ fdm_handler(struct fdm *fdm, int fd, int events, void *data)
     bool ret = false;
     struct dbus *bus = data;
 
+    bool had_outgoing = dbus_connection_has_messages_to_send(bus->conn);
+
+    /* A sending function added EPOLLOUT when it wasn't necessary */
+    if ((events & EPOLLOUT) && !had_outgoing) {
+        LOG_WARN("EPOLLOUT set, but no outgoing messages");
+        fdm_event_del(bus->fdm, bus->bus_fd, EPOLLOUT);
+    }
+
     if (!dbus_connection_read_write(bus->conn, 0)) {
         LOG_ERRNO("failed to read/write dbus connection");
         goto err;
     }
+
+    /* Remove EPOLLOUT when no longer needed */
+    if (had_outgoing && !dbus_connection_has_messages_to_send(bus->conn))
+        fdm_event_del(bus->fdm, bus->bus_fd, EPOLLOUT);
 
     while (dbus_connection_dispatch(bus->conn) != DBUS_DISPATCH_COMPLETE)
         ;
