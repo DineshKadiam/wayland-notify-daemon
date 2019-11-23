@@ -464,7 +464,7 @@ fdm_handler(struct fdm *fdm, int fd, int events, void *data)
     struct dbus *bus = data;
 
     if (!dbus_connection_read_write(bus->conn, 0)) {
-        LOG_WARN("failed to read/write dbus connection");
+        LOG_ERRNO("failed to read/write dbus connection");
         goto err;
     }
 
