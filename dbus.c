@@ -475,7 +475,7 @@ fdm_handler(struct fdm *fdm, int fd, int events, void *data)
 
 err:
     if (events & EPOLLHUP) {
-        LOG_INFO("disconnected from Wayland");
+        LOG_INFO("disconnected from DBus");
         return false;
     }
 
