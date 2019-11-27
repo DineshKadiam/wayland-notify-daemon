@@ -138,12 +138,12 @@ str_to_font(const char *s, const char *path, int lineno)
     struct font *italic;
     struct font *bold_italic;
 
-    if ((regular = font_from_name(font_names, "")) == NULL)
+    if ((regular = font_from_name(font_names, "dpi=96")) == NULL)
         LOG_ERR("%s:%u: invalid font: %s", path, lineno, s);
 
-    bold = font_from_name(font_names, "weight=bold");
-    italic = font_from_name(font_names, "slant=italic");
-    bold_italic = font_from_name(font_names, "weight=bold:slant=italic");
+    bold = font_from_name(font_names, "dpi=96:weight=bold");
+    italic = font_from_name(font_names, "dpi=96:slant=italic");
+    bold_italic = font_from_name(font_names, "dpi=96:weight=bold:slant=italic");
 
     tll_free(font_names);
     return (struct font_set){regular, bold, italic, bold_italic};
