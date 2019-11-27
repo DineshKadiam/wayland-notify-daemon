@@ -555,7 +555,6 @@ glyph_for_wchar(const struct font *font, wchar_t wc, struct glyph *glyph)
 
     *glyph = (struct glyph){
         .wc = wc,
-        .cols = wcwidth(wc),
         .pix = pix,
         .x = font->face->glyph->bitmap_left / font->pixel_size_fixup,
         .y = font->face->glyph->bitmap_top * font->pixel_size_fixup,

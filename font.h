@@ -16,7 +16,6 @@ typedef tll(const char *) font_list_t;
 
 struct glyph {
     wchar_t wc;
-    int cols;
 
     pixman_image_t *pix;
     int x;
