@@ -109,7 +109,7 @@ from_font_set(FcPattern *pattern, FcFontSet *fonts, int start_idx, const font_li
 
     double dpi;
     if (FcPatternGetDouble(final_pattern, FC_DPI, 0, &dpi) != FcResultMatch)
-        dpi = 96;
+        dpi = 75;
 
     double size;
     if (FcPatternGetDouble(final_pattern, FC_PIXEL_SIZE, 0, &size)) {
