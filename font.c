@@ -247,10 +247,10 @@ from_font_set(FcPattern *pattern, FcFontSet *fonts, int start_idx, const font_li
     font->fc_idx = font_idx;
     font->ref_counter = 1;
 
-    int max_x_advance = ft_face->size->metrics.max_advance / 64;
-    int height = ft_face->size->metrics.height / 64;
-    int descent = ft_face->size->metrics.descender / 64;
-    int ascent = ft_face->size->metrics.ascender / 64;
+    double max_x_advance = ft_face->size->metrics.max_advance / 64.;
+    double height = ft_face->size->metrics.height / 64.;
+    double descent = ft_face->size->metrics.descender / 64.;
+    double ascent = ft_face->size->metrics.ascender / 64.;
 
     font->fextents.height = height * font->pixel_size_fixup;
     font->fextents.descent = -descent * font->pixel_size_fixup;
