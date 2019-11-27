@@ -506,8 +506,10 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
     }
 
     tll_foreach(wayl->monitors, it) {
-        LOG_DBG("%s: %dx%d+%dx%d (scale=%d)", it->item.name, it->item.width_px,
-                it->item.height_px, it->item.x, it->item.y, it->item.scale);
+        LOG_INFO("%s: %dx%d+%dx%d (PPI=%dx%d, refresh=%.2fHz, scale=%d)",
+                 it->item.name, it->item.width_px, it->item.height_px,
+                 it->item.x, it->item.y, it->item.x_ppi, it->item.y_ppi,
+                 it->item.refresh, it->item.scale);
 
         if (wayl->conf->output == NULL)
             wayl->monitor = &it->item;
