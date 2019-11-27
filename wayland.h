@@ -26,6 +26,7 @@ struct monitor {
     int height_px;
 
     int scale;
+    float refresh;
 };
 
 struct wayland *wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mgr);
