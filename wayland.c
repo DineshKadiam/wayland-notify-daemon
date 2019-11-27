@@ -146,6 +146,12 @@ output_mode(void *data, struct wl_output *wl_output, uint32_t flags,
 static void
 output_done(void *data, struct wl_output *wl_output)
 {
+    struct monitor *mon = data;
+
+    int x_inches = mon->width_mm * 0.03937008;
+    int y_inches = mon->height_mm * 0.03937008;
+    mon->x_ppi = mon->width_px / x_inches;
+    mon->y_ppi = mon->height_px / y_inches;
 }
 
 static void
