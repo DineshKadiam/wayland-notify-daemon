@@ -260,9 +260,11 @@ notif_id(const struct notif *notif)
 void
 notif_set_application(struct notif *notif, const char *text)
 {
-    free(notif->app);
-
     size_t chars = mbstowcs(NULL, text, 0);
+    if (chars == (size_t) -1)
+        return;
+
+    free(notif->app);
     notif->app = malloc((chars + 1) * sizeof(wchar_t));
     mbstowcs(notif->app, text, chars + 1);
 }
@@ -270,9 +272,11 @@ notif_set_application(struct notif *notif, const char *text)
 void
 notif_set_summary(struct notif *notif, const char *text)
 {
-    free(notif->summary);
-
     size_t chars = mbstowcs(NULL, text, 0);
+    if (chars == (size_t)-1)
+        return;
+
+    free(notif->summary);
     notif->summary = malloc((chars + 1) * sizeof(wchar_t));
     mbstowcs(notif->summary, text, chars + 1);
 }
@@ -292,9 +296,11 @@ notif_get_summary(const struct notif *notif)
 void
 notif_set_body(struct notif *notif, const char *text)
 {
-    free(notif->body);
-
     size_t chars = mbstowcs(NULL, text, 0);
+    if (chars == (size_t)-1)
+        return;
+
+    free(notif->body);
     notif->body = malloc((chars + 1) * sizeof(wchar_t));
     mbstowcs(notif->body, text, chars + 1);
 }
@@ -443,15 +449,18 @@ fail:
 void
 notif_add_action(struct notif *notif, const char *id, const char *label)
 {
-    wchar_t *wid, *wlabel;
 
-    size_t chars = mbstowcs(NULL, id, 0);
-    wid = malloc((chars + 1) * sizeof(wchar_t));
-    mbstowcs(wid, id, chars + 1);
+    size_t wid_chars = mbstowcs(NULL, id, 0);
+    size_t label_chars = mbstowcs(NULL, label, 0);
 
-    chars = mbstowcs(NULL, label, 0);
-    wlabel = malloc((chars + 1) * sizeof(wchar_t));
-    mbstowcs(wlabel, label, chars + 1);
+    if (wid_chars == (size_t)-1 || label_chars == (size_t)-1)
+        return;
+
+    wchar_t *wid = malloc((wid_chars + 1) * sizeof(wchar_t));
+    mbstowcs(wid, id, wid_chars + 1);
+
+    wchar_t *wlabel = malloc((label_chars + 1) * sizeof(wchar_t));
+    mbstowcs(wlabel, label, label_chars + 1);
 
     tll_push_back(
         notif->actions,
