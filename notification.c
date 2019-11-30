@@ -24,6 +24,7 @@
 #include "wayland.h"
 
 #define max(x, y) ((x) > (y) ? (x) : (y))
+#define min(x, y) ((x) < (y) ? (x) : (y))
 
 struct notif_mgr;
 
@@ -540,8 +541,6 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
              const wchar_t *text, int left_pad, int right_pad,
              int y, int *width, int *height, glyph_list_t *glyphs)
 {
-#define max(x, y) ((x) > (y) ? (x) : (y))
-
     *width = 0;
     *height = 0;
 
@@ -641,16 +640,11 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
     *height += fonts->regular->fextents.height;
 
     assert(*width <= conf->max_width);
-
-#undef max
 }
 
 static int
 notif_show(struct notif *notif, int y)
 {
-#define max(x, y) ((x) > (y) ? (x) : (y))
-#define min(x, y) ((x) < (y) ? (x) : (y))
-
     struct notif_mgr *mgr = notif->mgr;
     struct config *conf = mgr->conf;
     struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
@@ -701,9 +695,6 @@ notif_show(struct notif *notif, int y)
     height += pad_vertical;
 
     height = min(height, conf->max_height);
-
-#undef max
-#undef min
 
     struct wayland *wayl = notif->mgr->wayl;
     const int scale = wayl_monitor(wayl)->scale;
