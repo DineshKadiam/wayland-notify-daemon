@@ -23,6 +23,8 @@
 #include "dbus.h"
 #include "wayland.h"
 
+#define max(x, y) ((x) > (y) ? (x) : (y))
+
 struct notif_mgr;
 
 struct action {
@@ -527,14 +529,10 @@ static void
 glyph_underline_position(const struct font *font, int *position, int *thickness)
 {
     /* Font baseline, relative */
-    int diff = font->fextents.height - (font->fextents.ascent + font->fextents.descent);
-    int baseline = font->fextents.height - diff / 2 - font->fextents.descent;
+    int baseline = font->fextents.ascent;
 
-    /* Font baseline, absolute */
-    //int baseline = y + _baseline;
-
-    *thickness = font->underline.thickness;
-    *position = baseline - font->underline.position - *thickness / 2;
+    *thickness = round(max(1., font->underline.thickness));
+    *position = floor(baseline - font->underline.position + font->underline.thickness / 2.);
 }
 
 static void
