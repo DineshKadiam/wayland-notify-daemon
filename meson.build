@@ -27,6 +27,14 @@ wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 dbus = dependency('dbus-1')
 
+# fcft - try first as a subproject, then as a system dependency
+fcft_proj = subproject('fcft', required: false)
+if fcft_proj.found()
+  fcft = fcft_proj.get_variable('fcft')
+else
+  fcft = dependency('fcft')
+endif
+
 wayland_protocols_datadir = wayland_protocols.get_pkgconfig_variable('pkgdatadir')
 
 wscanner = dependency('wayland-scanner', native: true)
@@ -61,7 +69,19 @@ version = custom_target(
   output: 'version.h',
   command: [generate_version_sh, meson.project_version(), '@SOURCE_DIR@', '@OUTPUT@'])
 
-tllist = subproject('tllist').get_variable('tllist')
+tllist_proj = subproject('tllist', required: false)
+if tllist_proj.found()
+  tllist = tllist_proj.get_variable('tllist')
+else
+  tllist = dependency('tllist')
+endif
+
+fcft_proj = subproject('fcft', required: false)
+if fcft_proj.found()
+  fcft = fcft_proj.get_variable('fcft')
+else
+  fcft = dependency('fcft')
+endif
 
 executable(
   'fnott',
@@ -70,7 +90,6 @@ executable(
   'ctrl.c', 'ctrl.h',
   'dbus.c', 'dbus.h',
   'fdm.c', 'fdm.h',
-  'font.c', 'font.h',
   'icon.c', 'icon.h',
   'log.c', 'log.h',
   'nanosvg.c', '3rd-party/nanosvg.h',
@@ -84,7 +103,7 @@ executable(
   'xdg.c', 'xdg.h',
   wl_proto_src + wl_proto_headers, version,
   dependencies: [threads, math, freetype, fontconfig, pixman, png, wayland_client, wayland_cursor, dbus,
-                tllist],
+                tllist, fcft],
   install: true)
 
 executable(

@@ -530,7 +530,7 @@ static void
 glyph_underline_position(const struct font *font, int *position, int *thickness)
 {
     /* Font baseline, relative */
-    int baseline = font->fextents.ascent;
+    int baseline = font->ascent;
 
     *thickness = round(max(1., font->underline.thickness));
     *position = floor(baseline - font->underline.position + font->underline.thickness / 2.);
@@ -602,10 +602,10 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
 
         if (x + glyph->x_advance + right_pad > conf->max_width || *wc == L'\n') {
             *width = max(*width, x + right_pad);
-            *height += font->fextents.height;
+            *height += font->height;
 
             x = left_pad;
-            y += font->fextents.height;
+            y += font->height;
         }
 
         int underline_position = -1;
@@ -624,7 +624,7 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             .glyph = glyph,
             .color = color,
             .x = x,
-            .y = y + font->fextents.ascent,
+            .y = y + font->ascent,
             .underline = {
                 .draw = underline,
                 .y = underline_position,
@@ -633,11 +633,12 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
         };
 
         tll_push_back(*glyphs, layout);
+        LOG_DBG("GLYPH: advance=%d", glyph->x_advance);
         x += glyph->x_advance;
     }
 
     *width = max(*width, x + right_pad);
-    *height += fonts->regular->fextents.height;
+    *height += fonts->regular->height;
 
     assert(*width <= conf->max_width);
 }
@@ -649,8 +650,8 @@ notif_show(struct notif *notif, int y)
     struct config *conf = mgr->conf;
     struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
-    const int pad_horizontal = urgency->body.fonts.regular->fextents.height;
-    const int pad_vertical = urgency->body.fonts.regular->fextents.height;
+    const int pad_horizontal = urgency->body.fonts.regular->height;
+    const int pad_vertical = urgency->body.fonts.regular->height;
 
     int width = 0;
     int height = pad_vertical;
