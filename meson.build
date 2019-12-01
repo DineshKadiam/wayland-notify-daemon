@@ -25,13 +25,8 @@ wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 dbus = dependency('dbus-1')
 
-# fcft - try first as a subproject, then as a system dependency
-fcft_proj = subproject('fcft', required: false)
-if fcft_proj.found()
-  fcft = fcft_proj.get_variable('fcft')
-else
-  fcft = dependency('fcft')
-endif
+tllist = dependency('tllist', fallback: ['tllist', 'tllist'])
+fcft = dependency('fcft', fallback: ['fcft', 'fcft'])
 
 wayland_protocols_datadir = wayland_protocols.get_pkgconfig_variable('pkgdatadir')
 
@@ -66,20 +61,6 @@ version = custom_target(
   build_always_stale: true,
   output: 'version.h',
   command: [generate_version_sh, meson.project_version(), '@SOURCE_DIR@', '@OUTPUT@'])
-
-tllist_proj = subproject('tllist', required: false)
-if tllist_proj.found()
-  tllist = tllist_proj.get_variable('tllist')
-else
-  tllist = dependency('tllist')
-endif
-
-fcft_proj = subproject('fcft', required: false)
-if fcft_proj.found()
-  fcft = fcft_proj.get_variable('fcft')
-else
-  fcft = dependency('fcft')
-endif
 
 executable(
   'fnott',
