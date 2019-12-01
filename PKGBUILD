@@ -9,7 +9,7 @@ makedepends=('meson' 'ninja' 'scdoc' 'tllist>=1.0.0')
 depends=(
   'wayland' 'wlroots'
   'pixman' 'libpng' 'dbus'
-  'fcft>=0.1.0')
+  'fcft>=0.2.0')
 source=()
 
 pkgver() {
