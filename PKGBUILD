@@ -1,5 +1,5 @@
 pkgname=fnott
-pkgver=0.0.0.r93.gcd3b00b
+pkgver=0.0.0
 pkgrel=1
 pkgdesc="Lightweight notification daemon for Wayland"
 arch=('x86_64')
