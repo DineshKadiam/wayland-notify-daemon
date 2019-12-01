@@ -1,7 +1,7 @@
 #pragma once
 
 #include <pixman.h>
-#include <fcft.h>
+#include <fcft/fcft.h>
 
 struct font_set {
     struct font *regular;
