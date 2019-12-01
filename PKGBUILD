@@ -8,7 +8,7 @@ license=(mit)
 makedepends=('meson' 'ninja' 'scdoc')
 depends=(
   'wayland' 'wlroots'
-  'freetype2' 'fontconfig' 'pixman' 'libpng' 'dbus'
+  'pixman' 'libpng' 'dbus'
   'fcft' 'tllist')
 source=()
 
