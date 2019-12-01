@@ -18,8 +18,6 @@ cc = meson.get_compiler('c')
 math = cc.find_library('m')
 
 threads = dependency('threads')
-freetype = dependency('freetype2')
-fontconfig = dependency('fontconfig')
 pixman = dependency('pixman-1')
 png = dependency('libpng')
 wayland_protocols = dependency('wayland-protocols')
@@ -102,7 +100,7 @@ executable(
   'wayland.c', 'wayland.h',
   'xdg.c', 'xdg.h',
   wl_proto_src + wl_proto_headers, version,
-  dependencies: [threads, math, freetype, fontconfig, pixman, png, wayland_client, wayland_cursor, dbus,
+  dependencies: [threads, math, pixman, png, wayland_client, wayland_cursor, dbus,
                 tllist, fcft],
   install: true)
 
