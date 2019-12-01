@@ -5,11 +5,11 @@ pkgdesc="Lightweight notification daemon for Wayland"
 arch=('x86_64')
 url=https://codeberg.org/dnkl/fnott
 license=(mit)
-makedepends=('meson' 'ninja' 'scdoc')
+makedepends=('meson' 'ninja' 'scdoc' 'tllist>=1.0.0')
 depends=(
   'wayland' 'wlroots'
   'pixman' 'libpng' 'dbus'
-  'tllist>=1.0.0' 'fcft>=0.1.0')
+  'fcft>=0.2.0')
 source=()
 
 pkgver() {

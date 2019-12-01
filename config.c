@@ -1,11 +1,13 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <errno.h>
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <pwd.h>
 
 #include <tllist.h>
@@ -130,22 +132,19 @@ str_to_color(const char *s, pixman_color_t *color, const char *path, int lineno)
 static struct font_set
 str_to_font(const char *s, const char *path, int lineno)
 {
-    font_list_t font_names = tll_init();
-    tll_push_back(font_names, s);
-
+    const char *names[1] = {s};
     struct font *regular;
     struct font *bold;
     struct font *italic;
     struct font *bold_italic;
 
-    if ((regular = font_from_name(font_names, "dpi=96")) == NULL)
+    if ((regular = font_from_name(names, 1, "dpi=96")) == NULL)
         LOG_ERR("%s:%u: invalid font: %s", path, lineno, s);
 
-    bold = font_from_name(font_names, "dpi=96:weight=bold");
-    italic = font_from_name(font_names, "dpi=96:slant=italic");
-    bold_italic = font_from_name(font_names, "dpi=96:weight=bold:slant=italic");
+    bold = font_from_name(names, 1, "dpi=96:weight=bold");
+    italic = font_from_name(names, 1, "dpi=96:slant=italic");
+    bold_italic = font_from_name(names, 1, "dpi=96:weight=bold:slant=italic");
 
-    tll_free(font_names);
     return (struct font_set){regular, bold, italic, bold_italic};
 }
 
@@ -553,19 +552,16 @@ bool
 config_load(struct config *conf)
 {
     /* Default configuration */
-    font_list_t default_font_names = tll_init();
-    tll_push_back(default_font_names, "sans serif");
+    const char *default_font_names[1] = {"sans serif"};
 
     struct font_set font_default;
-    if ((font_default.regular = font_from_name(default_font_names, "")) == NULL) {
-        LOG_ERR("%s: failed to instantiate default font", tll_front(default_font_names));
-        tll_free(default_font_names);
+    if ((font_default.regular = font_from_name(default_font_names, 1, "")) == NULL) {
+        LOG_ERR("%s: failed to instantiate default font", default_font_names[0]);
         return false;
     }
-    font_default.bold = font_from_name(default_font_names, "weight=bold");
-    font_default.italic = font_from_name(default_font_names, "slant=italic");
-    font_default.bold_italic = font_from_name(default_font_names, "weight=bold:slant=italic");
-    tll_free(default_font_names);
+    font_default.bold = font_from_name(default_font_names, 1, "weight=bold");
+    font_default.italic = font_from_name(default_font_names, 1, "slant=italic");
+    font_default.bold_italic = font_from_name(default_font_names, 1, "weight=bold:slant=italic");
 
     *conf = (struct config){
         .output = NULL,
