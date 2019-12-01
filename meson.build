@@ -90,6 +90,7 @@ executable(
   'fnottctl.c',
   'ctrl-protocol.h',
   'log.c', 'log.h',
+  version,
   install: true)
 
 install_data('fnott.desktop', install_dir: join_paths(get_option('datadir'), 'applications'))
