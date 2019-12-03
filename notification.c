@@ -528,16 +528,6 @@ struct glyph_layout {
 typedef tll(struct glyph_layout) glyph_list_t;
 
 static void
-glyph_underline_position(const struct font *font, int *position, int *thickness)
-{
-    /* Font baseline, relative */
-    int baseline = font->ascent;
-
-    *thickness = round(max(1., font->underline.thickness));
-    *position = floor(baseline - font->underline.position + font->underline.thickness / 2.);
-}
-
-static void
 notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *color,
              const wchar_t *text, int left_pad, int right_pad,
              int y, int *width, int *height, glyph_list_t *glyphs)
@@ -608,19 +598,6 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             x = left_pad;
             y += font->height;
         }
-
-        int underline_position = -1;
-        int underline_thickness = -1;
-
-        if (underline) {
-            /* Get underline *relative* position + thickness */
-            glyph_underline_position(
-                font, &underline_position, &underline_thickness);
-
-            /* Absolute position */
-            underline_position += y;
-        }
-
         struct glyph_layout layout = {
             .glyph = glyph,
             .color = color,
@@ -628,8 +605,8 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             .y = y + font->ascent,
             .underline = {
                 .draw = underline,
-                .y = underline_position,
-                .thickness = underline_thickness,
+                .y = y + font->ascent - font->underline.position,
+                .thickness = font->underline.thickness,
             }
         };
 
