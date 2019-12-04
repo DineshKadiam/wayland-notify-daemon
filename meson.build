@@ -14,6 +14,9 @@ add_project_arguments(
   ['-D_GNU_SOURCE=200809L'] + (is_debug_build ? ['-D_DEBUG'] : []),
   language: 'c')
 
+cc = meson.get_compiler('c')
+math = cc.find_library('m', required : false)
+
 threads = dependency('threads')
 pixman = dependency('pixman-1')
 png = dependency('libpng')
@@ -59,6 +62,10 @@ version = custom_target(
   output: 'version.h',
   command: [generate_version_sh, meson.project_version(), '@SOURCE_DIR@', '@OUTPUT@'])
 
+nanosvg = declare_dependency(
+  sources: ['nanosvg.c', '3rd-party/nanosvg.h', 'nanosvgrast.c', '3rd-party/nanosvgrast.h'],
+  dependencies: math)
+
 executable(
   'fnott',
   'main.c',
@@ -68,8 +75,6 @@ executable(
   'fdm.c', 'fdm.h',
   'icon.c', 'icon.h',
   'log.c', 'log.h',
-  'nanosvg.c', '3rd-party/nanosvg.h',
-  'nanosvgrast.c', '3rd-party/nanosvgrast.h',
   'notification.c', 'notification.h',
   'png.c', 'png-fnott.h',
   'shm.c', 'shm.h',
@@ -79,7 +84,7 @@ executable(
   'xdg.c', 'xdg.h',
   wl_proto_src + wl_proto_headers, version,
   dependencies: [threads, pixman, png, wayland_client, wayland_cursor, dbus,
-                tllist, fcft],
+                tllist, fcft, nanosvg],
   install: true)
 
 executable(
