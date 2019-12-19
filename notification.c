@@ -5,6 +5,7 @@
 #include <string.h>
 #include <wchar.h>
 #include <ctype.h>
+#include <regex.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -68,6 +69,7 @@ struct notif_mgr {
     struct fdm *fdm;
     struct wayland *wayl;
     struct dbus *bus;
+    regex_t html_entity_re;
 
     tll(struct notif *) notifs;
 };
@@ -86,6 +88,27 @@ notif_mgr_new(struct config *conf, struct fdm *fdm)
         .notifs = tll_init(),
     };
 
+    int r = regcomp(
+        &mgr->html_entity_re,
+        /* Entity names (there's a *lot* of these - we only support the common ones */
+        "&\\(nbsp\\|lt\\|gt\\|amp\\|quot\\|apos\\|cent\\|pound\\|yen\\|euro\\|copy\\|reg\\);\\|"
+
+        /* Decimal entity number: &#39; */
+        "&#\\([0-9]\\+\\);\\|"
+
+        /* Hexadecimal entity number: &#x27; */
+        "&#x\\([0-9a-fA-F]\\+\\);" , 0);
+
+    if (r != 0) {
+        char err[1024];
+        regerror(r, &mgr->html_entity_re, err, sizeof(err));
+
+        LOG_ERR("failed to compile HTML entity regex: %s (%d)", err, r);
+        regfree(&mgr->html_entity_re);
+        free(mgr);
+        return NULL;
+    }
+
     return mgr;
 }
 
@@ -94,6 +117,8 @@ notif_mgr_destroy(struct notif_mgr *mgr)
 {
     if (mgr == NULL)
         return;
+
+    regfree(&mgr->html_entity_re);
 
     tll_foreach(mgr->notifs, it)
         notif_destroy(it->item);
@@ -261,6 +286,108 @@ notif_id(const struct notif *notif)
     return notif->id;
 }
 
+static wchar_t *
+decode_html_entities(const struct notif_mgr *mgr, const char *s)
+{
+    /* Guesstimate initial size */
+    size_t sz = strlen(s) + 1;
+    wchar_t *result = malloc(sz * sizeof(wchar_t));
+
+    /* Output so far */
+    size_t len = 0;
+    wchar_t *out = result;
+
+#define ensure_size(new_size)                               \
+    do {                                                    \
+        while (sz < (new_size)) {                           \
+            sz *= 2;                                        \
+            result = realloc(result, sz * sizeof(wchar_t)); \
+            out = &result[len];                             \
+        }                                                   \
+    } while (0)
+
+#define append(wc)                                           \
+    do {                                                     \
+        ensure_size(len + 1);                                \
+        *out++ = wc;                                         \
+        len++;                                               \
+    } while (0)
+
+#define append_u8(s, s_len)                                      \
+    do {                                                         \
+        const char *_s = (s);                                    \
+        mbstate_t _ps = {0};                                     \
+        size_t _w_len = mbsnrtowcs(NULL, &_s, s_len, 0, &_ps);   \
+        if (_w_len > 0) {                                        \
+            ensure_size(len + _w_len + 1);                       \
+            memset(&_ps, 0, sizeof(_ps));                        \
+            _s = (s);                                            \
+            mbsnrtowcs(out, &_s, s_len, _w_len + 1, &_ps);       \
+            out += _w_len;                                       \
+            len += _w_len;                                       \
+        }                                                        \
+    } while (0)
+
+    while (true) {
+        regmatch_t matches[mgr->html_entity_re.re_nsub + 1];
+        if (regexec(&mgr->html_entity_re, s, mgr->html_entity_re.re_nsub + 1, matches, 0) == REG_NOMATCH) {
+            append_u8(s, strlen(s));
+            break;
+        }
+
+        const regmatch_t *all = &matches[0];
+        const regmatch_t *named = &matches[1];
+        const regmatch_t *decimal = &matches[2];
+        const regmatch_t *hex = &matches[3];
+
+        append_u8(s, all->rm_so);
+
+        if (named->rm_so >= 0) {
+            size_t match_len = named->rm_eo - named->rm_so;
+            const char *match = &s[named->rm_so];
+
+            if (strncmp(match, "nbsp", match_len) == 0)       append(L' ');
+            else if (strncmp(match, "lt", match_len) == 0)    append(L'<');
+            else if (strncmp(match, "gt", match_len) == 0)    append(L'>');
+            else if (strncmp(match, "amp", match_len) == 0)   append(L'&');
+            else if (strncmp(match, "quot", match_len) == 0)  append(L'"');
+            else if (strncmp(match, "apos", match_len) == 0)  append(L'\'');
+            else if (strncmp(match, "cent", match_len) == 0)  append(L'¢');
+            else if (strncmp(match, "pound", match_len) == 0) append(L'£');
+            else if (strncmp(match, "yen", match_len) == 0)   append(L'¥');
+            else if (strncmp(match, "euro", match_len) == 0)  append(L'€');
+            else if (strncmp(match, "copy", match_len) == 0)  append(L'©');
+            else if (strncmp(match, "reg", match_len) == 0)   append(L'®');
+            else assert(false);
+        }
+
+        else if (decimal->rm_so >= 0 || hex->rm_so >= 0) {
+            bool is_hex = hex->rm_so >= 0;
+            const char *match = is_hex ? &s[hex->rm_so] : &s[decimal->rm_so];
+
+            /* Convert string to integer */
+            errno = 0;
+
+            char *end;
+            unsigned long v = strtoul(match, &end, is_hex ? 16 : 10);
+
+            if (errno == 0) {
+                assert(*end == ';');
+                append((wchar_t)v);
+            }
+        }
+
+        s += all->rm_eo;
+    }
+
+#undef append
+#undef append_n
+#undef ensure_size
+
+    result[len] = L'\0';
+    return result;
+}
+
 void
 notif_set_application(struct notif *notif, const char *text)
 {
@@ -276,13 +403,7 @@ notif_set_application(struct notif *notif, const char *text)
 void
 notif_set_summary(struct notif *notif, const char *text)
 {
-    size_t chars = mbstowcs(NULL, text, 0);
-    if (chars == (size_t)-1)
-        return;
-
-    free(notif->summary);
-    notif->summary = malloc((chars + 1) * sizeof(wchar_t));
-    mbstowcs(notif->summary, text, chars + 1);
+    notif->summary = decode_html_entities(notif->mgr, text);
 }
 
 char *
@@ -300,13 +421,7 @@ notif_get_summary(const struct notif *notif)
 void
 notif_set_body(struct notif *notif, const char *text)
 {
-    size_t chars = mbstowcs(NULL, text, 0);
-    if (chars == (size_t)-1)
-        return;
-
-    free(notif->body);
-    notif->body = malloc((chars + 1) * sizeof(wchar_t));
-    mbstowcs(notif->body, text, chars + 1);
+    notif->body = decode_html_entities(notif->mgr, text);
 }
 
 void
