@@ -173,8 +173,6 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
 
     struct wayland *wayl = mgr->wayl;
     const struct monitor *mon = wayl_monitor(wayl);
-    if (mon == NULL)
-        return NULL;
 
     struct wl_surface *surface = wl_compositor_create_surface(wayl_compositor(wayl));
     if (surface == NULL) {
@@ -183,7 +181,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
     }
 
     struct zwlr_layer_surface_v1 *layer_surface = zwlr_layer_shell_v1_get_layer_surface(
-        wayl_layer_shell(wayl), surface, mon->output,
+        wayl_layer_shell(wayl), surface, mon != NULL ? mon->output : NULL,
         ZWLR_LAYER_SHELL_V1_LAYER_TOP, "fnott");
 
     if (layer_surface == NULL) {
@@ -599,9 +597,11 @@ static void
 commit_buffer(struct notif *notif, struct buffer *buf)
 {
     struct wayland *wayl = notif->mgr->wayl;
+    const struct monitor *mon = wayl_monitor(wayl);
+    const int scale = mon != NULL ? mon->scale : 1;
     assert(buf->busy);
 
-    wl_surface_set_buffer_scale(notif->surface, wayl_monitor(wayl)->scale);
+    wl_surface_set_buffer_scale(notif->surface, scale);
     wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
     wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
 
@@ -791,7 +791,8 @@ notif_show(struct notif *notif, int y)
     height = min(height, conf->max_height);
 
     struct wayland *wayl = notif->mgr->wayl;
-    const int scale = wayl_monitor(wayl)->scale;
+    const struct monitor *mon = wayl_monitor(wayl);
+    const int scale = mon != NULL ? mon->scale : 1;
 
     LOG_DBG("show: y = %d, width = %d, height = %d (scale = %d)",
             y, width, height, scale);

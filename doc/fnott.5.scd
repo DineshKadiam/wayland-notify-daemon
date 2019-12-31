@@ -21,7 +21,7 @@ in this order:
 
 *output*
 	The output to display notifications on. If left unspecified, the
-	"last" detected output will be used. Default: _unspecified_.
+	compositor will choose one for us. Default: _unspecified_.
 	
 	In Sway, you can use *swaymsg -t get_outputs* to get a list of
 	available outputs.

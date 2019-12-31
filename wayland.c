@@ -63,7 +63,7 @@ update_cursor_surface(struct wayland *wayl)
     if (wayl->pointer.cursor == NULL)
         return;
 
-    const int scale = wayl->monitor->scale;
+    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
     wl_surface_set_buffer_scale(wayl->pointer.surface, scale);
 
     struct wl_cursor_image *image = wayl->pointer.cursor->images[0];
@@ -97,8 +97,10 @@ reload_cursor_theme(struct wayland *wayl)
     LOG_DBG("reloading cursor theme: %s@%d",
             wayl->pointer.theme_name, wayl->pointer.size);
 
+    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
+
     wayl->pointer.theme = wl_cursor_theme_load(
-        wayl->pointer.theme_name, wayl->pointer.size * wayl->monitor->scale, wayl->shm);
+        wayl->pointer.theme_name, wayl->pointer.size * scale, wayl->shm);
     if (wayl->pointer.theme == NULL) {
         LOG_ERR("failed to load cursor theme");
         return false;
@@ -206,9 +208,11 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
                  wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
     struct wayland *wayl = data;
+    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
+
     wayl->pointer.serial = serial;
-    wayl->pointer.x = wl_fixed_to_int(surface_x) * wayl->monitor->scale;
-    wayl->pointer.y = wl_fixed_to_int(surface_y) * wayl->monitor->scale;
+    wayl->pointer.x = wl_fixed_to_int(surface_x) * scale;
+    wayl->pointer.y = wl_fixed_to_int(surface_y) * scale;
     wayl->pointer.on_surface = surface;
     update_cursor_surface(wayl);
 }
@@ -228,8 +232,10 @@ wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
                   uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
     struct wayland *wayl = data;
-    wayl->pointer.x = wl_fixed_to_int(surface_x) * wayl->monitor->scale;
-    wayl->pointer.y = wl_fixed_to_int(surface_y) * wayl->monitor->scale;
+    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
+
+    wayl->pointer.x = wl_fixed_to_int(surface_x) * scale;
+    wayl->pointer.y = wl_fixed_to_int(surface_y) * scale;
 }
 
 static void
@@ -505,21 +511,19 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
         goto err;
     }
 
+    if (tll_length(wayl->monitors) == 0) {
+        LOG_ERR("no outputs found");
+        goto err;
+    }
+
     tll_foreach(wayl->monitors, it) {
         LOG_INFO("%s: %dx%d+%dx%d (PPI=%dx%d, refresh=%.2fHz, scale=%d)",
                  it->item.name, it->item.width_px, it->item.height_px,
                  it->item.x, it->item.y, it->item.x_ppi, it->item.y_ppi,
                  it->item.refresh, it->item.scale);
 
-        if (wayl->conf->output == NULL)
+        if (wayl->conf->output != NULL && strcmp(it->item.name, wayl->conf->output) == 0)
             wayl->monitor = &it->item;
-        else if (strcmp(it->item.name, wayl->conf->output) == 0)
-            wayl->monitor = &it->item;
-    }
-
-    if (wayl->monitor == NULL) {
-        LOG_ERR("no outputs found");
-        goto err;
     }
 
     if (!fdm_add(fdm, wl_display_get_fd(wayl->display), EPOLLIN, &fdm_handler, wayl)) {
