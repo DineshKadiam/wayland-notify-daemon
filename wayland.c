@@ -461,13 +461,21 @@ static bool
 fdm_handler(struct fdm *fdm, int fd, int events, void *data)
 {
     struct wayland *wayl = data;
-    int event_count =  wl_display_dispatch(wayl->display);
+    int event_count = 0;
+
+    if (events & EPOLLIN)
+        wl_display_read_events(wayl->display);
+
+    while (wl_display_prepare_read(wayl->display) != 0)
+        wl_display_dispatch_pending(wayl->display);
 
     if (events & EPOLLHUP) {
-        LOG_INFO("disconnected from Wayland");
+        LOG_WARN("disconnected from Wayland");
+        wl_display_cancel_read(wayl->display);
         return false;
     }
 
+    wl_display_flush(wayl->display);
     return event_count != -1;
 }
 
@@ -526,6 +534,11 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
             wayl->monitor = &it->item;
     }
 
+    if (wl_display_prepare_read(wayl->display) != 0) {
+        LOG_ERRNO("failed to prepare for reading wayland events");
+        goto err;
+    }
+
     if (!fdm_add(fdm, wl_display_get_fd(wayl->display), EPOLLIN, &fdm_handler, wayl)) {
         LOG_ERR("failed to register with FDM");
         goto err;
@@ -557,7 +570,6 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
     }
 
     reload_cursor_theme(wayl);
-
     return wayl;
 
 err:
@@ -648,5 +660,10 @@ wayl_flush(struct wayland *wayl)
 void
 wayl_roundtrip(struct wayland *wayl)
 {
+    wl_display_cancel_read(wayl->display);
     wl_display_roundtrip(wayl->display);
+
+    while (wl_display_prepare_read(wayl->display) != 0)
+        wl_display_dispatch_pending(wayl->display);
+    wl_display_flush(wayl->display);
 }
