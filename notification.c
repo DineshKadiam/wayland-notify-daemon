@@ -703,7 +703,7 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             font = fonts->regular;
 
         const struct glyph *glyph = font_glyph_for_wc(font, *wc);
-        if (glyph == NULL || !glyph->valid)
+        if (glyph == NULL)
             continue;
 
         if (x + glyph->x_advance + right_pad > conf->max_width || *wc == L'\n') {
