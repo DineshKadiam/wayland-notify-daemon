@@ -5,6 +5,7 @@
 #include <string.h>
 #include <wchar.h>
 #include <ctype.h>
+#include <wctype.h>
 #include <regex.h>
 #include <unistd.h>
 #include <errno.h>
@@ -645,20 +646,26 @@ typedef tll(struct glyph_layout) glyph_list_t;
 static void
 notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *color,
              const wchar_t *text, int left_pad, int right_pad,
-             int y, int *width, int *height, glyph_list_t *glyphs)
+             int y, int *width, int *height, glyph_list_t *glyph_list)
 {
     *width = 0;
     *height = 0;
 
     const struct config *conf = notif->mgr->conf;
-    int x = left_pad;
+
+    const size_t char_count = wcslen(text);
+    size_t *distance = calloc(char_count, sizeof(distance[0]));
+    struct glyph_and_font {
+        const struct glyph *glyph;
+        struct font *font;
+    } *glyphs = calloc(char_count, sizeof(glyphs[0]));
 
     bool bold = false;
     bool italic = false;
     bool underline = false;
 
-    for (const wchar_t *wc = text; *wc != L'\0'; wc++) {
-
+    size_t i = 0;
+    for (const wchar_t *wc = text; *wc != L'\0'; wc++, i++) {
         if (wcsncasecmp(wc, L"</b>", 4) == 0 ||
             wcsncasecmp(wc, L"</i>", 4) == 0 ||
             wcsncasecmp(wc, L"</u>", 4) == 0)
@@ -702,16 +709,72 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
         if (font == NULL)
             font = fonts->regular;
 
-        const struct glyph *glyph = font_glyph_for_wc(font, *wc);
+        glyphs[i] = (struct glyph_and_font){
+            font_glyph_for_wc(font, *wc),
+            font,
+        };
+
+        if (!iswspace(*wc))
+            continue;
+
+        /* Calculate distance to *this* space for all preceeding
+         * characters (up til the previous space) */
+        for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
+            if (iswspace(text[j]))
+                break;
+            if (j == 0 || (j > 0 && iswspace(text[j - 1]))) {
+                /*
+                 * Store non-zero distance only in first character in a word
+                 * This ensures the layouting doesn't produce output like:
+                 *
+                 * x
+                 * x
+                 * x
+                 * x
+                 *
+                 * for very long words, that doesn't fit at all on single line.
+                 */
+                distance[j] = dist;
+            }
+            dist += glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0;
+        }
+    }
+
+    for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
+        if (iswspace(text[j]))
+            break;
+        if (j == 0 || (j > 0 && iswspace(text[j - 1]))) {
+            /* Store non-zero distance only in first character in a word */
+            distance[j] = dist;
+        }
+        dist += glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0;
+    }
+
+    int x = left_pad;
+
+    for (size_t i = 0; i < char_count; i++) {
+        const wchar_t wc = text[i];
+        const struct glyph *glyph = glyphs[i].glyph;
+        struct font *font = glyphs[i].font;
+        const size_t dist = distance[i];
+
         if (glyph == NULL)
             continue;
 
-        if (x + glyph->x_advance + right_pad > conf->max_width || *wc == L'\n') {
+        if ((x > left_pad &&
+             x + glyph->x_advance + dist + right_pad > conf->max_width) ||
+            wc == L'\n')
+        {
             *width = max(*width, x + right_pad);
-            *height += font->height;
+            *height += fonts->regular->height;
 
             x = left_pad;
-            y += font->height;
+            y += fonts->regular->height;
+
+            if (iswspace(wc)) {
+                /* Don't render trailing whitespace */
+                continue;
+            }
         }
 
         if (glyph->cols <= 0)
@@ -729,7 +792,7 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             }
         };
 
-        tll_push_back(*glyphs, layout);
+        tll_push_back(*glyph_list, layout);
         LOG_DBG("GLYPH: advance=%d", glyph->x_advance);
         x += glyph->x_advance;
     }
