@@ -801,6 +801,9 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
     *height += fonts->regular->height;
 
     assert(*width <= conf->max_width);
+
+    free(glyphs);
+    free(distance);
 }
 
 static int
