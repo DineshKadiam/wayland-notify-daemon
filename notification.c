@@ -5,6 +5,7 @@
 #include <string.h>
 #include <wchar.h>
 #include <ctype.h>
+#include <wctype.h>
 #include <regex.h>
 #include <unistd.h>
 #include <errno.h>
@@ -653,7 +654,7 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
     const struct config *conf = notif->mgr->conf;
 
     const size_t char_count = wcslen(text);
-
+    size_t *distance = calloc(char_count, sizeof(distance[0]));
     struct glyph_and_font {
         const struct glyph *glyph;
         struct font *font;
@@ -712,6 +713,25 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             font_glyph_for_wc(font, *wc),
             font,
         };
+
+        if (!iswspace(*wc))
+            continue;
+
+        /* Calculate distance to *this* space for all preceeding
+         * characters (up til the previous space) */
+        for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
+            if (iswspace(text[j]))
+                break;
+            distance[j] = dist;
+            dist += glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0;
+        }
+    }
+
+    for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
+        if (iswspace(text[j]))
+            break;
+        distance[j] = dist;
+        dist += glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0;
     }
 
     int x = left_pad;
@@ -720,16 +740,25 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
         const wchar_t wc = text[i];
         const struct glyph *glyph = glyphs[i].glyph;
         struct font *font = glyphs[i].font;
+        const size_t dist = distance[i];
 
         if (glyph == NULL)
             continue;
 
-        if (x + glyph->x_advance + right_pad > conf->max_width || wc == L'\n') {
+        if ((x > left_pad &&
+             x + glyph->x_advance + dist + right_pad > conf->max_width) ||
+            wc == L'\n')
+        {
             *width = max(*width, x + right_pad);
             *height += fonts->regular->height;
 
             x = left_pad;
             y += fonts->regular->height;
+
+            if (iswspace(wc)) {
+                /* Don't render trailing whitespace */
+                continue;
+            }
         }
 
         if (glyph->cols <= 0)
