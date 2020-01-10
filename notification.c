@@ -645,20 +645,26 @@ typedef tll(struct glyph_layout) glyph_list_t;
 static void
 notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *color,
              const wchar_t *text, int left_pad, int right_pad,
-             int y, int *width, int *height, glyph_list_t *glyphs)
+             int y, int *width, int *height, glyph_list_t *glyph_list)
 {
     *width = 0;
     *height = 0;
 
     const struct config *conf = notif->mgr->conf;
-    int x = left_pad;
+
+    const size_t char_count = wcslen(text);
+
+    struct glyph_and_font {
+        const struct glyph *glyph;
+        struct font *font;
+    } *glyphs = calloc(char_count, sizeof(glyphs[0]));
 
     bool bold = false;
     bool italic = false;
     bool underline = false;
 
-    for (const wchar_t *wc = text; *wc != L'\0'; wc++) {
-
+    size_t i = 0;
+    for (const wchar_t *wc = text; *wc != L'\0'; wc++, i++) {
         if (wcsncasecmp(wc, L"</b>", 4) == 0 ||
             wcsncasecmp(wc, L"</i>", 4) == 0 ||
             wcsncasecmp(wc, L"</u>", 4) == 0)
@@ -702,16 +708,28 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
         if (font == NULL)
             font = fonts->regular;
 
-        const struct glyph *glyph = font_glyph_for_wc(font, *wc);
+        glyphs[i] = (struct glyph_and_font){
+            font_glyph_for_wc(font, *wc),
+            font,
+        };
+    }
+
+    int x = left_pad;
+
+    for (size_t i = 0; i < char_count; i++) {
+        const wchar_t wc = text[i];
+        const struct glyph *glyph = glyphs[i].glyph;
+        struct font *font = glyphs[i].font;
+
         if (glyph == NULL)
             continue;
 
-        if (x + glyph->x_advance + right_pad > conf->max_width || *wc == L'\n') {
+        if (x + glyph->x_advance + right_pad > conf->max_width || wc == L'\n') {
             *width = max(*width, x + right_pad);
-            *height += font->height;
+            *height += fonts->regular->height;
 
             x = left_pad;
-            y += font->height;
+            y += fonts->regular->height;
         }
 
         if (glyph->cols <= 0)
@@ -729,7 +747,7 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             }
         };
 
-        tll_push_back(*glyphs, layout);
+        tll_push_back(*glyph_list, layout);
         LOG_DBG("GLYPH: advance=%d", glyph->x_advance);
         x += glyph->x_advance;
     }
