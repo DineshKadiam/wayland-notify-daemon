@@ -722,7 +722,20 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
         for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
             if (iswspace(text[j]))
                 break;
-            distance[j] = dist;
+            if (j == 0 || (j > 0 && iswspace(text[j - 1]))) {
+                /*
+                 * Store non-zero distance only in first character in a word
+                 * This ensures the layouting doesn't produce output like:
+                 *
+                 * x
+                 * x
+                 * x
+                 * x
+                 *
+                 * for very long words, that doesn't fit at all on single line.
+                 */
+                distance[j] = dist;
+            }
             dist += glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0;
         }
     }
@@ -730,7 +743,10 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
     for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
         if (iswspace(text[j]))
             break;
-        distance[j] = dist;
+        if (j == 0 || (j > 0 && iswspace(text[j - 1]))) {
+            /* Store non-zero distance only in first character in a word */
+            distance[j] = dist;
+        }
         dist += glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0;
     }
 
