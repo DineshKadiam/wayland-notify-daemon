@@ -713,6 +713,10 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             x = left_pad;
             y += font->height;
         }
+
+        if (glyph->cols <= 0)
+            continue;
+
         struct glyph_layout layout = {
             .glyph = glyph,
             .color = color,
