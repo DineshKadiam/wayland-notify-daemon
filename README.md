@@ -106,3 +106,8 @@ Test that it works:
 ```sh
 notify-send -a "MyApplicationName" "This Is The Summary" "hello world"
 ```
+
+Optionally, install it:
+```sh
+ninja install
+```
