@@ -658,12 +658,14 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
     struct glyph_and_font {
         const struct glyph *glyph;
         struct font *font;
+        long x_kern;
     } *glyphs = calloc(char_count, sizeof(glyphs[0]));
 
     bool bold = false;
     bool italic = false;
     bool underline = false;
 
+    wchar_t prev = 0;
     size_t i = 0;
     for (const wchar_t *wc = text; *wc != L'\0'; wc++, i++) {
         if (wcsncasecmp(wc, L"</b>", 4) == 0 ||
@@ -714,6 +716,12 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             font,
         };
 
+        long x_kern = 0;
+        if (i > 0 && glyphs[i].font == font)
+            font_kerning(font, prev, *wc, &x_kern, NULL);
+
+        prev = *wc;
+
         if (!iswspace(*wc))
             continue;
 
@@ -736,7 +744,8 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
                  */
                 distance[j] = dist;
             }
-            dist += glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0;
+            dist += glyphs[j].x_kern + (
+                glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0);
         }
     }
 
@@ -747,7 +756,8 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             /* Store non-zero distance only in first character in a word */
             distance[j] = dist;
         }
-        dist += glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0;
+        dist += glyphs[j].x_kern + (
+            glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0);
     }
 
     int x = left_pad;
@@ -757,12 +767,13 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
         const struct glyph *glyph = glyphs[i].glyph;
         struct font *font = glyphs[i].font;
         const size_t dist = distance[i];
+        const long x_kern = glyphs[i].x_kern;
 
         if (glyph == NULL)
             continue;
 
         if ((x > left_pad &&
-             x + glyph->x_advance + dist + right_pad > conf->max_width) ||
+             x + x_kern + glyph->x_advance + dist + right_pad > conf->max_width) ||
             wc == L'\n')
         {
             *width = max(*width, x + right_pad);
@@ -783,7 +794,7 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
         struct glyph_layout layout = {
             .glyph = glyph,
             .color = color,
-            .x = x,
+            .x = x + x_kern,
             .y = y + font->ascent,
             .underline = {
                 .draw = underline,
@@ -794,7 +805,7 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
 
         tll_push_back(*glyph_list, layout);
         LOG_DBG("GLYPH: advance=%d", glyph->x_advance);
-        x += glyph->x_advance;
+        x += x_kern + glyph->x_advance;
     }
 
     *width = max(*width, x + right_pad);
