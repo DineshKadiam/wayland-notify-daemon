@@ -668,6 +668,31 @@ config_load(struct config *conf)
     ret = parse_config_file(f, conf, path);
     fclose(f);
 
+    for (size_t i = 0; i < 3; i++) {
+        if (conf->by_urgency[i].bg.alpha != 0xffff)
+            continue;
+
+        LOG_DBG("enabling subpixel antialiasing for urgency=%s",
+                i == 0 ? "low" : i == 1 ? "normal" : "critical");
+
+        font_enable_subpixel_antialias(conf->by_urgency[i].app.fonts.regular);
+        font_enable_subpixel_antialias(conf->by_urgency[i].app.fonts.bold);
+        font_enable_subpixel_antialias(conf->by_urgency[i].app.fonts.italic);
+        font_enable_subpixel_antialias(conf->by_urgency[i].app.fonts.bold_italic);
+        font_enable_subpixel_antialias(conf->by_urgency[i].summary.fonts.regular);
+        font_enable_subpixel_antialias(conf->by_urgency[i].summary.fonts.bold);
+        font_enable_subpixel_antialias(conf->by_urgency[i].summary.fonts.italic);
+        font_enable_subpixel_antialias(conf->by_urgency[i].summary.fonts.bold_italic);
+        font_enable_subpixel_antialias(conf->by_urgency[i].body.fonts.regular);
+        font_enable_subpixel_antialias(conf->by_urgency[i].body.fonts.bold);
+        font_enable_subpixel_antialias(conf->by_urgency[i].body.fonts.italic);
+        font_enable_subpixel_antialias(conf->by_urgency[i].body.fonts.bold_italic);
+        font_enable_subpixel_antialias(conf->by_urgency[i].action.fonts.regular);
+        font_enable_subpixel_antialias(conf->by_urgency[i].action.fonts.bold);
+        font_enable_subpixel_antialias(conf->by_urgency[i].action.fonts.italic);
+        font_enable_subpixel_antialias(conf->by_urgency[i].action.fonts.bold_italic);
+    }
+
 out:
     free(path);
     return ret;
