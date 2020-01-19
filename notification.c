@@ -644,7 +644,8 @@ struct glyph_layout {
 typedef tll(struct glyph_layout) glyph_list_t;
 
 static void
-notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *color,
+notif_layout(struct notif *notif, struct font_set *fonts,
+             const pixman_color_t *color, bool subpixel_antialias,
              const wchar_t *text, int left_pad, int right_pad,
              int y, int *width, int *height, glyph_list_t *glyph_list)
 {
@@ -712,7 +713,7 @@ notif_layout(struct notif *notif, struct font_set *fonts, const pixman_color_t *
             font = fonts->regular;
 
         glyphs[i] = (struct glyph_and_font){
-            font_glyph_for_wc(font, *wc),
+            font_glyph_for_wc(font, *wc, subpixel_antialias),
             font,
         };
 
@@ -824,6 +825,8 @@ notif_show(struct notif *notif, int y)
     struct config *conf = mgr->conf;
     struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
+    const bool subpixel = urgency->bg.alpha == 0xffff;
+
     const int pad_horizontal = urgency->body.fonts.regular->height;
     const int pad_vertical = urgency->body.fonts.regular->height;
 
@@ -838,28 +841,28 @@ notif_show(struct notif *notif, int y)
         indent += notif->image_width + pad_horizontal;
 
     /* App */
-    notif_layout(notif, &urgency->app.fonts, &urgency->app.color, notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    notif_layout(notif, &urgency->app.fonts, &urgency->app.color, subpixel, notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     if (tll_length(notif->actions) > 0) {
         /* TODO: better 'action' indicator */
         int _a, _b;
-        notif_layout(notif, &urgency->app.fonts, &urgency->app.color, L"*", _w - pad_horizontal, pad_horizontal, height, &_a, &_b, &glyphs);
+        notif_layout(notif, &urgency->app.fonts, &urgency->app.color, subpixel, L"*", _w - pad_horizontal, pad_horizontal, height, &_a, &_b, &glyphs);
     }
     width = max(width, _w);
     height += _h;
 
     /* Summary */
-    notif_layout(notif, &urgency->summary.fonts, &urgency->summary.color, notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    notif_layout(notif, &urgency->summary.fonts, &urgency->summary.color, subpixel, notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Body */
-    notif_layout(notif, &urgency->body.fonts, &urgency->body.color, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    notif_layout(notif, &urgency->body.fonts, &urgency->body.color, subpixel, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
 #if 0
     tll_foreach(notif->actions, it) {
-        notif_layout(notif, &urgency->action.fonts, &urgency->action.color, it->item.label, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+        notif_layout(notif, &urgency->action.fonts, &urgency->action.color, subpixel, it->item.label, indent, pad_horizontal, height, &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
