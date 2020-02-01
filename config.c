@@ -138,12 +138,12 @@ str_to_font(const char *s, const char *path, int lineno)
     struct font *italic;
     struct font *bold_italic;
 
-    if ((regular = font_from_name(names, 1, "dpi=96")) == NULL)
+    if ((regular = font_from_name(1, names, "dpi=96")) == NULL)
         LOG_ERR("%s:%u: invalid font: %s", path, lineno, s);
 
-    bold = font_from_name(names, 1, "dpi=96:weight=bold");
-    italic = font_from_name(names, 1, "dpi=96:slant=italic");
-    bold_italic = font_from_name(names, 1, "dpi=96:weight=bold:slant=italic");
+    bold = font_from_name(1, names, "dpi=96:weight=bold");
+    italic = font_from_name(1, names, "dpi=96:slant=italic");
+    bold_italic = font_from_name(1, names, "dpi=96:weight=bold:slant=italic");
 
     return (struct font_set){regular, bold, italic, bold_italic};
 }
@@ -555,13 +555,13 @@ config_load(struct config *conf)
     const char *default_font_names[1] = {"sans serif"};
 
     struct font_set font_default;
-    if ((font_default.regular = font_from_name(default_font_names, 1, "")) == NULL) {
+    if ((font_default.regular = font_from_name(1, default_font_names, "")) == NULL) {
         LOG_ERR("%s: failed to instantiate default font", default_font_names[0]);
         return false;
     }
-    font_default.bold = font_from_name(default_font_names, 1, "weight=bold");
-    font_default.italic = font_from_name(default_font_names, 1, "slant=italic");
-    font_default.bold_italic = font_from_name(default_font_names, 1, "weight=bold:slant=italic");
+    font_default.bold = font_from_name(1, default_font_names, "weight=bold");
+    font_default.italic = font_from_name(1, default_font_names, "slant=italic");
+    font_default.bold_italic = font_from_name(1, default_font_names, "weight=bold:slant=italic");
 
     *conf = (struct config){
         .output = NULL,
