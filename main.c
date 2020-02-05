@@ -2,12 +2,17 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <signal.h>
 #include <poll.h>
 #include <assert.h>
 #include <errno.h>
 #include <locale.h>
 #include <getopt.h>
+#include <unistd.h>
+
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define LOG_MODULE "main"
 #define LOG_ENABLE_DBG 0
@@ -34,18 +39,60 @@ print_usage(const char *prog)
            "       %s --version\n"
            "\n"
            "Options:\n"
-           "  -v,--version                show the version number and quit\n",
+           "  -p,--print-pid=FILE|FD                print PID to file or FD\n"
+           "  -v,--version                          show the version number and quit\n",
            prog, prog);
+}
+
+static bool
+print_pid(const char *pid_file, bool *unlink_at_exit)
+{
+    LOG_DBG("printing PID to %s", pid_file);
+
+    errno = 0;
+    char *end;
+    int pid_fd = strtoul(pid_file, &end, 10);
+
+    if (errno != 0 || *end != '\0') {
+        if ((pid_fd = open(pid_file,
+                           O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC,
+                           S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+            LOG_ERRNO("%s: failed to open", pid_file);
+            return false;
+        } else
+            *unlink_at_exit = true;
+    }
+
+    if (pid_fd >= 0) {
+        char pid[32];
+        snprintf(pid, sizeof(pid), "%u\n", getpid());
+
+        ssize_t bytes = write(pid_fd, pid, strlen(pid));
+        close(pid_fd);
+
+        if (bytes < 0) {
+            LOG_ERRNO("failed to write PID to FD=%u", pid_fd);
+            return false;
+        }
+
+        LOG_DBG("wrote %zd bytes to FD=%d", bytes, pid_fd);
+        return true;
+    } else
+        return false;
 }
 
 int
 main(int argc, char *const *argv)
 {
     static const struct option longopts[] = {
-        {"version", no_argument, 0, 'v'},
-        {"help",    no_argument, 0, 'h'},
-        {NULL,      no_argument, 0, 0},
+        {"print-pid",     required_argument, 0, 'p'},
+        {"version",       no_argument,       0, 'v'},
+        {"help",          no_argument,       0, 'h'},
+        {NULL,            no_argument,       0, 0},
     };
+
+    bool unlink_pid_file = false;
+    const char *pid_file = NULL;
 
     while (true) {
         int c = getopt_long(argc, argv, ":vh", longopts, NULL);
@@ -53,6 +100,10 @@ main(int argc, char *const *argv)
             break;
 
         switch (c) {
+        case 'p':
+            pid_file = optarg;
+            break;
+
         case 'v':
             printf("fnott version %s\n", FNOTT_VERSION);
             return EXIT_SUCCESS;
@@ -110,6 +161,11 @@ main(int argc, char *const *argv)
     sigaction(SIGINT, &sigact, NULL);
     sigaction(SIGTERM, &sigact, NULL);
 
+    if (pid_file != NULL) {
+        if (!print_pid(pid_file, &unlink_pid_file))
+            goto err;
+    }
+
     while (!aborted) {
         wayl_flush(wayl);
         if (!fdm_poll(fdm))
@@ -127,5 +183,8 @@ err:
     wayl_destroy(wayl);
     fdm_destroy(fdm);
     config_destroy(conf);
+
+    if (unlink_pid_file)
+        unlink(pid_file);
     return ret;
 }

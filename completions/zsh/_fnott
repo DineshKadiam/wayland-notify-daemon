@@ -2,5 +2,6 @@
 
 _arguments \
     -s \
+    '(-p --print-pid)'{-p,--print-pid}'[print PID to this file or FD when up and running]:pidfile:_files' \
     '(-v --version)'{-v,--version}'[show the version number and quit]' \
     '(-h --help)'{-h,--help}'[show help message and quit]' \
