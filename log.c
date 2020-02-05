@@ -12,19 +12,25 @@
 #include <syslog.h>
 
 static bool colorize = false;
+static bool do_syslog = true;
 
-static void __attribute__((constructor))
-init(void)
+void
+log_init(enum log_colorize _colorize, bool _do_syslog)
 {
-    colorize = isatty(STDERR_FILENO);
-    openlog(NULL, /*LOG_PID*/0, LOG_DAEMON);
-    setlogmask(LOG_UPTO(LOG_WARNING));
+    colorize = _colorize == LOG_COLORIZE_NEVER ? false : _colorize == LOG_COLORIZE_ALWAYS ? true : isatty(STDERR_FILENO);
+    do_syslog = _do_syslog;
+
+    if (do_syslog) {
+        openlog(NULL, /*LOG_PID*/0, LOG_DAEMON);
+        setlogmask(LOG_UPTO(LOG_WARNING));
+    }
 }
 
-static void __attribute__((destructor))
-fini(void)
+void
+log_deinit(void)
 {
-    closelog();
+    if (do_syslog)
+        closelog();
 }
 
 static void
@@ -68,6 +74,9 @@ _sys_log(enum log_class log_class, const char *module,
          int lineno __attribute__((unused)),
          const char *fmt, int sys_errno, va_list va)
 {
+    if (!do_syslog)
+        return;
+
     /* Map our log level to syslog's level */
     int level = -1;
     switch (log_class) {

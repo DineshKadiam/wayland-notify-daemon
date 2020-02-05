@@ -40,6 +40,8 @@ print_usage(const char *prog)
            "\n"
            "Options:\n"
            "  -p,--print-pid=FILE|FD                print PID to file or FD\n"
+           "  -l,--log-colorize=[never|always|auto] enable/disable colorization of log output on stderr\n"
+           "  -s,--log-no-syslog                    disable syslog logging\n"
            "  -v,--version                          show the version number and quit\n",
            prog, prog);
 }
@@ -86,6 +88,8 @@ main(int argc, char *const *argv)
 {
     static const struct option longopts[] = {
         {"print-pid",     required_argument, 0, 'p'},
+        {"log-colorize",  optional_argument, 0, 'l'},
+        {"log-no-syslog", no_argument,       0, 's'},
         {"version",       no_argument,       0, 'v'},
         {"help",          no_argument,       0, 'h'},
         {NULL,            no_argument,       0, 0},
@@ -94,14 +98,34 @@ main(int argc, char *const *argv)
     bool unlink_pid_file = false;
     const char *pid_file = NULL;
 
+    enum log_colorize log_colorize = LOG_COLORIZE_AUTO;
+    bool log_syslog = true;
+
     while (true) {
-        int c = getopt_long(argc, argv, ":vh", longopts, NULL);
+        int c = getopt_long(argc, argv, ":p:l::svh", longopts, NULL);
         if (c == -1)
             break;
 
         switch (c) {
         case 'p':
             pid_file = optarg;
+            break;
+
+        case 'l':
+            if (optarg == NULL || strcmp(optarg, "auto") == 0)
+                log_colorize = LOG_COLORIZE_AUTO;
+            else if (strcmp(optarg, "never") == 0)
+                log_colorize = LOG_COLORIZE_NEVER;
+            else if (strcmp(optarg, "always") == 0)
+                log_colorize = LOG_COLORIZE_ALWAYS;
+            else {
+                fprintf(stderr, "%s: argument must be one of 'never', 'always' or 'auto'\n", optarg);
+                return EXIT_FAILURE;
+            }
+            break;
+
+        case 's':
+            log_syslog = false;
             break;
 
         case 'v':
@@ -121,6 +145,8 @@ main(int argc, char *const *argv)
             return EXIT_FAILURE;
         }
     }
+
+    log_init(log_colorize, log_syslog);
 
     int ret = EXIT_FAILURE;
     setlocale(LC_ALL, "");
@@ -186,5 +212,7 @@ err:
 
     if (unlink_pid_file)
         unlink(pid_file);
+
+    log_deinit();
     return ret;
 }
