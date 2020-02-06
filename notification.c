@@ -183,7 +183,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
 
     struct zwlr_layer_surface_v1 *layer_surface = zwlr_layer_shell_v1_get_layer_surface(
         wayl_layer_shell(wayl), surface, mon != NULL ? mon->output : NULL,
-        ZWLR_LAYER_SHELL_V1_LAYER_TOP, "fnott");
+        ZWLR_LAYER_SHELL_V1_LAYER_TOP, "notification-daemon");
 
     if (layer_surface == NULL) {
         LOG_ERR("failed to create layer shell surface");
