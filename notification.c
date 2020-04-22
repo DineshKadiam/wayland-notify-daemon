@@ -825,8 +825,12 @@ notif_show(struct notif *notif, int y)
     struct config *conf = mgr->conf;
     struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
+    struct wayland *wayl = notif->mgr->wayl;
+    const struct monitor *mon = wayl_monitor(wayl);
+
     const enum fcft_subpixel subpixel = urgency->bg.alpha == 0xffff
-        ? FCFT_SUBPIXEL_DEFAULT : FCFT_SUBPIXEL_NONE;
+        ? mon != NULL ? mon->subpixel : FCFT_SUBPIXEL_DEFAULT
+        : FCFT_SUBPIXEL_NONE;
 
     const int pad_horizontal = urgency->body.fonts.regular->height;
     const int pad_vertical = urgency->body.fonts.regular->height;
@@ -875,10 +879,7 @@ notif_show(struct notif *notif, int y)
 
     height = min(height, conf->max_height);
 
-    struct wayland *wayl = notif->mgr->wayl;
-    const struct monitor *mon = wayl_monitor(wayl);
     const int scale = mon != NULL ? mon->scale : 1;
-
     LOG_DBG("show: y = %d, width = %d, height = %d (scale = %d)",
             y, width, height, scale);
 

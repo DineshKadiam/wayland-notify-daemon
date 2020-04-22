@@ -132,6 +132,7 @@ output_geometry(void *data, struct wl_output *wl_output, int32_t x, int32_t y,
     struct monitor *mon = data;
     mon->width_mm = physical_width;
     mon->height_mm = physical_height;
+    mon->subpixel = subpixel;
 }
 
 static void

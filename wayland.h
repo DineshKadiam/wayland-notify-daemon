@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <wayland-client.h>
+#include <fcft/fcft.h>
 
 #include "config.h"
 #include "fdm.h"
@@ -30,6 +31,7 @@ struct monitor {
 
     int scale;
     float refresh;
+    enum fcft_subpixel subpixel;
 };
 
 struct wayland *wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mgr);
