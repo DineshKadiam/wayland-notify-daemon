@@ -1,7 +1,7 @@
 project('fnott', 'c',
         version: '0.0.0',
         license: 'MIT',
-        meson_version: '>=0.47.0',
+        meson_version: '>=0.53.0',
         default_options: [
           'c_std=c11',
           'warning_level=1',
@@ -54,8 +54,8 @@ wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 dbus = dependency('dbus-1')
 
-tllist = dependency('tllist', version: '>=1.0.0', fallback: ['tllist', 'tllist'])
-fcft = dependency('fcft', version: ['>=2.0.0', '<2.1.0'], fallback: ['fcft', 'fcft'])
+tllist = dependency('tllist', version: '>=1.0.1', fallback: 'tllist')
+fcft = dependency('fcft', version: ['>=2.0.0', '<2.1.0'], fallback: 'fcft')
 
 wayland_protocols_datadir = wayland_protocols.get_pkgconfig_variable('pkgdatadir')
 
