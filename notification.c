@@ -631,7 +631,7 @@ frame_callback(void *data, struct wl_callback *wl_callback, uint32_t callback_da
 }
 
 struct glyph_layout {
-    const struct glyph *glyph;
+    const struct fcft_glyph *glyph;
     const pixman_color_t *color;
     int x, y;
     struct {
@@ -645,7 +645,7 @@ typedef tll(struct glyph_layout) glyph_list_t;
 
 static void
 notif_layout(struct notif *notif, struct font_set *fonts,
-             const pixman_color_t *color, bool subpixel_antialias,
+             const pixman_color_t *color, enum fcft_subpixel subpixel,
              const wchar_t *text, int left_pad, int right_pad,
              int y, int *width, int *height, glyph_list_t *glyph_list)
 {
@@ -657,8 +657,8 @@ notif_layout(struct notif *notif, struct font_set *fonts,
     const size_t char_count = wcslen(text);
     size_t *distance = calloc(char_count, sizeof(distance[0]));
     struct glyph_and_font {
-        const struct glyph *glyph;
-        struct font *font;
+        const struct fcft_glyph *glyph;
+        struct fcft_font *font;
         long x_kern;
     } *glyphs = calloc(char_count, sizeof(glyphs[0]));
 
@@ -701,7 +701,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
 
         /* TODO: filter out href and img tags */
 
-        struct font *font = NULL;
+        struct fcft_font *font = NULL;
         if (bold && italic)
             font = fonts->bold_italic;
         else if (bold)
@@ -713,13 +713,13 @@ notif_layout(struct notif *notif, struct font_set *fonts,
             font = fonts->regular;
 
         glyphs[i] = (struct glyph_and_font){
-            font_glyph_for_wc(font, *wc, subpixel_antialias),
+            fcft_glyph_rasterize(font, *wc, subpixel),
             font,
         };
 
         long x_kern = 0;
         if (i > 0 && glyphs[i].font == font)
-            font_kerning(font, prev, *wc, &x_kern, NULL);
+            fcft_kerning(font, prev, *wc, &x_kern, NULL);
 
         prev = *wc;
 
@@ -746,7 +746,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
                 distance[j] = dist;
             }
             dist += glyphs[j].x_kern + (
-                glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0);
+                glyphs[j].glyph != NULL ? glyphs[j].glyph->advance.x : 0);
         }
     }
 
@@ -758,15 +758,15 @@ notif_layout(struct notif *notif, struct font_set *fonts,
             distance[j] = dist;
         }
         dist += glyphs[j].x_kern + (
-            glyphs[j].glyph != NULL ? glyphs[j].glyph->x_advance : 0);
+            glyphs[j].glyph != NULL ? glyphs[j].glyph->advance.x : 0);
     }
 
     int x = left_pad;
 
     for (size_t i = 0; i < char_count; i++) {
         const wchar_t wc = text[i];
-        const struct glyph *glyph = glyphs[i].glyph;
-        struct font *font = glyphs[i].font;
+        const struct fcft_glyph *glyph = glyphs[i].glyph;
+        struct fcft_font *font = glyphs[i].font;
         const size_t dist = distance[i];
         const long x_kern = glyphs[i].x_kern;
 
@@ -774,7 +774,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
             continue;
 
         if ((x > left_pad &&
-             x + x_kern + glyph->x_advance + dist + right_pad > conf->max_width) ||
+             x + x_kern + glyph->advance.x + dist + right_pad > conf->max_width) ||
             wc == L'\n')
         {
             *width = max(*width, x + right_pad);
@@ -806,7 +806,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
 
         tll_push_back(*glyph_list, layout);
         LOG_DBG("GLYPH: advance=%d", glyph->x_advance);
-        x += x_kern + glyph->x_advance;
+        x += x_kern + glyph->advance.x;
     }
 
     *width = max(*width, x + right_pad);
@@ -825,7 +825,12 @@ notif_show(struct notif *notif, int y)
     struct config *conf = mgr->conf;
     struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
-    const bool subpixel = urgency->bg.alpha == 0xffff;
+    struct wayland *wayl = notif->mgr->wayl;
+    const struct monitor *mon = wayl_monitor(wayl);
+
+    const enum fcft_subpixel subpixel = urgency->bg.alpha == 0xffff
+        ? mon != NULL ? mon->subpixel : FCFT_SUBPIXEL_DEFAULT
+        : FCFT_SUBPIXEL_NONE;
 
     const int pad_horizontal = urgency->body.fonts.regular->height;
     const int pad_vertical = urgency->body.fonts.regular->height;
@@ -874,10 +879,7 @@ notif_show(struct notif *notif, int y)
 
     height = min(height, conf->max_height);
 
-    struct wayland *wayl = notif->mgr->wayl;
-    const struct monitor *mon = wayl_monitor(wayl);
     const int scale = mon != NULL ? mon->scale : 1;
-
     LOG_DBG("show: y = %d, width = %d, height = %d (scale = %d)",
             y, width, height, scale);
 
@@ -922,7 +924,7 @@ notif_show(struct notif *notif, int y)
 
     /* Text */
     tll_foreach(glyphs, it) {
-        const struct glyph *glyph = it->item.glyph;
+        const struct fcft_glyph *glyph = it->item.glyph;
         if (pixman_image_get_format(glyph->pix) == PIXMAN_a8r8g8b8) {
             /* Glyph surface is a fully rendered bitmap */
             pixman_image_composite32(
@@ -944,7 +946,7 @@ notif_show(struct notif *notif, int y)
                 PIXMAN_OP_OVER, buf->pix, it->item.color,
                 1, &(pixman_rectangle16_t){
                     it->item.x, it->item.underline.y,
-                    glyph->x_advance, it->item.underline.thickness});
+                    glyph->advance.x, it->item.underline.thickness});
         }
     }
 

@@ -19,10 +19,10 @@
 static void
 font_set_destroy(struct font_set *set)
 {
-    font_destroy(set->regular);
-    font_destroy(set->bold);
-    font_destroy(set->italic);
-    font_destroy(set->bold_italic);
+    fcft_destroy(set->regular);
+    fcft_destroy(set->bold);
+    fcft_destroy(set->italic);
+    fcft_destroy(set->bold_italic);
 
     set->regular = set->bold = set->italic = set->bold_italic = NULL;
 }
@@ -31,10 +31,10 @@ static struct font_set
 font_set_clone(const struct font_set *set)
 {
     return (struct font_set) {
-        .regular = font_clone(set->regular),
-        .bold = font_clone(set->bold),
-        .italic = font_clone(set->italic),
-        .bold_italic = font_clone(set->bold_italic),
+        .regular = fcft_clone(set->regular),
+        .bold = fcft_clone(set->bold),
+        .italic = fcft_clone(set->italic),
+        .bold_italic = fcft_clone(set->bold_italic),
     };
 }
 
@@ -133,17 +133,17 @@ static struct font_set
 str_to_font(const char *s, const char *path, int lineno)
 {
     const char *names[1] = {s};
-    struct font *regular;
-    struct font *bold;
-    struct font *italic;
-    struct font *bold_italic;
+    struct fcft_font *regular;
+    struct fcft_font *bold;
+    struct fcft_font *italic;
+    struct fcft_font *bold_italic;
 
-    if ((regular = font_from_name(1, names, "dpi=96")) == NULL)
+    if ((regular = fcft_from_name(1, names, "dpi=96")) == NULL)
         LOG_ERR("%s:%u: invalid font: %s", path, lineno, s);
 
-    bold = font_from_name(1, names, "dpi=96:weight=bold");
-    italic = font_from_name(1, names, "dpi=96:slant=italic");
-    bold_italic = font_from_name(1, names, "dpi=96:weight=bold:slant=italic");
+    bold = fcft_from_name(1, names, "dpi=96:weight=bold");
+    italic = fcft_from_name(1, names, "dpi=96:slant=italic");
+    bold_italic = fcft_from_name(1, names, "dpi=96:weight=bold:slant=italic");
 
     return (struct font_set){regular, bold, italic, bold_italic};
 }
@@ -555,13 +555,13 @@ config_load(struct config *conf)
     const char *default_font_names[1] = {"sans serif"};
 
     struct font_set font_default;
-    if ((font_default.regular = font_from_name(1, default_font_names, "")) == NULL) {
+    if ((font_default.regular = fcft_from_name(1, default_font_names, "")) == NULL) {
         LOG_ERR("%s: failed to instantiate default font", default_font_names[0]);
         return false;
     }
-    font_default.bold = font_from_name(1, default_font_names, "weight=bold");
-    font_default.italic = font_from_name(1, default_font_names, "slant=italic");
-    font_default.bold_italic = font_from_name(1, default_font_names, "weight=bold:slant=italic");
+    font_default.bold = fcft_from_name(1, default_font_names, "weight=bold");
+    font_default.italic = fcft_from_name(1, default_font_names, "slant=italic");
+    font_default.bold_italic = fcft_from_name(1, default_font_names, "weight=bold:slant=italic");
 
     *conf = (struct config){
         .output = NULL,
@@ -679,25 +679,25 @@ config_destroy(struct config conf)
     free(conf.output);
     free(conf.icon_theme_name);
     for (int i  = 0; i < 3; i++) {
-        font_destroy(conf.by_urgency[i].app.fonts.regular);
-        font_destroy(conf.by_urgency[i].app.fonts.bold);
-        font_destroy(conf.by_urgency[i].app.fonts.italic);
-        font_destroy(conf.by_urgency[i].app.fonts.bold_italic);
+        fcft_destroy(conf.by_urgency[i].app.fonts.regular);
+        fcft_destroy(conf.by_urgency[i].app.fonts.bold);
+        fcft_destroy(conf.by_urgency[i].app.fonts.italic);
+        fcft_destroy(conf.by_urgency[i].app.fonts.bold_italic);
 
-        font_destroy(conf.by_urgency[i].summary.fonts.regular);
-        font_destroy(conf.by_urgency[i].summary.fonts.bold);
-        font_destroy(conf.by_urgency[i].summary.fonts.italic);
-        font_destroy(conf.by_urgency[i].summary.fonts.bold_italic);
+        fcft_destroy(conf.by_urgency[i].summary.fonts.regular);
+        fcft_destroy(conf.by_urgency[i].summary.fonts.bold);
+        fcft_destroy(conf.by_urgency[i].summary.fonts.italic);
+        fcft_destroy(conf.by_urgency[i].summary.fonts.bold_italic);
 
-        font_destroy(conf.by_urgency[i].body.fonts.regular);
-        font_destroy(conf.by_urgency[i].body.fonts.bold);
-        font_destroy(conf.by_urgency[i].body.fonts.italic);
-        font_destroy(conf.by_urgency[i].body.fonts.bold_italic);
+        fcft_destroy(conf.by_urgency[i].body.fonts.regular);
+        fcft_destroy(conf.by_urgency[i].body.fonts.bold);
+        fcft_destroy(conf.by_urgency[i].body.fonts.italic);
+        fcft_destroy(conf.by_urgency[i].body.fonts.bold_italic);
 
-        font_destroy(conf.by_urgency[i].action.fonts.regular);
-        font_destroy(conf.by_urgency[i].action.fonts.bold);
-        font_destroy(conf.by_urgency[i].action.fonts.italic);
-        font_destroy(conf.by_urgency[i].action.fonts.bold_italic);
+        fcft_destroy(conf.by_urgency[i].action.fonts.regular);
+        fcft_destroy(conf.by_urgency[i].action.fonts.bold);
+        fcft_destroy(conf.by_urgency[i].action.fonts.italic);
+        fcft_destroy(conf.by_urgency[i].action.fonts.bold_italic);
     }
     free(conf.selection_helper);
 }

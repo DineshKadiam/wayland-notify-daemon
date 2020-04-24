@@ -4,10 +4,10 @@
 #include <fcft/fcft.h>
 
 struct font_set {
-    struct font *regular;
-    struct font *bold;
-    struct font *italic;
-    struct font *bold_italic;
+    struct fcft_font *regular;
+    struct fcft_font *bold;
+    struct fcft_font *italic;
+    struct fcft_font *bold_italic;
 };
 
 struct urgency_config {
