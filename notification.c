@@ -713,7 +713,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
             font = fonts->regular;
 
         glyphs[i] = (struct glyph_and_font){
-            fcft_glyph_for_wc(font, *wc, subpixel),
+            fcft_glyph_rasterize(font, *wc, subpixel),
             font,
         };
 
