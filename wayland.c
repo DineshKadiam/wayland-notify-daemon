@@ -308,14 +308,16 @@ seat_capabilities(void *data, struct wl_seat *wl_seat,
 {
     struct wayland *wayl = data;
 
-    if (wayl->pointer.pointer != NULL) {
-        wl_pointer_release(wayl->pointer.pointer);
-        wayl->pointer.pointer = NULL;
-    }
-
     if (caps & WL_SEAT_CAPABILITY_POINTER) {
-        wayl->pointer.pointer = wl_seat_get_pointer(wl_seat);
-        wl_pointer_add_listener(wayl->pointer.pointer, &pointer_listener, wayl);
+        if (wayl->pointer.pointer == NULL) {
+            wayl->pointer.pointer = wl_seat_get_pointer(wl_seat);
+            wl_pointer_add_listener(wayl->pointer.pointer, &pointer_listener, wayl);
+        }
+    } else {
+        if (wayl->pointer.pointer != NULL) {
+            wl_pointer_release(wayl->pointer.pointer);
+            wayl->pointer.pointer = NULL;
+        }
     }
 }
 
