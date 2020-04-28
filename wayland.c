@@ -194,7 +194,11 @@ xdg_output_handle_name(void *data, struct zxdg_output_v1 *xdg_output,
                        const char *name)
 {
     struct monitor *mon = data;
+    struct wayland *wayl = mon->wayl;
     mon->name = strdup(name);
+
+    if (wayl->conf->output != NULL && strcmp(mon->name, wayl->conf->output) == 0)
+        wayl->monitor = mon;
 }
 
 static void
@@ -366,6 +370,7 @@ static void
 handle_global(void *data, struct wl_registry *registry,
               uint32_t name, const char *interface, uint32_t version)
 {
+    LOG_DBG("global: 0x%08x, interface=%s, version=%u", name, interface, version);
     struct wayland *wayl = data;
 
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
@@ -406,7 +411,8 @@ handle_global(void *data, struct wl_registry *registry,
             wayl->registry, name, &wl_output_interface, required);
 
         tll_push_back(wayl->monitors, ((struct monitor){
-            .wayl = wayl, .output = output}
+            .wayl = wayl, .output = output,
+            .wl_name = name,}
         ));
 
         struct monitor *mon = &tll_back(wayl->monitors);
@@ -450,9 +456,41 @@ handle_global(void *data, struct wl_registry *registry,
 }
 
 static void
+monitor_destroy(struct monitor *mon)
+{
+    free(mon->name);
+    if (mon->xdg != NULL)
+        zxdg_output_v1_destroy(mon->xdg);
+    if (mon->output != NULL)
+        wl_output_destroy(mon->output);
+    // free(mon->make);
+    // free(mon->model);
+}
+
+static void
 handle_global_remove(void *data, struct wl_registry *registry, uint32_t name)
 {
-    LOG_WARN("global removed: %u", name);
+    LOG_DBG("global removed: 0x%08x", name);
+
+    struct wayland *wayl = data;
+
+    tll_foreach(wayl->monitors, it) {
+        struct monitor *mon = &it->item;
+
+        if (mon->wl_name != name)
+            continue;
+
+        LOG_INFO("monitor disabled: %s", mon->name);
+
+        if (wayl->monitor == mon)
+            wayl->monitor = NULL;
+
+        monitor_destroy(mon);
+        tll_remove(wayl->monitors, it);
+        return;
+    }
+
+    LOG_WARN("unknown global removed: 0x%08x", name);
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -532,9 +570,6 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
                  it->item.name, it->item.width_px, it->item.height_px,
                  it->item.x, it->item.y, it->item.x_ppi, it->item.y_ppi,
                  it->item.refresh, it->item.scale);
-
-        if (wayl->conf->output != NULL && strcmp(it->item.name, wayl->conf->output) == 0)
-            wayl->monitor = &it->item;
     }
 
     if (wl_display_prepare_read(wayl->display) != 0) {
@@ -589,13 +624,8 @@ wayl_destroy(struct wayland *wayl)
     if (wayl->fdm != NULL)
         fdm_del_no_close(wayl->fdm, wl_display_get_fd(wayl->display));
 
-    tll_foreach(wayl->monitors, it) {
-        free(it->item.name);
-        if (it->item.xdg)
-            zxdg_output_v1_destroy(it->item.xdg);
-        if (it->item.output != NULL)
-            wl_output_destroy(it->item.output);
-    }
+    tll_foreach(wayl->monitors, it)
+        monitor_destroy(&it->item);
     tll_free(wayl->monitors);
 
     free(wayl->pointer.theme_name);
