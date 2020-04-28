@@ -145,8 +145,17 @@ layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
     zwlr_layer_surface_v1_ack_configure(surface, serial);
 }
 
+static void
+layer_surface_closed(void *data, struct zwlr_layer_surface_v1 *surface)
+{
+    struct notif *notif = data;
+    struct notif_mgr *mgr = notif->mgr;
+    notif_mgr_dismiss_id(mgr, notif->id);
+}
+
 static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
-    .configure = layer_surface_configure,
+    .configure = &layer_surface_configure,
+    .closed = &layer_surface_closed,
 };
 
 struct notif *
