@@ -507,7 +507,7 @@ fdm_timeout(struct fdm *fdm, int fd, int events, void *data)
         return false;
     }
 
-    notif_mgr_dismiss_id(notif->mgr, notif->id);
+    notif_mgr_expire_id(notif->mgr, notif->id);
     return true;
 }
 
@@ -991,6 +991,46 @@ notif_dismiss(struct notif *notif)
     dbus_signal_dismissed(notif->mgr->bus, notif->id);
     notif_destroy(notif);
     return true;
+}
+
+static bool
+notif_expire(struct notif *notif)
+{
+    dbus_signal_expired(notif->mgr->bus, notif->id);
+    notif_destroy(notif);
+    return true;
+}
+
+static bool
+notif_mgr_expire_current(struct notif_mgr *mgr)
+{
+    if (tll_length(mgr->notifs) == 0)
+        return false;
+
+    bool ret = notif_expire(tll_pop_front(mgr->notifs));
+    notif_mgr_refresh(mgr);
+    return ret;
+}
+
+bool
+notif_mgr_expire_id(struct notif_mgr *mgr, uint32_t id)
+{
+    if (id == 0)
+        return notif_mgr_expire_current(mgr);
+
+    tll_foreach(mgr->notifs, it) {
+        if (it->item->id != id)
+            continue;
+
+        struct notif *notif = it->item;
+        tll_remove(mgr->notifs, it);
+
+        bool ret = notif_expire(notif);
+        notif_mgr_refresh(mgr);
+        return ret;
+    }
+
+    return false;
 }
 
 static bool
