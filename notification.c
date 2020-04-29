@@ -43,6 +43,7 @@ struct notif {
 
     struct wl_surface *surface;
     struct zwlr_layer_surface_v1 *layer_surface;
+    bool is_configured;
 
     uint32_t id;
     enum urgency urgency;
@@ -142,6 +143,8 @@ layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
                         uint32_t serial, uint32_t w, uint32_t h)
 {
     LOG_DBG("configure: width=%u, height=%u", w, h);
+    struct notif *notif = data;
+    notif->is_configured = true;
     zwlr_layer_surface_v1_ack_configure(surface, serial);
 }
 
@@ -172,6 +175,8 @@ notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id)
     return NULL;
 }
 
+/* Instantiates a new notification. You *must* call
+ * notif_mgr_refresh() "soon" (after configuring the notification). */
 struct notif *
 notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
 {
@@ -231,6 +236,17 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
     zwlr_layer_surface_v1_add_listener(
         layer_surface, &layer_surface_listener, notif);
     wl_surface_commit(notif->surface);
+
+    /*
+     * Ensure the surface has been configured before we
+     * continue.
+     *
+     * Without this, a subsequent call to notif_show() (either
+     * directly, or via notif_mgr_refresh()) will result in
+     * "zwlr_layer_surface_v1@15: error 2: layer_surface has never
+     * been configured".
+     */
+    wayl_roundtrip(mgr->wayl);
     return notif;
 }
 
@@ -900,7 +916,6 @@ notif_show(struct notif *notif, int y)
         conf->margin / scale,   /* right */
         conf->margin / scale,   /* bottom */
         conf->margin / scale);  /* left */
-    wayl_roundtrip(wayl);
 
     struct buffer *buf = wayl_get_buffer(wayl, width, height);
     const int brd_sz = urgency->border.size;;
