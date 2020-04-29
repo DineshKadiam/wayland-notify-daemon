@@ -149,7 +149,6 @@ main(int argc, char *const *argv)
     log_init(log_colorize, log_syslog, LOG_FACILITY_DAEMON, LOG_CLASS_WARNING);
 
     int ret = EXIT_FAILURE;
-    setlocale(LC_ALL, "");
 
     struct config conf = {};
     struct fdm *fdm = NULL;
@@ -163,6 +162,8 @@ main(int argc, char *const *argv)
         goto err;
 
     icon_theme = icon_load_theme(conf.icon_theme_name);
+
+    setlocale(LC_ALL, "");
 
     if ((fdm = fdm_init()) == NULL)
         goto err;
