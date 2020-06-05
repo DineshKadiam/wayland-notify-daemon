@@ -2,7 +2,7 @@ pkgname=fnott
 pkgver=0.0.0
 pkgrel=1
 pkgdesc="Lightweight notification daemon for Wayland"
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 url=https://codeberg.org/dnkl/fnott
 license=(mit)
 makedepends=('meson' 'ninja' 'scdoc' 'tllist>=1.0.1')
