@@ -581,7 +581,6 @@ dbus_init(const struct config *conf, struct fdm *fdm, struct wayland *wayl,
     return bus;
 
 err:
-    dbus_connection_close(conn);
     if (bus != NULL)
         free(bus);
     return NULL;
@@ -594,7 +593,6 @@ dbus_destroy(struct dbus *bus)
         return;
 
     fdm_del_no_close(bus->fdm, bus->bus_fd);
-    dbus_connection_close(bus->conn);
     free(bus);
 }
 
