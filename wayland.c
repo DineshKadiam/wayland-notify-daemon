@@ -201,11 +201,6 @@ output_scale(void *data, struct wl_output *wl_output, int32_t factor)
     struct monitor *mon = data;
     mon->scale = factor;
 
-    tll_foreach(mon->wayl->seats, it) {
-        reload_cursor_theme(&it->item, factor);
-        update_cursor_surface(&it->item);
-    }
-
     notif_mgr_refresh(mon->wayl->notif_mgr);
 }
 
