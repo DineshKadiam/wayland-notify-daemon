@@ -20,20 +20,14 @@
 #include "log.h"
 #include "notification.h"
 
-struct wayland {
-    const struct config *conf;
-    struct fdm *fdm;
-    struct notif_mgr *notif_mgr;
-    struct wl_display *display;
-    struct wl_registry *registry;
-    struct wl_compositor *compositor;
-    struct wl_seat *seat;
-    struct zxdg_output_manager_v1 *xdg_output_manager;
-    struct wl_shm *shm;
-    struct zwlr_layer_shell_v1 *layer_shell;
+struct seat {
+    struct wayland *wayl;
+    struct wl_seat *wl_seat;
+    uint32_t wl_name;
+    char *name;
 
+    struct wl_pointer *wl_pointer;
     struct {
-        struct wl_pointer *pointer;
         uint32_t serial;
 
         /* Current location */
@@ -50,66 +44,105 @@ struct wayland {
         int size;
         char *theme_name;
     } pointer;
+};
+
+struct wayland {
+    const struct config *conf;
+    struct fdm *fdm;
+    struct notif_mgr *notif_mgr;
+    struct wl_display *display;
+    struct wl_registry *registry;
+    struct wl_compositor *compositor;
+    struct zxdg_output_manager_v1 *xdg_output_manager;
+    struct wl_shm *shm;
+    struct zwlr_layer_shell_v1 *layer_shell;
+
 
     bool have_argb8888;
 
+    tll(struct seat) seats;
     tll(struct monitor) monitors;
     const struct monitor *monitor;
 };
 
 static void
-update_cursor_surface(struct wayland *wayl)
+seat_destroy(struct seat *seat)
 {
-    if (wayl->pointer.cursor == NULL)
+    if (seat == NULL)
         return;
 
-    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
-    wl_surface_set_buffer_scale(wayl->pointer.surface, scale);
+    free(seat->pointer.theme_name);
 
-    struct wl_cursor_image *image = wayl->pointer.cursor->images[0];
+    if (seat->pointer.theme != NULL)
+        wl_cursor_theme_destroy(seat->pointer.theme);
+    if (seat->pointer.surface != NULL)
+        wl_surface_destroy(seat->pointer.surface);
+    if (seat->wl_pointer != NULL)
+        wl_pointer_destroy(seat->wl_pointer);
+    if (seat->wl_seat != NULL)
+        wl_seat_destroy(seat->wl_seat);
+
+    free(seat->name);
+}
+
+static void
+update_cursor_surface(struct seat *seat)
+{
+    if (seat->pointer.cursor == NULL)
+        return;
+
+    if (seat->wl_pointer == NULL)
+        return;
+
+    struct wayland *wayl = seat->wayl;
+    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
+    wl_surface_set_buffer_scale(seat->pointer.surface, scale);
+
+    struct wl_cursor_image *image = seat->pointer.cursor->images[0];
 
     wl_surface_attach(
-        wayl->pointer.surface, wl_cursor_image_get_buffer(image), 0, 0);
+        seat->pointer.surface, wl_cursor_image_get_buffer(image), 0, 0);
 
     wl_pointer_set_cursor(
-        wayl->pointer.pointer, wayl->pointer.serial,
-        wayl->pointer.surface,
+        seat->wl_pointer, seat->pointer.serial,
+        seat->pointer.surface,
         image->hotspot_x / scale, image->hotspot_y / scale);
 
     wl_surface_damage_buffer(
-        wayl->pointer.surface, 0, 0, INT32_MAX, INT32_MAX);
+        seat->pointer.surface, 0, 0, INT32_MAX, INT32_MAX);
 
-    wl_surface_commit(wayl->pointer.surface);
+    wl_surface_commit(seat->pointer.surface);
 }
 
 static bool
-reload_cursor_theme(struct wayland *wayl)
+reload_cursor_theme(struct seat *seat)
 {
-    if (wayl->pointer.size == 0)
+    if (seat->pointer.size == 0)
         return true;
 
-    if (wayl->pointer.theme != NULL) {
-        wl_cursor_theme_destroy(wayl->pointer.theme);
-        wayl->pointer.theme = NULL;
-        wayl->pointer.cursor = NULL;
+    if (seat->pointer.theme != NULL) {
+        wl_cursor_theme_destroy(seat->pointer.theme);
+        seat->pointer.theme = NULL;
+        seat->pointer.cursor = NULL;
     }
 
     LOG_DBG("reloading cursor theme: %s@%d",
-            wayl->pointer.theme_name, wayl->pointer.size);
+            seat->pointer.theme_name, seat->pointer.size);
 
+    struct wayland *wayl = seat->wayl;
     const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
 
-    wayl->pointer.theme = wl_cursor_theme_load(
-        wayl->pointer.theme_name, wayl->pointer.size * scale, wayl->shm);
-    if (wayl->pointer.theme == NULL) {
+    seat->pointer.theme = wl_cursor_theme_load(
+        seat->pointer.theme_name, seat->pointer.size * scale, wayl->shm);
+    if (seat->pointer.theme == NULL) {
         LOG_ERR("failed to load cursor theme");
         return false;
     }
 
-    wayl->pointer.cursor = wl_cursor_theme_get_cursor(
-        wayl->pointer.theme, "left_ptr");
-    assert(wayl->pointer.cursor != NULL);
-    update_cursor_surface(wayl);
+    seat->pointer.cursor = wl_cursor_theme_get_cursor(
+        seat->pointer.theme, "left_ptr");
+    assert(seat->pointer.cursor != NULL);
+    update_cursor_surface(seat);
 
     return true;
 }
@@ -162,7 +195,10 @@ output_scale(void *data, struct wl_output *wl_output, int32_t factor)
 {
     struct monitor *mon = data;
     mon->scale = factor;
-    reload_cursor_theme(mon->wayl);
+
+    tll_foreach(mon->wayl->seats, it)
+        reload_cursor_theme(&it->item);
+
     notif_mgr_refresh(mon->wayl->notif_mgr);
 }
 
@@ -212,35 +248,37 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
                  uint32_t serial, struct wl_surface *surface,
                  wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
-    struct wayland *wayl = data;
+    struct seat *seat = data;
+    struct wayland *wayl = seat->wayl;
     const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
 
-    wayl->pointer.serial = serial;
-    wayl->pointer.x = wl_fixed_to_int(surface_x) * scale;
-    wayl->pointer.y = wl_fixed_to_int(surface_y) * scale;
-    wayl->pointer.on_surface = surface;
-    update_cursor_surface(wayl);
+    seat->pointer.serial = serial;
+    seat->pointer.x = wl_fixed_to_int(surface_x) * scale;
+    seat->pointer.y = wl_fixed_to_int(surface_y) * scale;
+    seat->pointer.on_surface = surface;
+    update_cursor_surface(seat);
 }
 
 static void
 wl_pointer_leave(void *data, struct wl_pointer *wl_pointer,
                  uint32_t serial, struct wl_surface *surface)
 {
-    struct wayland *wayl = data;
-    wayl->pointer.serial = 0;
-    wayl->pointer.x = wayl->pointer.y = 0;
-    wayl->pointer.on_surface = NULL;
+    struct seat *seat = data;
+    seat->pointer.serial = 0;
+    seat->pointer.x = seat->pointer.y = 0;
+    seat->pointer.on_surface = NULL;
 }
 
 static void
 wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
                   uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
-    struct wayland *wayl = data;
+    struct seat *seat = data;
+    struct wayland *wayl = seat->wayl;
     const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
 
-    wayl->pointer.x = wl_fixed_to_int(surface_x) * scale;
-    wayl->pointer.y = wl_fixed_to_int(surface_y) * scale;
+    seat->pointer.x = wl_fixed_to_int(surface_x) * scale;
+    seat->pointer.y = wl_fixed_to_int(surface_y) * scale;
 }
 
 static void
@@ -249,13 +287,14 @@ wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
 {
     LOG_DBG("BUTTON: button=%x, state=%u", button, state);
 
-    struct wayland *wayl = data;
+    struct seat *seat = data;
+    struct wayland *wayl = seat->wayl;
 
     switch (state) {
     case WL_POINTER_BUTTON_STATE_PRESSED: {
         if (button == BTN_LEFT) {
-            assert(wayl->pointer.on_surface != NULL);
-            notif_mgr_dismiss_surface(wayl->notif_mgr, wayl->pointer.on_surface);
+            assert(seat->pointer.on_surface != NULL);
+            notif_mgr_dismiss_surface(wayl->notif_mgr, seat->pointer.on_surface);
         }
         break;
     }
@@ -310,17 +349,17 @@ static void
 seat_capabilities(void *data, struct wl_seat *wl_seat,
                   enum wl_seat_capability caps)
 {
-    struct wayland *wayl = data;
+    struct seat *seat = data;
 
     if (caps & WL_SEAT_CAPABILITY_POINTER) {
-        if (wayl->pointer.pointer == NULL) {
-            wayl->pointer.pointer = wl_seat_get_pointer(wl_seat);
-            wl_pointer_add_listener(wayl->pointer.pointer, &pointer_listener, wayl);
+        if (seat->wl_pointer == NULL) {
+            seat->wl_pointer = wl_seat_get_pointer(wl_seat);
+            wl_pointer_add_listener(seat->wl_pointer, &pointer_listener, seat);
         }
     } else {
-        if (wayl->pointer.pointer != NULL) {
-            wl_pointer_release(wayl->pointer.pointer);
-            wayl->pointer.pointer = NULL;
+        if (seat->wl_pointer != NULL) {
+            wl_pointer_release(seat->wl_pointer);
+            seat->wl_pointer = NULL;
         }
     }
 }
@@ -328,6 +367,9 @@ seat_capabilities(void *data, struct wl_seat *wl_seat,
 static void
 seat_name(void *data, struct wl_seat *wl_seat, const char *name)
 {
+    struct seat *seat = data;
+    free(seat->name);
+    seat->name = strdup(name);
 }
 
 static const struct wl_shm_listener shm_listener = {
@@ -390,7 +432,6 @@ handle_global(void *data, struct wl_registry *registry,
         wayl->shm = wl_registry_bind(
             wayl->registry, name, &wl_shm_interface, required);
         wl_shm_add_listener(wayl->shm, &shm_listener, wayl);
-        wl_display_roundtrip(wayl->display);
     }
 
     else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
@@ -431,7 +472,6 @@ handle_global(void *data, struct wl_registry *registry,
 
             zxdg_output_v1_add_listener(mon->xdg, &xdg_output_listener, mon);
         }
-        wl_display_roundtrip(wayl->display);
     }
 
     else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
@@ -448,10 +488,44 @@ handle_global(void *data, struct wl_registry *registry,
         if (!verify_iface_version(interface, version, required))
             return;
 
-        wayl->seat = wl_registry_bind(
+        struct wl_seat *wl_seat = wl_registry_bind(
             wayl->registry, name, &wl_seat_interface, required);
-        wl_seat_add_listener(wayl->seat, &seat_listener, wayl);
-        wl_display_roundtrip(wayl->display);
+
+        /* Cursor */
+        unsigned cursor_size = 24;
+        const char *cursor_theme = getenv("XCURSOR_THEME");
+
+        {
+            const char *env_cursor_size = getenv("XCURSOR_SIZE");
+            if (env_cursor_size != NULL) {
+                unsigned size;
+                if (sscanf(env_cursor_size, "%u", &size) == 1)
+                    cursor_size = size;
+            }
+        }
+
+        /* Note: theme is (re)loaded on scale and output changes */
+        LOG_INFO("cursor theme: %s, size: %u", cursor_theme, cursor_size);
+
+        struct wl_surface *surf = wl_compositor_create_surface(wayl->compositor);
+        if (surf == NULL) {
+            LOG_ERR("failed to create cursor surface");
+            wl_seat_destroy(wl_seat);
+            return;
+        }
+
+        tll_push_back(wayl->seats, ((struct seat){
+                    .wayl = wayl,
+                    .wl_seat = wl_seat,
+                    .wl_name = name,
+                    .pointer = {
+                        .surface = surf,
+                        .size = cursor_size,
+                        .theme_name = cursor_theme != NULL ? strdup(cursor_theme) : NULL,
+                    }}));
+
+        struct seat *seat = &tll_back(wayl->seats);
+        wl_seat_add_listener(wl_seat, &seat_listener, seat);
     }
 }
 
@@ -488,6 +562,17 @@ handle_global_remove(void *data, struct wl_registry *registry, uint32_t name)
         monitor_destroy(mon);
         tll_remove(wayl->monitors, it);
         return;
+    }
+
+    tll_foreach(wayl->seats, it) {
+        struct seat *seat = &it->item;
+
+        if (seat->wl_name != name)
+            continue;
+
+        LOG_INFO("seat removed: %s", seat->name);
+        seat_destroy(seat);
+        tll_remove(wayl->seats, it);
     }
 
     LOG_WARN("unknown global removed: 0x%08x", name);
@@ -555,6 +640,8 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
         goto err;
     }
 
+    wl_display_roundtrip(wayl->display);
+
     if (!wayl->have_argb8888) {
         LOG_ERR("compositor does not support ARGB surfaces");
         goto err;
@@ -572,6 +659,9 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
                  it->item.refresh, it->item.scale);
     }
 
+    tll_foreach(wayl->seats, it)
+        reload_cursor_theme(&it->item);
+
     if (wl_display_prepare_read(wayl->display) != 0) {
         LOG_ERRNO("failed to prepare for reading wayland events");
         goto err;
@@ -582,32 +672,6 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
         goto err;
     }
     wayl->fdm = fdm;
-
-    /* Cursor */
-    unsigned cursor_size = 24;
-    const char *cursor_theme = getenv("XCURSOR_THEME");
-
-    {
-        const char *env_cursor_size = getenv("XCURSOR_SIZE");
-        if (env_cursor_size != NULL) {
-            unsigned size;
-            if (sscanf(env_cursor_size, "%u", &size) == 1)
-                cursor_size = size;
-        }
-    }
-
-    /* Note: theme is (re)loaded on scale and output changes */
-    LOG_INFO("cursor theme: %s, size: %u", cursor_theme, cursor_size);
-    wayl->pointer.size = cursor_size;
-    wayl->pointer.theme_name = cursor_theme != NULL ? strdup(cursor_theme) : NULL;
-
-    wayl->pointer.surface = wl_compositor_create_surface(wayl->compositor);
-    if (wayl->pointer.surface == NULL) {
-        LOG_ERR("failed to create cursor surface");
-        goto err;
-    }
-
-    reload_cursor_theme(wayl);
     return wayl;
 
 err:
@@ -628,20 +692,14 @@ wayl_destroy(struct wayland *wayl)
         monitor_destroy(&it->item);
     tll_free(wayl->monitors);
 
-    free(wayl->pointer.theme_name);
+    tll_foreach(wayl->seats, it)
+        seat_destroy(&it->item);
+    tll_free(wayl->seats);
 
-    if (wayl->pointer.theme != NULL)
-        wl_cursor_theme_destroy(wayl->pointer.theme);
-    if (wayl->pointer.surface != NULL)
-        wl_surface_destroy(wayl->pointer.surface);
-    if (wayl->pointer.pointer != NULL)
-        wl_pointer_destroy(wayl->pointer.pointer);
     if (wayl->layer_shell != NULL)
         zwlr_layer_shell_v1_destroy(wayl->layer_shell);
     if (wayl->xdg_output_manager != NULL)
         zxdg_output_manager_v1_destroy(wayl->xdg_output_manager);
-    if (wayl->seat != NULL)
-        wl_seat_destroy(wayl->seat);
     if (wayl->shm != NULL)
         wl_shm_destroy(wayl->shm);
     if (wayl->compositor != NULL)
