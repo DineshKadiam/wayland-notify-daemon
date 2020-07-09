@@ -42,6 +42,7 @@ struct seat {
 
         /* Cursor theme info */
         int size;
+        int scale;
         char *theme_name;
     } pointer;
 };
@@ -88,14 +89,16 @@ seat_destroy(struct seat *seat)
 static void
 update_cursor_surface(struct seat *seat)
 {
+    if (seat->pointer.serial == 0)
+        return;
+
     if (seat->pointer.cursor == NULL)
         return;
 
     if (seat->wl_pointer == NULL)
         return;
 
-    struct wayland *wayl = seat->wayl;
-    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
+    int scale = seat->pointer.scale;
     wl_surface_set_buffer_scale(seat->pointer.surface, scale);
 
     struct wl_cursor_image *image = seat->pointer.cursor->images[0];
@@ -115,9 +118,12 @@ update_cursor_surface(struct seat *seat)
 }
 
 static bool
-reload_cursor_theme(struct seat *seat)
+reload_cursor_theme(struct seat *seat, int new_scale)
 {
     if (seat->pointer.size == 0)
+        return true;
+
+    if (seat->pointer.theme != NULL && seat->pointer.scale == new_scale)
         return true;
 
     if (seat->pointer.theme != NULL) {
@@ -130,10 +136,9 @@ reload_cursor_theme(struct seat *seat)
             seat->pointer.theme_name, seat->pointer.size);
 
     struct wayland *wayl = seat->wayl;
-    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
 
     seat->pointer.theme = wl_cursor_theme_load(
-        seat->pointer.theme_name, seat->pointer.size * scale, wayl->shm);
+        seat->pointer.theme_name, seat->pointer.size * new_scale, wayl->shm);
     if (seat->pointer.theme == NULL) {
         LOG_ERR("failed to load cursor theme");
         return false;
@@ -142,7 +147,7 @@ reload_cursor_theme(struct seat *seat)
     seat->pointer.cursor = wl_cursor_theme_get_cursor(
         seat->pointer.theme, "left_ptr");
     assert(seat->pointer.cursor != NULL);
-    update_cursor_surface(seat);
+    seat->pointer.scale = new_scale;
 
     return true;
 }
@@ -196,8 +201,10 @@ output_scale(void *data, struct wl_output *wl_output, int32_t factor)
     struct monitor *mon = data;
     mon->scale = factor;
 
-    tll_foreach(mon->wayl->seats, it)
-        reload_cursor_theme(&it->item);
+    tll_foreach(mon->wayl->seats, it) {
+        reload_cursor_theme(&it->item, factor);
+        update_cursor_surface(&it->item);
+    }
 
     notif_mgr_refresh(mon->wayl->notif_mgr);
 }
@@ -256,6 +263,7 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
     seat->pointer.x = wl_fixed_to_int(surface_x) * scale;
     seat->pointer.y = wl_fixed_to_int(surface_y) * scale;
     seat->pointer.on_surface = surface;
+    reload_cursor_theme(seat, scale);
     update_cursor_surface(seat);
 }
 
@@ -658,9 +666,6 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
                  it->item.x, it->item.y, it->item.x_ppi, it->item.y_ppi,
                  it->item.refresh, it->item.scale);
     }
-
-    tll_foreach(wayl->seats, it)
-        reload_cursor_theme(&it->item);
 
     if (wl_display_prepare_read(wayl->display) != 0) {
         LOG_ERRNO("failed to prepare for reading wayland events");
