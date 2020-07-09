@@ -132,8 +132,8 @@ reload_cursor_theme(struct seat *seat, int new_scale)
         seat->pointer.cursor = NULL;
     }
 
-    LOG_DBG("reloading cursor theme: %s@%d",
-            seat->pointer.theme_name, seat->pointer.size);
+    LOG_DBG("reloading cursor theme: %s@%d * %d",
+            seat->pointer.theme_name, seat->pointer.size, new_scale);
 
     struct wayland *wayl = seat->wayl;
 
@@ -256,8 +256,9 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
                  wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
     struct seat *seat = data;
-    struct wayland *wayl = seat->wayl;
-    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
+    const struct notif *notif = notif_mgr_get_notif_for_surface(seat->wayl->notif_mgr, surface);
+    const struct monitor *mon = notif != NULL ? notif_monitor(notif) : NULL;
+    const int scale = mon != NULL ? mon->scale : 1;
 
     seat->pointer.serial = serial;
     seat->pointer.x = wl_fixed_to_int(surface_x) * scale;
@@ -567,6 +568,8 @@ handle_global_remove(void *data, struct wl_registry *registry, uint32_t name)
         if (wayl->monitor == mon)
             wayl->monitor = NULL;
 
+        notif_mgr_monitor_removed(wayl->notif_mgr, mon);
+
         monitor_destroy(mon);
         tll_remove(wayl->monitors, it);
         return;
@@ -736,9 +739,20 @@ wayl_get_buffer(const struct wayland *wayl, int width, int height)
 }
 
 const struct monitor *
-wayl_monitor(const struct wayland *wayl)
+wayl_preferred_monitor(const struct wayland *wayl)
 {
     return wayl->monitor;
+}
+
+const struct monitor *
+wayl_monitor_get(const struct wayland *wayl, struct wl_output *output)
+{
+    tll_foreach(wayl->monitors, it) {
+        if (it->item.output == output)
+            return &it->item;
+    }
+
+    return NULL;
 }
 
 int

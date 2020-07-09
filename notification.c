@@ -64,6 +64,10 @@ struct notif {
 
     struct buffer *pending;
     struct wl_callback *frame_callback;
+
+    int y;
+
+    const struct monitor *mon;
 };
 
 struct notif_mgr {
@@ -138,6 +142,39 @@ notif_mgr_configure(struct notif_mgr *mgr, struct wayland *wayl, struct dbus *bu
     mgr->bus = bus;
 }
 
+static int notif_show(struct notif *notif, int y);
+
+static void
+surface_enter(void *data, struct wl_surface *wl_surface,
+              struct wl_output *wl_output)
+{
+    struct notif *notif = data;
+
+    const struct monitor *old_mon = notif->mon;
+    int old_scale = old_mon != NULL ? old_mon->scale : 1;
+
+    notif->mon = wayl_monitor_get(notif->mgr->wayl, wl_output);
+    int new_scale = notif->mon != NULL ? notif->mon->scale : 1;
+
+    if (old_scale != new_scale) {
+        /* This typically happens when the user left 'output' unconfigured. */
+        notif_show(notif, notif->y);
+    }
+}
+
+static void
+surface_leave(void *data, struct wl_surface *wl_surface,
+              struct wl_output *wl_output)
+{
+    struct notif *notif = data;
+    notif->mon = NULL;
+}
+
+static const struct wl_surface_listener surface_listener = {
+    .enter = &surface_enter,
+    .leave = &surface_leave,
+};
+
 static void
 layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
                         uint32_t serial, uint32_t w, uint32_t h)
@@ -175,6 +212,18 @@ notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id)
     return NULL;
 }
 
+struct notif *
+notif_mgr_get_notif_for_surface(struct notif_mgr *mgr,
+                                const struct wl_surface *surface)
+{
+    tll_foreach(mgr->notifs, it) {
+        if (it->item->surface == surface)
+            return it->item;
+    }
+
+    return NULL;
+}
+
 /* Instantiates a new notification. You *must* call
  * notif_mgr_refresh() "soon" (after configuring the notification). */
 struct notif *
@@ -187,7 +236,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
     }
 
     struct wayland *wayl = mgr->wayl;
-    const struct monitor *mon = wayl_monitor(wayl);
+    const struct monitor *mon = wayl_preferred_monitor(wayl);
 
     struct wl_surface *surface = wl_compositor_create_surface(wayl_compositor(wayl));
     if (surface == NULL) {
@@ -219,6 +268,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .urgency = URGENCY_NORMAL,
         .actions = tll_init(),
         .timeout = {.ms = 0, .fd = -1},
+        .mon = mon,
     };
 
     bool inserted = false;
@@ -232,6 +282,8 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
 
     if (!inserted)
         tll_push_front(mgr->notifs, notif);
+
+    wl_surface_add_listener(surface, &surface_listener, notif);
 
     zwlr_layer_surface_v1_add_listener(
         layer_surface, &layer_surface_listener, notif);
@@ -308,6 +360,12 @@ uint32_t
 notif_id(const struct notif *notif)
 {
     return notif->id;
+}
+
+const struct monitor *
+notif_monitor(const struct notif *notif)
+{
+    return notif->mon;
 }
 
 static wchar_t *
@@ -623,7 +681,10 @@ static void
 commit_buffer(struct notif *notif, struct buffer *buf)
 {
     struct wayland *wayl = notif->mgr->wayl;
-    const struct monitor *mon = wayl_monitor(wayl);
+
+    const struct monitor *mon
+        = notif->mon != NULL ? notif->mon : wayl_preferred_monitor(wayl);
+
     const int scale = mon != NULL ? mon->scale : 1;
     assert(buf->busy);
 
@@ -851,7 +912,8 @@ notif_show(struct notif *notif, int y)
     struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
     struct wayland *wayl = notif->mgr->wayl;
-    const struct monitor *mon = wayl_monitor(wayl);
+    const struct monitor *mon
+        = notif->mon != NULL ? notif->mon : wayl_preferred_monitor(wayl);
 
     const enum fcft_subpixel subpixel = urgency->bg.alpha == 0xffff
         ? mon != NULL ? mon->subpixel : FCFT_SUBPIXEL_DEFAULT
@@ -986,6 +1048,7 @@ notif_show(struct notif *notif, int y)
         commit_buffer(notif, buf);
     }
 
+    notif->y = y;
     return height;
 }
 
@@ -1120,6 +1183,16 @@ notif_mgr_dismiss_all(struct notif_mgr *mgr)
 
     notif_mgr_refresh(mgr);
     return ret;
+}
+
+void
+notif_mgr_monitor_removed(struct notif_mgr *mgr, const struct monitor *mon)
+{
+    tll_foreach(mgr->notifs, it) {
+        if (it->item->mon == mon) {
+            it->item->mon = NULL;
+        }
+    }
 }
 
 struct action_async {

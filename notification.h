@@ -30,15 +30,21 @@ bool notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_dismiss_all(struct notif_mgr *mgr);
 bool notif_mgr_dismiss_surface(struct notif_mgr *mgr, struct wl_surface *surface);
 
+struct monitor;
+void notif_mgr_monitor_removed(struct notif_mgr *mgr, const struct monitor *mon);
+
 enum urgency { URGENCY_LOW, URGENCY_NORMAL, URGENCY_CRITICAL };
 
 struct notif;
 struct notif *notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id);
 struct notif *notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id);
+struct notif *notif_mgr_get_notif_for_surface(
+    struct notif_mgr *mgr, const struct wl_surface *surface);
 bool notif_mgr_del_notif(struct notif_mgr *mgr, uint32_t id);
 
 void notif_destroy(struct notif *notif);
 uint32_t notif_id(const struct notif *notif);
+const struct monitor *notif_monitor(const struct notif *notif);
 
 void notif_set_application(struct notif *notif, const char *text);
 void notif_set_summary(struct notif *notif, const char *text);

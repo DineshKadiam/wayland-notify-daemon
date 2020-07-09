@@ -42,7 +42,9 @@ struct wl_compositor *wayl_compositor(const struct wayland *wayl);
 struct zwlr_layer_shell_v1 *wayl_layer_shell(const struct wayland *wayl);
 
 struct buffer *wayl_get_buffer(const struct wayland *wayl, int width, int height);
-const struct monitor *wayl_monitor(const struct wayland *wayl);
+const struct monitor *wayl_preferred_monitor(const struct wayland *wayl);
+const struct monitor *wayl_monitor_get(
+    const struct wayland *wayl, struct wl_output *output);
 
 int wayl_poll_fd(const struct wayland *wayl);
 void wayl_flush(struct wayland *wayl);

@@ -21,7 +21,16 @@ in this order:
 
 *output*
 	The output to display notifications on. If left unspecified, the
-	compositor will choose one for us. Default: _unspecified_.
+	compositor will choose one for us.
+	
+	Note that if you *do not* specify an output, and the output chosen
+	by the compositor is scaled, then each new notification will flash
+	a low-res frame before re-rendering with the correct scale
+	factor. This is because fnott has no way of knowing what the scale
+	factor is until *after* the notification has been mapped
+	(i.e. shown).
+	
+	Default: _unspecified_.
 	
 	In Sway, you can use *swaymsg -t get_outputs* to get a list of
 	available outputs.
