@@ -61,6 +61,7 @@ struct notif {
     pixman_image_t *pix;
     int image_width;
     int image_height;
+    int scale;
 
     struct buffer *pending;
     struct wl_callback *frame_callback;
@@ -150,16 +151,17 @@ surface_enter(void *data, struct wl_surface *wl_surface,
 {
     struct notif *notif = data;
 
-    const struct monitor *old_mon = notif->mon;
-    int old_scale = old_mon != NULL ? old_mon->scale : 1;
+    const struct monitor *mon = wayl_monitor_get(notif->mgr->wayl, wl_output);
+    notif->mon = mon;
 
-    notif->mon = wayl_monitor_get(notif->mgr->wayl, wl_output);
-    int new_scale = notif->mon != NULL ? notif->mon->scale : 1;
+    int new_scale = mon != NULL
+        ? mon->scale : wayl_guess_scale(notif->mgr->wayl);
 
-    if (old_scale != new_scale) {
-        /* This typically happens when the user left 'output' unconfigured. */
-        notif_show(notif, notif->y);
-    }
+    if (notif->scale == new_scale)
+        return;
+
+    notif->scale = new_scale;
+    notif_show(notif, notif->y);
 }
 
 static void
@@ -269,6 +271,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .actions = tll_init(),
         .timeout = {.ms = 0, .fd = -1},
         .mon = mon,
+        .scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl),
     };
 
     bool inserted = false;
@@ -682,13 +685,10 @@ commit_buffer(struct notif *notif, struct buffer *buf)
 {
     struct wayland *wayl = notif->mgr->wayl;
 
-    const struct monitor *mon
-        = notif->mon != NULL ? notif->mon : wayl_preferred_monitor(wayl);
-
-    const int scale = mon != NULL ? mon->scale : 1;
+    assert(notif->scale >= 1);
     assert(buf->busy);
 
-    wl_surface_set_buffer_scale(notif->surface, scale);
+    wl_surface_set_buffer_scale(notif->surface, notif->scale);
     wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
     wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
 
@@ -966,7 +966,9 @@ notif_show(struct notif *notif, int y)
 
     height = min(height, conf->max_height);
 
-    const int scale = mon != NULL ? mon->scale : 1;
+    assert(notif->scale >= 1);
+    const int scale = notif->scale;
+
     LOG_DBG("show: y = %d, width = %d, height = %d (scale = %d)",
             y, width, height, scale);
 
