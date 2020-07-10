@@ -28,7 +28,6 @@ ssize_t notif_mgr_get_ids(const struct notif_mgr *mgr, uint32_t *ids, size_t max
 bool notif_mgr_expire_id(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id);
 bool notif_mgr_dismiss_all(struct notif_mgr *mgr);
-bool notif_mgr_dismiss_surface(struct notif_mgr *mgr, struct wl_surface *surface);
 
 struct monitor;
 void notif_mgr_monitor_removed(struct notif_mgr *mgr, const struct monitor *mon);
