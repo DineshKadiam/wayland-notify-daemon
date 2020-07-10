@@ -33,7 +33,7 @@ struct seat {
         /* Current location */
         int x;
         int y;
-        struct wl_surface *on_surface;
+        const struct notif *notif;
 
         /* Cursor image */
         struct wl_surface *surface;
@@ -252,13 +252,17 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
 {
     struct seat *seat = data;
     const struct notif *notif = notif_mgr_get_notif_for_surface(seat->wayl->notif_mgr, surface);
-    const struct monitor *mon = notif != NULL ? notif_monitor(notif) : NULL;
-    const int scale = mon != NULL ? mon->scale : 1;
+
+    assert(notif != NULL);
+    const struct monitor *mon = notif_monitor(notif);
+
+    assert(mon != NULL);
+    const int scale = mon->scale;
 
     seat->pointer.serial = serial;
     seat->pointer.x = wl_fixed_to_int(surface_x) * scale;
     seat->pointer.y = wl_fixed_to_int(surface_y) * scale;
-    seat->pointer.on_surface = surface;
+    seat->pointer.notif = notif;
     reload_cursor_theme(seat, scale);
     update_cursor_surface(seat);
 }
@@ -270,7 +274,7 @@ wl_pointer_leave(void *data, struct wl_pointer *wl_pointer,
     struct seat *seat = data;
     seat->pointer.serial = 0;
     seat->pointer.x = seat->pointer.y = 0;
-    seat->pointer.on_surface = NULL;
+    seat->pointer.notif = NULL;
 }
 
 static void
@@ -278,8 +282,13 @@ wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
                   uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
     struct seat *seat = data;
-    struct wayland *wayl = seat->wayl;
-    const int scale = wayl->monitor != NULL ? wayl->monitor->scale : 1;
+    const struct notif *notif = seat->pointer.notif;
+
+    assert(notif != NULL);
+    const struct monitor *mon = notif_monitor(notif);
+
+    assert(mon != NULL);
+    const int scale = mon->scale;
 
     seat->pointer.x = wl_fixed_to_int(surface_x) * scale;
     seat->pointer.y = wl_fixed_to_int(surface_y) * scale;
@@ -297,8 +306,8 @@ wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
     switch (state) {
     case WL_POINTER_BUTTON_STATE_PRESSED: {
         if (button == BTN_LEFT) {
-            assert(seat->pointer.on_surface != NULL);
-            notif_mgr_dismiss_surface(wayl->notif_mgr, seat->pointer.on_surface);
+            assert(seat->pointer.notif != NULL);
+            notif_mgr_dismiss_id(wayl->notif_mgr, notif_id(seat->pointer.notif));
         }
         break;
     }
