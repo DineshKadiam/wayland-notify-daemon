@@ -751,6 +751,32 @@ wayl_monitor_get(const struct wayland *wayl, struct wl_output *output)
 }
 
 int
+wayl_guess_scale(const struct wayland *wayl)
+{
+    if (tll_length(wayl->monitors) == 0)
+        return 1;
+
+    bool all_have_same_scale = true;
+    int last_scale = -1;
+
+    tll_foreach(wayl->monitors, it) {
+        if (last_scale == -1)
+            last_scale = it->item.scale;
+        else if (last_scale != it->item.scale) {
+            all_have_same_scale = false;
+            break;
+        }
+    }
+
+    if (all_have_same_scale) {
+        assert(last_scale >= 1);
+        return last_scale;
+    }
+
+    return 1;
+}
+
+int
 wayl_poll_fd(const struct wayland *wayl)
 {
     return wl_display_get_fd(wayl->display);
