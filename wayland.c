@@ -384,7 +384,6 @@ seat_capabilities(void *data, struct wl_seat *wl_seat,
 
             if (seat->pointer.surface == NULL) {
                 LOG_ERR("%s: failed to create cursor surface", seat->name);
-                wl_seat_destroy(wl_seat);
                 return;
             }
 
