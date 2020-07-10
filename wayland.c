@@ -41,9 +41,7 @@ struct seat {
         struct wl_cursor *cursor;
 
         /* Cursor theme info */
-        int size;
         int scale;
-        char *theme_name;
     } pointer;
 };
 
@@ -71,8 +69,6 @@ seat_destroy(struct seat *seat)
 {
     if (seat == NULL)
         return;
-
-    free(seat->pointer.theme_name);
 
     if (seat->pointer.theme != NULL)
         wl_cursor_theme_destroy(seat->pointer.theme);
@@ -120,9 +116,6 @@ update_cursor_surface(struct seat *seat)
 static bool
 reload_cursor_theme(struct seat *seat, int new_scale)
 {
-    if (seat->pointer.size == 0)
-        return true;
-
     if (seat->pointer.theme != NULL && seat->pointer.scale == new_scale)
         return true;
 
@@ -132,15 +125,29 @@ reload_cursor_theme(struct seat *seat, int new_scale)
         seat->pointer.cursor = NULL;
     }
 
-    LOG_DBG("reloading cursor theme: %s@%d * %d",
-            seat->pointer.theme_name, seat->pointer.size, new_scale);
+    /* Cursor */
+    unsigned cursor_size = 24;
+    const char *cursor_theme = getenv("XCURSOR_THEME");
+
+    {
+        const char *env_cursor_size = getenv("XCURSOR_SIZE");
+        if (env_cursor_size != NULL) {
+            unsigned size;
+            if (sscanf(env_cursor_size, "%u", &size) == 1)
+                cursor_size = size;
+        }
+    }
+
+    /* Note: theme is (re)loaded on scale and output changes */
+    LOG_INFO("cursor theme: %s, size: %u", cursor_theme, cursor_size);
 
     struct wayland *wayl = seat->wayl;
 
     seat->pointer.theme = wl_cursor_theme_load(
-        seat->pointer.theme_name, seat->pointer.size * new_scale, wayl->shm);
+        cursor_theme, cursor_size * new_scale, wayl->shm);
+
     if (seat->pointer.theme == NULL) {
-        LOG_ERR("failed to load cursor theme");
+        LOG_ERR("%s: failed to load cursor theme", cursor_theme);
         return false;
     }
 
@@ -508,22 +515,6 @@ handle_global(void *data, struct wl_registry *registry,
         struct wl_seat *wl_seat = wl_registry_bind(
             wayl->registry, name, &wl_seat_interface, required);
 
-        /* Cursor */
-        unsigned cursor_size = 24;
-        const char *cursor_theme = getenv("XCURSOR_THEME");
-
-        {
-            const char *env_cursor_size = getenv("XCURSOR_SIZE");
-            if (env_cursor_size != NULL) {
-                unsigned size;
-                if (sscanf(env_cursor_size, "%u", &size) == 1)
-                    cursor_size = size;
-            }
-        }
-
-        /* Note: theme is (re)loaded on scale and output changes */
-        LOG_INFO("cursor theme: %s, size: %u", cursor_theme, cursor_size);
-
         struct wl_surface *surf = wl_compositor_create_surface(wayl->compositor);
         if (surf == NULL) {
             LOG_ERR("failed to create cursor surface");
@@ -537,8 +528,6 @@ handle_global(void *data, struct wl_registry *registry,
                     .wl_name = name,
                     .pointer = {
                         .surface = surf,
-                        .size = cursor_size,
-                        .theme_name = cursor_theme != NULL ? strdup(cursor_theme) : NULL,
                     }}));
 
         struct seat *seat = &tll_back(wayl->seats);
