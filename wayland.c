@@ -139,7 +139,8 @@ reload_cursor_theme(struct seat *seat, int new_scale)
     }
 
     /* Note: theme is (re)loaded on scale and output changes */
-    LOG_INFO("cursor theme: %s, size: %u", cursor_theme, cursor_size);
+    LOG_INFO("cursor theme: %s, size: %u, scale: %d",
+             cursor_theme, cursor_size, new_scale);
 
     struct wayland *wayl = seat->wayl;
 
@@ -377,13 +378,31 @@ seat_capabilities(void *data, struct wl_seat *wl_seat,
 
     if (caps & WL_SEAT_CAPABILITY_POINTER) {
         if (seat->wl_pointer == NULL) {
+            assert(seat->pointer.surface == NULL);
+            seat->pointer.surface = wl_compositor_create_surface(
+                seat->wayl->compositor);
+
+            if (seat->pointer.surface == NULL) {
+                LOG_ERR("%s: failed to create cursor surface", seat->name);
+                wl_seat_destroy(wl_seat);
+                return;
+            }
+
             seat->wl_pointer = wl_seat_get_pointer(wl_seat);
             wl_pointer_add_listener(seat->wl_pointer, &pointer_listener, seat);
         }
     } else {
         if (seat->wl_pointer != NULL) {
+            wl_surface_destroy(seat->pointer.surface);
             wl_pointer_release(seat->wl_pointer);
+
+            if (seat->pointer.theme != NULL)
+                wl_cursor_theme_destroy(seat->pointer.theme);
+
             seat->wl_pointer = NULL;
+            seat->pointer.surface = NULL;
+            seat->pointer.theme = NULL;
+            seat->pointer.cursor = NULL;
         }
     }
 }
@@ -515,20 +534,10 @@ handle_global(void *data, struct wl_registry *registry,
         struct wl_seat *wl_seat = wl_registry_bind(
             wayl->registry, name, &wl_seat_interface, required);
 
-        struct wl_surface *surf = wl_compositor_create_surface(wayl->compositor);
-        if (surf == NULL) {
-            LOG_ERR("failed to create cursor surface");
-            wl_seat_destroy(wl_seat);
-            return;
-        }
-
         tll_push_back(wayl->seats, ((struct seat){
                     .wayl = wayl,
                     .wl_seat = wl_seat,
-                    .wl_name = name,
-                    .pointer = {
-                        .surface = surf,
-                    }}));
+                    .wl_name = name}));
 
         struct seat *seat = &tll_back(wayl->seats);
         wl_seat_add_listener(wl_seat, &seat_listener, seat);
