@@ -199,9 +199,13 @@ static void
 output_scale(void *data, struct wl_output *wl_output, int32_t factor)
 {
     struct monitor *mon = data;
+    if (mon->scale == factor)
+        return;
+
     mon->scale = factor;
 
-    notif_mgr_refresh(mon->wayl->notif_mgr);
+    if (notif_mgr_monitor_updated(mon->wayl->notif_mgr, mon))
+        notif_mgr_refresh(mon->wayl->notif_mgr);
 }
 
 static void

@@ -1173,10 +1173,28 @@ void
 notif_mgr_monitor_removed(struct notif_mgr *mgr, const struct monitor *mon)
 {
     tll_foreach(mgr->notifs, it) {
-        if (it->item->mon == mon) {
+        if (it->item->mon == mon)
             it->item->mon = NULL;
+    }
+}
+
+/* Returns true if the update is a reason to refresh */
+bool
+notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
+{
+    bool refresh_needed = false;
+
+    tll_foreach(mgr->notifs, it) {
+        if (it->item->mon != mon)
+            continue;
+
+        if (it->item->scale != mon->scale) {
+            it->item->scale = mon->scale;
+            refresh_needed = true;
         }
     }
+
+    return refresh_needed;
 }
 
 struct action_async {

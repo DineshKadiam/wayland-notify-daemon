@@ -31,6 +31,7 @@ bool notif_mgr_dismiss_all(struct notif_mgr *mgr);
 
 struct monitor;
 void notif_mgr_monitor_removed(struct notif_mgr *mgr, const struct monitor *mon);
+bool notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon);
 
 enum urgency { URGENCY_LOW, URGENCY_NORMAL, URGENCY_CRITICAL };
 
