@@ -33,7 +33,7 @@ struct seat {
         /* Current location */
         int x;
         int y;
-        const struct notif *notif;
+        struct wl_surface *on_surface;
 
         /* Cursor image */
         struct wl_surface *surface;
@@ -299,7 +299,7 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
     seat->pointer.serial = serial;
     seat->pointer.x = wl_fixed_to_int(surface_x) * scale;
     seat->pointer.y = wl_fixed_to_int(surface_y) * scale;
-    seat->pointer.notif = notif;
+    seat->pointer.on_surface = surface;
     reload_cursor_theme(seat, scale);
     update_cursor_surface(seat);
 }
@@ -311,7 +311,7 @@ wl_pointer_leave(void *data, struct wl_pointer *wl_pointer,
     struct seat *seat = data;
     seat->pointer.serial = 0;
     seat->pointer.x = seat->pointer.y = 0;
-    seat->pointer.notif = NULL;
+    seat->pointer.on_surface = NULL;
 }
 
 static void
@@ -319,9 +319,13 @@ wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
                   uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
     struct seat *seat = data;
-    const struct notif *notif = seat->pointer.notif;
 
-    assert(notif != NULL);
+    const struct notif *notif = notif_mgr_get_notif_for_surface(
+        seat->wayl->notif_mgr, seat->pointer.on_surface);
+
+    if (notif == NULL)
+        return;
+
     const struct monitor *mon = notif_monitor(notif);
 
     assert(mon != NULL);
@@ -343,8 +347,11 @@ wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
     switch (state) {
     case WL_POINTER_BUTTON_STATE_PRESSED: {
         if (button == BTN_LEFT) {
-            assert(seat->pointer.notif != NULL);
-            notif_mgr_dismiss_id(wayl->notif_mgr, notif_id(seat->pointer.notif));
+            struct notif *notif = notif_mgr_get_notif_for_surface(
+                wayl->notif_mgr, seat->pointer.on_surface);
+
+            if (notif != NULL)
+                notif_mgr_dismiss_id(wayl->notif_mgr, notif_id(notif));
         }
         break;
     }
