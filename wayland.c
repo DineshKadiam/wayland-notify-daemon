@@ -154,9 +154,13 @@ reload_cursor_theme(struct seat *seat, int new_scale)
 
     seat->pointer.cursor = wl_cursor_theme_get_cursor(
         seat->pointer.theme, "left_ptr");
-    assert(seat->pointer.cursor != NULL);
-    seat->pointer.scale = new_scale;
 
+    if (seat->pointer.cursor == NULL) {
+        LOG_ERR("%s: failed to load cursor 'left_ptr'", seat->name);
+        return false;
+    }
+
+    seat->pointer.scale = new_scale;
     return true;
 }
 
