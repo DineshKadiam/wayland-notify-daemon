@@ -163,7 +163,7 @@ main(int argc, char *const *argv)
 
     icon_theme = icon_load_theme(conf.icon_theme_name);
 
-    setlocale(LC_ALL, "");
+    setlocale(LC_CTYPE, "");
 
     if ((fdm = fdm_init()) == NULL)
         goto err;

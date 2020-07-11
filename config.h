@@ -1,40 +1,34 @@
 #pragma once
 
+#include <stdbool.h>
 #include <pixman.h>
-#include <fcft/fcft.h>
-
-struct font_set {
-    struct fcft_font *regular;
-    struct fcft_font *bold;
-    struct fcft_font *italic;
-    struct fcft_font *bold_italic;
-};
 
 struct urgency_config {
     pixman_color_t bg;
 
     struct {
         pixman_color_t color;
+        char *font;
         int size;
     } border;
 
     struct {
-        struct font_set fonts;
+        char *font;
         pixman_color_t color;
     } app;
 
     struct {
-        struct font_set fonts;
+        char *font;
         pixman_color_t color;
     } summary;
 
     struct {
-        struct font_set fonts;
+        char *font;
         pixman_color_t color;
     } body;
 
     struct {
-        struct font_set fonts;
+        char *font;
         pixman_color_t color;
     } action;
 };

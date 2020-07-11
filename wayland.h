@@ -15,24 +15,58 @@ struct monitor {
     struct wayland *wayl;
     struct wl_output *output;
     struct zxdg_output_v1 *xdg;
-    char *name;
     uint32_t wl_name;
 
     int x;
     int y;
 
-    int width_mm;
-    int height_mm;
+    struct {
+        /* Physical size, in mm */
+        struct {
+            int width;
+            int height;
+        } mm;
 
-    int width_px;
-    int height_px;
+        /* Physical size, in pixels */
+        struct {
+            int width;
+            int height;
+        } px_real;
 
-    int x_ppi;
-    int y_ppi;
+        /* Scaled size, in pixels */
+        struct {
+            int width;
+            int height;
+        } px_scaled;
+    } dim;
+
+    struct {
+        /* PPI, based on physical size */
+        struct {
+            int x;
+            int y;
+        } real;
+
+        /* PPI, logical, based on scaled size */
+        struct {
+            int x;
+            int y;
+        } scaled;
+    } ppi;
 
     int scale;
     float refresh;
-    enum fcft_subpixel subpixel;
+    enum wl_output_subpixel subpixel;
+
+    /* From wl_output */
+    char *make;
+    char *model;
+
+    /* From xdg_output */
+    char *name;
+    char *description;
+
+    float inch;  /* e.g. 24" */
 };
 
 struct wayland *wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mgr);
@@ -46,6 +80,7 @@ const struct monitor *wayl_preferred_monitor(const struct wayland *wayl);
 const struct monitor *wayl_monitor_get(
     const struct wayland *wayl, struct wl_output *output);
 int wayl_guess_scale(const struct wayland *wayl);
+int wayl_dpi_guess(const struct wayland *wayl);
 
 int wayl_poll_fd(const struct wayland *wayl);
 void wayl_flush(struct wayland *wayl);

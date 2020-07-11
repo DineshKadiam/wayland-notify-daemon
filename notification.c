@@ -1,6 +1,7 @@
 #include "notification.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <wchar.h>
@@ -31,6 +32,13 @@
 
 struct notif_mgr;
 
+struct font_set {
+    struct fcft_font *regular;
+    struct fcft_font *bold;
+    struct fcft_font *italic;
+    struct fcft_font *bold_italic;
+};
+
 struct action {
     char *id;
     char *label;
@@ -57,6 +65,15 @@ struct notif {
         int ms;
         int fd;
     } timeout;
+
+    struct {
+        int dpi;
+        enum urgency urgency;
+        struct font_set app;
+        struct font_set summary;
+        struct font_set body;
+        struct font_set action;
+    } fonts;
 
     pixman_image_t *pix;
     int image_width;
@@ -143,6 +160,7 @@ notif_mgr_configure(struct notif_mgr *mgr, struct wayland *wayl, struct dbus *bu
     mgr->bus = bus;
 }
 
+static bool notif_reload_fonts(struct notif *notif);
 static int notif_show(struct notif *notif, int y);
 
 static void
@@ -152,7 +170,11 @@ surface_enter(void *data, struct wl_surface *wl_surface,
     struct notif *notif = data;
 
     const struct monitor *mon = wayl_monitor_get(notif->mgr->wayl, wl_output);
+    if (notif->mon == mon)
+        return;
+
     notif->mon = mon;
+    notif_reload_fonts(notif);
 
     int new_scale = mon != NULL
         ? mon->scale : wayl_guess_scale(notif->mgr->wayl);
@@ -274,6 +296,8 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl),
     };
 
+    notif_reload_fonts(notif);
+
     bool inserted = false;
     tll_rforeach(mgr->notifs, it) {
         if (it->item->urgency >= notif->urgency) {
@@ -357,6 +381,98 @@ notif_destroy(struct notif *notif)
     free(notif->summary);
     free(notif->body);
     free(notif);
+}
+
+static unsigned
+get_dpi(const struct notif *notif)
+{
+    if (notif->mon != NULL)
+        return notif->mon->ppi.scaled.y * notif->mon->scale;
+    else
+        return wayl_dpi_guess(notif->mgr->wayl);
+}
+
+static void
+font_set_destroy(struct font_set *set)
+{
+    fcft_destroy(set->regular);
+    fcft_destroy(set->bold);
+    fcft_destroy(set->italic);
+    fcft_destroy(set->bold_italic);
+
+    set->regular = set->bold = set->italic = set->bold_italic = NULL;
+}
+
+static bool
+reload_one_font_set(const struct notif *notif, const char *font_name,
+                    struct font_set *set, unsigned dpi)
+{
+    char attrs0[256], attrs1[256], attrs2[256], attrs3[256];
+    snprintf(attrs0, sizeof(attrs0), "dpi=%u", dpi);
+    snprintf(attrs1, sizeof(attrs1), "dpi=%u:weight=bold", dpi);
+    snprintf(attrs2, sizeof(attrs2), "dpi=%u:slant=italic", dpi);
+    snprintf(attrs3, sizeof(attrs3), "dpi=%u:weight=bold:slant=italic", dpi);
+
+    const char *names[1] = {font_name};
+
+    struct fcft_font *regular = fcft_from_name(1, names, attrs0);
+    if (regular == NULL) {
+        LOG_ERR("%s: failed to load font", font_name);
+        return false;
+    }
+
+    struct fcft_font *bold = fcft_from_name(1, names, attrs1);
+    struct fcft_font *italic = fcft_from_name(1, names, attrs2);
+    struct fcft_font *bold_italic = fcft_from_name(1, names, attrs3);
+
+    set->regular = regular;
+    set->bold = bold;
+    set->italic = italic;
+    set->bold_italic = bold_italic;
+    return true;
+}
+
+static bool
+notif_reload_fonts(struct notif *notif)
+{
+    unsigned dpi = get_dpi(notif);
+
+    if (notif->fonts.app.regular != NULL &&
+        notif->fonts.dpi == dpi &&
+        notif->fonts.urgency == notif->urgency)
+    {
+        return true;
+    }
+
+    const struct urgency_config *urgency
+        = &notif->mgr->conf->by_urgency[notif->urgency];
+
+    struct font_set app;
+    struct font_set summary;
+    struct font_set body;
+    struct font_set action;
+
+    if (!reload_one_font_set(notif, urgency->app.font, &app, dpi) ||
+        !reload_one_font_set(notif, urgency->summary.font, &summary, dpi) ||
+        !reload_one_font_set(notif, urgency->body.font, &body, dpi) ||
+        !reload_one_font_set(notif, urgency->action.font, &action, dpi))
+    {
+        return false;
+    }
+
+    font_set_destroy(&notif->fonts.app);
+    font_set_destroy(&notif->fonts.summary);
+    font_set_destroy(&notif->fonts.body);
+    font_set_destroy(&notif->fonts.action);
+
+    notif->fonts.dpi = dpi;
+    notif->fonts.urgency = notif->urgency;
+    notif->fonts.app = app;
+    notif->fonts.summary = summary;
+    notif->fonts.body = body;
+    notif->fonts.action = action;
+
+    return true;
 }
 
 uint32_t
@@ -516,6 +632,7 @@ notif_set_urgency(struct notif *notif, enum urgency urgency)
         return;
 
     notif->urgency = urgency;
+    notif_reload_fonts(notif);
 
     if (tll_length(notif->mgr->notifs) <= 1)
         return;
@@ -919,8 +1036,8 @@ notif_show(struct notif *notif, int y)
         ? mon != NULL ? mon->subpixel : FCFT_SUBPIXEL_DEFAULT
         : FCFT_SUBPIXEL_NONE;
 
-    const int pad_horizontal = urgency->body.fonts.regular->height;
-    const int pad_vertical = urgency->body.fonts.regular->height;
+    const int pad_horizontal = notif->fonts.body.regular->height;
+    const int pad_vertical = pad_horizontal;
 
     int width = 0;
     int height = pad_vertical;
@@ -933,28 +1050,28 @@ notif_show(struct notif *notif, int y)
         indent += notif->image_width + pad_horizontal;
 
     /* App */
-    notif_layout(notif, &urgency->app.fonts, &urgency->app.color, subpixel, notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    notif_layout(notif, &notif->fonts.app, &urgency->app.color, subpixel, notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     if (tll_length(notif->actions) > 0) {
         /* TODO: better 'action' indicator */
         int _a, _b;
-        notif_layout(notif, &urgency->app.fonts, &urgency->app.color, subpixel, L"*", _w - pad_horizontal, pad_horizontal, height, &_a, &_b, &glyphs);
+        notif_layout(notif, &notif->fonts.app, &urgency->app.color, subpixel, L"*", _w - pad_horizontal, pad_horizontal, height, &_a, &_b, &glyphs);
     }
     width = max(width, _w);
     height += _h;
 
     /* Summary */
-    notif_layout(notif, &urgency->summary.fonts, &urgency->summary.color, subpixel, notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    notif_layout(notif, &notif->fonts.summary, &urgency->summary.color, subpixel, notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
     /* Body */
-    notif_layout(notif, &urgency->body.fonts, &urgency->body.color, subpixel, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+    notif_layout(notif, &notif->fonts.body, &urgency->body.color, subpixel, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
 
 #if 0
     tll_foreach(notif->actions, it) {
-        notif_layout(notif, &urgency->action.fonts, &urgency->action.color, subpixel, it->item.label, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+        notif_layout(notif, &notif->fonts.action, &urgency->action.color, subpixel, it->item.label, indent, pad_horizontal, height, &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
@@ -1190,6 +1307,7 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
 
         if (it->item->scale != mon->scale) {
             it->item->scale = mon->scale;
+            notif_reload_fonts(it->item);
             refresh_needed = true;
         }
     }

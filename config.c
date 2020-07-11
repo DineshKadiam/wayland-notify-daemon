@@ -16,28 +16,6 @@
 #define LOG_ENABLE_DBG 0
 #include "log.h"
 
-static void
-font_set_destroy(struct font_set *set)
-{
-    fcft_destroy(set->regular);
-    fcft_destroy(set->bold);
-    fcft_destroy(set->italic);
-    fcft_destroy(set->bold_italic);
-
-    set->regular = set->bold = set->italic = set->bold_italic = NULL;
-}
-
-static struct font_set
-font_set_clone(const struct font_set *set)
-{
-    return (struct font_set) {
-        .regular = fcft_clone(set->regular),
-        .bold = fcft_clone(set->bold),
-        .italic = fcft_clone(set->italic),
-        .bold_italic = fcft_clone(set->bold_italic),
-    };
-}
-
 static char *
 get_config_path_user_config(void)
 {
@@ -129,25 +107,6 @@ str_to_color(const char *s, pixman_color_t *color, const char *path, int lineno)
     return true;
 }
 
-static struct font_set
-str_to_font(const char *s, const char *path, int lineno)
-{
-    const char *names[1] = {s};
-    struct fcft_font *regular;
-    struct fcft_font *bold;
-    struct fcft_font *italic;
-    struct fcft_font *bold_italic;
-
-    if ((regular = fcft_from_name(1, names, "dpi=96")) == NULL)
-        LOG_ERR("%s:%u: invalid font: %s", path, lineno, s);
-
-    bold = fcft_from_name(1, names, "dpi=96:weight=bold");
-    italic = fcft_from_name(1, names, "dpi=96:slant=italic");
-    bold_italic = fcft_from_name(1, names, "dpi=96:weight=bold:slant=italic");
-
-    return (struct font_set){regular, bold, italic, bold_italic};
-}
-
 static bool
 parse_section_urgency(const char *key, const char *value,
                       struct urgency_config *conf,
@@ -185,6 +144,7 @@ parse_section_urgency(const char *key, const char *value,
              strcmp(key, "body-font") == 0 ||
              strcmp(key, "action-font") == 0)
     {
+#if 0
         struct font_set fonts = str_to_font(value, path, lineno);
         if (fonts.regular == NULL)
             return false;
@@ -198,6 +158,16 @@ parse_section_urgency(const char *key, const char *value,
         assert(f != NULL);
         font_set_destroy(f);
         *f = fonts;
+#endif
+        char **font =
+            strcmp(key, "title-font") == 0 ? &conf->app.font :
+            strcmp(key, "summary-font") == 0 ? &conf->summary.font :
+            strcmp(key, "body-font") == 0 ? &conf->body.font :
+            strcmp(key, "action-font") == 0 ? &conf->action.font : NULL;
+
+        assert(font != NULL);
+        free(*font);
+        *font = strdup(value);
     }
 
     else if (strcmp(key, "title-color") == 0 ||
@@ -349,6 +319,7 @@ parse_section_main(const char *key, const char *value, struct config *conf,
              strcmp(key, "body-font") == 0 ||
              strcmp(key, "action-font") == 0)
     {
+#if 0
         struct font_set fonts = str_to_font(value, path, lineno);
         if (fonts.regular == NULL)
             return false;
@@ -366,6 +337,19 @@ parse_section_main(const char *key, const char *value, struct config *conf,
             *f = font_set_clone(&fonts);
         }
         font_set_destroy(&fonts);
+#endif
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+            char **font =
+                strcmp(key, "title-font") == 0 ? &urgency->app.font :
+                strcmp(key, "summary-font") == 0 ? &urgency->summary.font :
+                strcmp(key, "body-font") == 0 ? &urgency->body.font :
+                strcmp(key, "action-font") == 0 ? &urgency->action.font : NULL;
+
+            assert(font != NULL);
+            free(*font);
+            *font = strdup(value);
+        }
     }
 
     else if (strcmp(key, "title-color") == 0 ||
@@ -551,17 +535,7 @@ err:
 bool
 config_load(struct config *conf)
 {
-    /* Default configuration */
-    const char *default_font_names[1] = {"sans serif"};
-
-    struct font_set font_default;
-    if ((font_default.regular = fcft_from_name(1, default_font_names, "")) == NULL) {
-        LOG_ERR("%s: failed to instantiate default font", default_font_names[0]);
-        return false;
-    }
-    font_default.bold = fcft_from_name(1, default_font_names, "weight=bold");
-    font_default.italic = fcft_from_name(1, default_font_names, "slant=italic");
-    font_default.bold_italic = fcft_from_name(1, default_font_names, "weight=bold:slant=italic");
+    const char *const default_font_name = "sans serif";
 
     *conf = (struct config){
         .output = NULL,
@@ -579,19 +553,19 @@ config_load(struct config *conf)
                     .size = 1,
                 },
                 .app = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .summary = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .body = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .action = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
             },
@@ -602,19 +576,19 @@ config_load(struct config *conf)
                     .size = 1,
                 },
                 .app = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .summary = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .body = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .action = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
             },
@@ -625,19 +599,19 @@ config_load(struct config *conf)
                     .size = 1,
                 },
                 .app = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .summary = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .body = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .action = {
-                    .fonts = font_set_clone(&font_default),
+                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
             },
@@ -645,7 +619,7 @@ config_load(struct config *conf)
         .selection_helper = strdup("dmenu"),
     };
 
-    font_set_destroy(&font_default);
+    //font_set_destroy(&font_default);
 
     bool ret = false;
 
@@ -678,26 +652,11 @@ config_destroy(struct config conf)
 {
     free(conf.output);
     free(conf.icon_theme_name);
-    for (int i  = 0; i < 3; i++) {
-        fcft_destroy(conf.by_urgency[i].app.fonts.regular);
-        fcft_destroy(conf.by_urgency[i].app.fonts.bold);
-        fcft_destroy(conf.by_urgency[i].app.fonts.italic);
-        fcft_destroy(conf.by_urgency[i].app.fonts.bold_italic);
-
-        fcft_destroy(conf.by_urgency[i].summary.fonts.regular);
-        fcft_destroy(conf.by_urgency[i].summary.fonts.bold);
-        fcft_destroy(conf.by_urgency[i].summary.fonts.italic);
-        fcft_destroy(conf.by_urgency[i].summary.fonts.bold_italic);
-
-        fcft_destroy(conf.by_urgency[i].body.fonts.regular);
-        fcft_destroy(conf.by_urgency[i].body.fonts.bold);
-        fcft_destroy(conf.by_urgency[i].body.fonts.italic);
-        fcft_destroy(conf.by_urgency[i].body.fonts.bold_italic);
-
-        fcft_destroy(conf.by_urgency[i].action.fonts.regular);
-        fcft_destroy(conf.by_urgency[i].action.fonts.bold);
-        fcft_destroy(conf.by_urgency[i].action.fonts.italic);
-        fcft_destroy(conf.by_urgency[i].action.fonts.bold_italic);
+    for (int i = 0; i < 3; i++) {
+        free(conf.by_urgency[i].app.font);
+        free(conf.by_urgency[i].summary.font);
+        free(conf.by_urgency[i].body.font);
+        free(conf.by_urgency[i].action.font);
     }
     free(conf.selection_helper);
 }
