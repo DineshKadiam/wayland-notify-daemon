@@ -125,6 +125,9 @@ executable(
   version,
   install: true)
 
+install_data(
+  'LICENSE', 'README.md',
+  install_dir: join_paths(get_option('datadir'), 'doc', 'fnott'))
 install_data('fnott.desktop', install_dir: join_paths(get_option('datadir'), 'applications'))
 install_data('fnottrc', install_dir: join_paths(get_option('datadir'), 'fnott'))
 
