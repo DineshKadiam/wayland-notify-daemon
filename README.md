@@ -29,7 +29,6 @@ It implements (parts of) the [Desktop Notification Specification](https://develo
 * wayland (_client_ and _cursor_ libraries)
 * wlroots\*
 * dbus
-* [tllist](https://codeberg.org/dnkl/tllist), _unless_ built as a subproject
 * [fcft](https://codeberg.org/dnkl/fcft), _unless_ built as a subproject
 
 \* Fnott must be run in a Wayland compositor that implements the
@@ -43,6 +42,7 @@ In addition to the dev variant of the packages above, you need:
 * ninja
 * scdoc
 * wayland-protocols
+* [tllist](https://codeberg.org/dnkl/tllist), _unless_ built as a subproject
 
 
 ## Usage
