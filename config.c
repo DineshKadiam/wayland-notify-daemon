@@ -490,7 +490,7 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
         }
 
         /* Strip trailing whitespace from key (leading stripped earlier) */
-        if (key[0] != '\0') {
+        {
             assert(!isspace(*key));
 
             char *end = key + strlen(key) - 1;
@@ -499,24 +499,18 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
             *(end + 1) = '\0';
         }
 
-        if (value == NULL) {
-            if (key != NULL && strlen(key) > 0 && key[0] != '#') {
-                LOG_ERR("%s:%d: syntax error: %s", path, lineno, line);
-                goto err;
-            }
-
-            continue;
-        }
-
         /* Strip leading whitespace from value (trailing stripped earlier) */
         {
             while (isspace(*value))
                 value++;
-            assert(!isspace(*(value + strlen(value) - 1)));
-        }
 
-        if (key[0] == '#')
-            continue;
+            if (value[0] != '\0') {
+                char *end = value + strlen(value) - 1;
+                while (isspace(*end))
+                    end--;
+                *(end + 1) = '\0';
+            }
+        }
 
         LOG_DBG("section=%s, key='%s', value='%s'",
                 section_names[section], key, value);
