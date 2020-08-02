@@ -236,17 +236,19 @@ fdm_server(struct fdm *fdm, int fd, int events, void *data)
 static char *
 get_socket_path(void)
 {
-    const char *xdg_session_id = getenv("XDG_SESSION_ID");
     const char *xdg_runtime = getenv("XDG_RUNTIME_DIR");
-
     if (xdg_runtime == NULL)
         return strdup("/tmp/fnott.sock");
 
-    if (xdg_session_id == NULL)
-        xdg_session_id = "<no-session>";
+    const char *wayland_display = getenv("WAYLAND_DISPLAY");
+    if (wayland_display == NULL) {
+        char *path = malloc(strlen(xdg_runtime) + 1 + strlen("fnott.sock") + 1);
+        sprintf(path, "%s/fnott.sock", xdg_runtime);
+        return path;
+    }
 
-    char *path = malloc(strlen(xdg_runtime) + 1 + strlen("fnott-.sock") + strlen(xdg_session_id) + 1);
-    sprintf(path, "%s/fnott-%s.sock", xdg_runtime, xdg_session_id);
+    char *path = malloc(strlen(xdg_runtime) + 1 + strlen("fnott-.sock") + strlen(wayland_display) + 1);
+    sprintf(path, "%s/fnott-%s.sock", xdg_runtime, wayland_display);
     return path;
 }
 

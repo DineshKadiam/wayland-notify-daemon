@@ -129,16 +129,20 @@ main(int argc, char *const *argv)
     bool connected = false;
     struct sockaddr_un addr = {.sun_family = AF_UNIX};
 
-    const char *xdg_session_id = getenv("XDG_SESSION_ID");
     const char *xdg_runtime = getenv("XDG_RUNTIME_DIR");
     if (xdg_runtime != NULL) {
-        if (xdg_session_id == NULL)
-            xdg_session_id = "<no-session>";
-
-        snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/fnott-%s.sock", xdg_runtime, xdg_session_id);
+        const char *wayland_display = getenv("WAYLAND_DISPLAY");
+        if (wayland_display != NULL)
+            snprintf(addr.sun_path, sizeof(addr.sun_path),
+                     "%s/fnott-%s.sock", xdg_runtime, wayland_display);
+        else
+            snprintf(addr.sun_path, sizeof(addr.sun_path),
+                     "%s/fnott.sock", xdg_runtime);
 
         if (connect(fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0)
             connected = true;
+        else
+            LOG_WARN("%s: failed to connect, will now try /tmp/fnott.sock", addr.sun_path);
     }
 
     if (!connected) {
