@@ -282,6 +282,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         layer_surface,
         ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
         ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+    zwlr_layer_surface_v1_set_size(layer_surface, 1, 1);
 
     struct notif *notif = malloc(sizeof(*notif));
     *notif = (struct notif) {
@@ -1008,7 +1009,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
         };
 
         tll_push_back(*glyph_list, layout);
-        LOG_DBG("GLYPH: advance=%d", glyph->x_advance);
+        LOG_DBG("GLYPH: advance=%d", glyph->advance.x);
         x += x_kern + glyph->advance.x;
     }
 
