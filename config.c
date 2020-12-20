@@ -82,11 +82,10 @@ str_to_ulong(const char *s, int base, unsigned long *res)
 static inline pixman_color_t
 color_hex_to_pixman_with_alpha(uint32_t color, uint16_t alpha)
 {
-    int alpha_div = 0xffff / alpha;
     return (pixman_color_t){
-        .red =   ((color >> 16 & 0xff) | (color >> 8 & 0xff00)) / alpha_div,
-        .green = ((color >>  8 & 0xff) | (color >> 0 & 0xff00)) / alpha_div,
-        .blue =  ((color >>  0 & 0xff) | (color << 8 & 0xff00)) / alpha_div,
+        .red =   ((color >> 16 & 0xff) | (color >> 8 & 0xff00)) * alpha / 0xffff,
+        .green = ((color >>  8 & 0xff) | (color >> 0 & 0xff00)) * alpha / 0xffff,
+        .blue =  ((color >>  0 & 0xff) | (color << 8 & 0xff00)) * alpha / 0xffff,
         .alpha = alpha,
     };
 }
