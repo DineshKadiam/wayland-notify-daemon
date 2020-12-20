@@ -52,6 +52,7 @@ endif
 math = cc.find_library('m', required : false)
 
 threads = dependency('threads')
+libepoll = dependency('epoll-shim', required: false)
 pixman = dependency('pixman-1')
 png = dependency('libpng')
 wayland_protocols = dependency('wayland-protocols')
@@ -117,7 +118,7 @@ executable(
   'wayland.c', 'wayland.h',
   'xdg.c', 'xdg.h',
   wl_proto_src + wl_proto_headers, version,
-  dependencies: [threads, pixman, png, wayland_client, wayland_cursor, dbus,
+  dependencies: [threads, libepoll, pixman, png, wayland_client, wayland_cursor, dbus,
                 tllist, fcft, nanosvg],
   install: true)
 
