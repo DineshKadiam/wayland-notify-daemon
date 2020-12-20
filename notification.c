@@ -1034,7 +1034,7 @@ notif_show(struct notif *notif, int y)
         = notif->mon != NULL ? notif->mon : wayl_preferred_monitor(wayl);
 
     const enum fcft_subpixel subpixel = urgency->bg.alpha == 0xffff
-        ? mon != NULL ? mon->subpixel : FCFT_SUBPIXEL_DEFAULT
+        ? mon != NULL ? (enum fcft_subpixel)mon->subpixel : FCFT_SUBPIXEL_DEFAULT
         : FCFT_SUBPIXEL_NONE;
 
     const int pad_horizontal = notif->fonts.body.regular->height;
