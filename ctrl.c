@@ -118,7 +118,7 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
 
     case CTRL_LIST:
         id_count = notif_mgr_get_ids(ctrl->notif_mgr, NULL, 0);
-        LOG_INFO("got %lu IDs", id_count);
+        LOG_INFO("got %"PRIi64" IDs", id_count);
         reply.result = id_count >= 0 ? CTRL_OK : CTRL_ERROR;
 
         if (id_count >= 0) {
