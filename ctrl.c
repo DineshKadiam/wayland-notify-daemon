@@ -21,13 +21,27 @@
 
 extern volatile sig_atomic_t aborted;
 
+struct ctrl;
+struct client {
+    struct ctrl *ctrl;
+    int fd;
+
+    struct {
+        union {
+            struct ctrl_request cmd;
+            uint8_t raw[sizeof(struct ctrl_request)];
+        };
+        size_t idx;
+    } recv;
+};
+
 struct ctrl {
     struct fdm *fdm;
     struct notif_mgr *notif_mgr;
     struct dbus *bus;
     int server_fd;
     char *socket_path;
-    tll(int) clients;
+    tll(struct client) clients;
 };
 
 
@@ -89,27 +103,35 @@ actions_by_id(struct ctrl *ctrl, int fd, uint32_t id)
 static bool
 fdm_client(struct fdm *fdm, int fd, int events, void *data)
 {
-    struct ctrl *ctrl = data;
+    struct client *client = data;
+    struct ctrl *ctrl = client->ctrl;
+
+    assert(client->fd == fd);
 
     bool ret = false;
     uint32_t *ids = NULL;
     int64_t id_count = -1;
 
-    struct ctrl_request cmd;
-    ssize_t count = recv(fd, &cmd, sizeof(cmd), 0);
-    if (count == -1 || count != sizeof(cmd)) {
-        if (events & EPOLLHUP)
-            ret = true;
-        else
-            LOG_ERRNO("client: FD=%d: failed to receive command", fd);
-        goto err;
+    size_t left = sizeof(client->recv.cmd) - client->recv.idx;
+    ssize_t count = recv(fd, &client->recv.raw[client->recv.idx], left, 0);
+    if (count < 0) {
+        LOG_ERRNO("client: FD=%d: failed to receive command", fd);
+        return false;
     }
+
+    client->recv.idx += count;
+    if (client->recv.idx < sizeof(client->recv.cmd)) {
+        /* Haven’t received a full command yet */
+        goto no_err;
+    }
+
+    assert(client->recv.idx == sizeof(client->recv.cmd));
 
     /* TODO: endianness */
 
     struct ctrl_reply reply;
 
-    switch (cmd.cmd) {
+    switch (client->recv.cmd.cmd) {
     case CTRL_QUIT:
         LOG_DBG("client: FD=%d, quit", fd);
         aborted = 1;
@@ -129,8 +151,8 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         break;
 
     case CTRL_DISMISS_BY_ID:
-        LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, cmd.id);
-        reply.result = notif_mgr_dismiss_id(ctrl->notif_mgr, cmd.id)
+        LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, client->recv.cmd.id);
+        reply.result = notif_mgr_dismiss_id(ctrl->notif_mgr, client->recv.cmd.id)
             ? CTRL_OK : CTRL_INVALID_ID;
         break;
 
@@ -141,8 +163,8 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         break;
 
     case CTRL_ACTIONS_BY_ID:
-        LOG_DBG("client: FD=%d, actions by-id: %u", fd, cmd.id);
-        if ((reply.result = actions_by_id(ctrl, fd, cmd.id)) == CTRL_OK) {
+        LOG_DBG("client: FD=%d, actions by-id: %u", fd, client->recv.cmd.id);
+        if ((reply.result = actions_by_id(ctrl, fd, client->recv.cmd.id)) == CTRL_OK) {
             /* Action selection helper successully started, wait for
              * response before sending reply to fnottctl */
             goto no_reply;
@@ -181,20 +203,22 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         }
     }
 
+no_err:
 no_reply:
     ret = true;
 
 err:
     free(ids);
 
-    if (events & EPOLLHUP) {
+    if ((events & EPOLLHUP) || client->recv.idx >= sizeof(client->recv.cmd)) {
         /* Client disconnected */
         LOG_DBG("client: FD=%d disconnected", fd);
         fdm_del(fdm, fd);
 
         tll_foreach(ctrl->clients, it) {
-            if (it->item == fd) {
+            if (it->item.fd == fd) {
                 tll_remove(ctrl->clients, it);
+                break;
             }
         }
     }
@@ -223,10 +247,13 @@ fdm_server(struct fdm *fdm, int fd, int events, void *data)
 
     LOG_DBG("client FD=%d connected", client_fd);
 
-    tll_push_back(ctrl->clients, client_fd);
-    if (!fdm_add(ctrl->fdm, client_fd, EPOLLIN, &fdm_client, ctrl)) {
+    tll_push_back(ctrl->clients, ((struct client){.ctrl = ctrl, .fd = client_fd}));
+    struct client *client = &tll_back(ctrl->clients)
+;
+    if (!fdm_add(ctrl->fdm, client_fd, EPOLLIN, &fdm_client, client)) {
         LOG_ERR("failed to register client FD with FDM");
         tll_pop_back(ctrl->clients);
+        close(client_fd);
         return false;
     }
 
