@@ -18,7 +18,7 @@
 
 Initial release - no changelog. Rough list of features:
 
-* Application title, summary and body fonts can be configured indivudually
+* Application title, summary and body fonts can be configured individually
 * Icon support, both inline and name referenced (PNG + SVG).
 * Actions (requires a dmenu-like utility to display and let user
   select action - e.g. [fuzzel](https://codeberg.org/dnkl/fuzzel))
