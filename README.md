@@ -5,6 +5,9 @@ wlroots-based Wayland compositors.
 
 It implements (parts of) the [Desktop Notification Specification](https://developer.gnome.org/notification-spec/).
 
+[![Packaging status](https://repology.org/badge/vertical-allrepos/fnott.svg)](https://repology.org/project/fnott/versions)
+
+
 ![screenshot](screenshot.png "Hello World screenshot")
 
 ## Supported features
