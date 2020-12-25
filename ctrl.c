@@ -165,7 +165,7 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     case CTRL_ACTIONS_BY_ID:
         LOG_DBG("client: FD=%d, actions by-id: %u", fd, client->recv.cmd.id);
         if ((reply.result = actions_by_id(ctrl, fd, client->recv.cmd.id)) == CTRL_OK) {
-            /* Action selection helper successully started, wait for
+            /* Action selection helper successfully started, wait for
              * response before sending reply to fnottctl */
             goto no_reply;
         }

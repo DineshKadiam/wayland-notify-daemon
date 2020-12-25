@@ -939,7 +939,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
         if (!iswspace(*wc))
             continue;
 
-        /* Calculate distance to *this* space for all preceeding
+        /* Calculate distance to *this* space for all preceding
          * characters (up til the previous space) */
         for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
             if (iswspace(text[j]))
@@ -1414,8 +1414,8 @@ check_pollhup:
     uint32_t notif_id = async->notif_id;
     notif_select_action_cb completion_cb = async->completion_cb;
     void *cb_data = async->data;
-    char *choosen = async->output;
-    size_t choosen_len = async->output_len;
+    char *chosen = async->output;
+    size_t chosen_len = async->output_len;
 
     if (async->to_child != -1) {
         /* This is an error case - normally, the writer should have
@@ -1451,23 +1451,23 @@ check_pollhup:
     struct notif *notif = notif_mgr_get_notif(mgr, notif_id);
     if (notif == NULL) {
         LOG_WARN("notification was dismissed before we could signal action: %.*s",
-                 (int)choosen_len, choosen);
+                 (int)chosen_len, chosen);
         goto done;
     }
 
     /* Map returned label to action ID */
     tll_foreach(notif->actions, it) {
-        if (strncmp(it->item.label, choosen, choosen_len) == 0) {
+        if (strncmp(it->item.label, chosen, chosen_len) == 0) {
             action_id = it->item.id;
             goto done;
         }
     }
 
-    LOG_WARN("could not map choosen action label to action ID: %.*s", (int)choosen_len, choosen);
+    LOG_WARN("could not map chosen action label to action ID: %.*s", (int)chosen_len, chosen);
 
 done:
     completion_cb(notif_id, action_id, cb_data);
-    free(choosen);
+    free(chosen);
     return true;
 }
 
