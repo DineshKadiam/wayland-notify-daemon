@@ -1,5 +1,3 @@
-image: alpine:edge
-
 stages:
   - build
 
@@ -12,24 +10,45 @@ before_script:
   - apk add musl-dev linux-headers meson ninja gcc scdoc
   - apk add pixman-dev freetype-dev fontconfig-dev libpng-dev dbus-dev
   - apk add wayland-dev wayland-protocols wlroots-dev
-  - apk add git
-  - mkdir -p subprojects && cd subprojects
-  - git clone https://codeberg.org/dnkl/tllist.git
-  - git clone https://codeberg.org/dnkl/fcft.git
-  - cd ..
+  - apk add python3 py3-pip git
 
-debug:
+debug-x64:
+  image: alpine:edge
   stage: build
   script:
     - mkdir -p bld/debug
-    - cd bld/debug
-    - meson --buildtype=debug ../../
-    - ninja -v -k0
+    - meson --buildtype=debug . bld/debug
+    - ninja -C bld/debug -v -k0
 
-release:
+debug-x86:
+  image: i386/alpine:edge
+  stage: build
+  script:
+    - mkdir -p bld/debug
+    - meson --buildtype=debug . bld/debug
+    - ninja -C bld/debug -v -k0
+
+release-x64:
+  image: alpine:edge
   stage: build
   script:
     - mkdir -p bld/release
-    - cd bld/release
-    - meson --buildtype=release ../../
-    - ninja -v -k0
+    - meson --buildtype=release . bld/release
+    - ninja -C bld/release -v -k0
+
+release-x86:
+  image: i386/alpine:edge
+  stage: build
+  script:
+    - mkdir -p bld/release
+    - meson --buildtype=release . bld/release
+    - ninja -C bld/release -v -k0
+
+codespell:
+  image: alpine:edge
+  stage: build
+  script:
+    - apk add python3
+    - apk add py3-pip
+    - pip install codespell
+    - codespell *.c *.h
