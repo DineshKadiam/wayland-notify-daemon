@@ -10,7 +10,7 @@ before_script:
   - apk add musl-dev linux-headers meson ninja gcc scdoc
   - apk add pixman-dev freetype-dev fontconfig-dev libpng-dev dbus-dev
   - apk add wayland-dev wayland-protocols wlroots-dev
-  - apk add python3 py3-pip git
+  - apk add git
 
 debug-x64:
   image: alpine:edge
