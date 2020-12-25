@@ -1,0 +1,32 @@
+image: freebsd/latest
+packages:
+  - meson
+  - ninja
+  - scdoc
+  - pkgconf
+  - pixman
+  - freetype2
+  - fontconfig
+  - png
+  - dbus
+  - wayland
+  - wayland-protocols
+  - wlroots
+
+sources:
+  - https://codeberg.org/dnkl/fnott
+
+environment:
+  CFLAGS: -Wno-missing-braces
+
+tasks:
+  - debug: |
+      mkdir -p bld/debug
+      meson --buildtype=debug fnott bld/debug
+      ninja -C bld/debug -k0
+      meson test -C bld/debug --print-errorlogs
+  - release: |
+      mkdir -p bld/release
+      meson --buildtype=release fnott bld/release
+      ninja -C bld/release -k0
+      meson test -C bld/release --print-errorlogs
