@@ -36,7 +36,7 @@ You optionally specify a notification ID, to dismiss (or show actions
 for) a specific notification instead of the highest priority one.
 
 For _dismiss_, there is also the special ID _all_ which will, not
-unsuprisingly, dismiss *all* notifications.
+unsurprisingly, dismiss *all* notifications.
 
 # SEE ALSO
 

@@ -102,7 +102,7 @@ case they override the values specified in the default section.
 This section allows you to override the options listed under
 *per-urgency default options* for _low_ priority notifications.
 
-By default, the following options are already overriden:
+By default, the following options are already overridden:
 
 - *background*: _2b2b2b_
 - *title-color* _888888_
@@ -114,14 +114,14 @@ By default, the following options are already overriden:
 This section allows you to override the options listed under
 *per-urgency default options* for _normal_ priority notifications.
 
-By default, the following options are already overriden: _none_.
+By default, the following options are already overridden: _none_.
 
 # SECTION: critical
 
 This section allows you to override the options listed under
 *per-urgency default options* for _critical_ priority notifications.
 
-By default, the following options are already overriden:
+By default, the following options are already overridden:
 
 - *background*: _6c3333_
 
