@@ -39,4 +39,4 @@ tasks:
   - codespell: |
       pip install codespell
       cd fnott
-      ~/.local/bin/codespell README.md *.c *.h doc/*.scd
+      ~/.local/bin/codespell README.md CHANGELOG.md *.c *.h doc/*.scd
