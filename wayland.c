@@ -186,6 +186,12 @@ output_update_ppi(struct monitor *mon)
 
     mon->ppi.scaled.x = mon->dim.px_scaled.width / x_inches;
     mon->ppi.scaled.y = mon->dim.px_scaled.height / y_inches;
+
+    float px_diag = sqrt(
+        pow(mon->dim.px_scaled.width, 2) +
+        pow(mon->dim.px_scaled.height, 2));
+
+    mon->dpi = px_diag / mon->inch * mon->scale;
 }
 
 static void
@@ -704,13 +710,13 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
     tll_foreach(wayl->monitors, it) {
         const struct monitor *mon = &it->item;
         LOG_INFO(
-            "%s: %dx%d+%dx%d@%dHz %s %.2f\" scale=%d PPI=%dx%d (physical) PPI=%dx%d (logical)",
+            "%s: %dx%d+%dx%d@%dHz %s %.2f\" scale=%d PPI=%dx%d (physical) PPI=%dx%d (logical), DPI=%.2f",
             mon->name, mon->dim.px_real.width, mon->dim.px_real.height,
             mon->x, mon->y, (int)round(mon->refresh),
             mon->model != NULL ? mon->model : mon->description,
             mon->inch, mon->scale,
             mon->ppi.real.x, mon->ppi.real.y,
-            mon->ppi.scaled.x, mon->ppi.scaled.y);
+            mon->ppi.scaled.x, mon->ppi.scaled.y, mon->dpi);
     }
 
     if (wl_display_prepare_read(wayl->display) != 0) {
@@ -829,7 +835,7 @@ wayl_guess_scale(const struct wayland *wayl)
     return 1;
 }
 
-int
+float
 wayl_dpi_guess(const struct wayland *wayl)
 {
     const struct monitor *mon = NULL;
@@ -840,9 +846,9 @@ wayl_dpi_guess(const struct wayland *wayl)
         mon = &tll_front(wayl->monitors);
 
     if (mon != NULL)
-        return mon->ppi.scaled.y * mon->scale;
+        return mon->dpi;
 
-    return 96;
+    return 96.;
 }
 
 int

@@ -76,7 +76,7 @@ struct notif {
     } timeout;
 
     struct {
-        int dpi;
+        float dpi;
         enum urgency urgency;
         struct font_set app;
         struct font_set summary;
@@ -393,11 +393,11 @@ notif_destroy(struct notif *notif)
     free(notif);
 }
 
-static unsigned
+static float
 get_dpi(const struct notif *notif)
 {
     if (notif->mon != NULL)
-        return notif->mon->ppi.scaled.y * notif->mon->scale;
+        return notif->mon->dpi;
     else
         return wayl_dpi_guess(notif->mgr->wayl);
 }
@@ -415,13 +415,13 @@ font_set_destroy(struct font_set *set)
 
 static bool
 reload_one_font_set(const struct notif *notif, const char *font_name,
-                    struct font_set *set, unsigned dpi)
+                    struct font_set *set, float dpi)
 {
     char attrs0[256], attrs1[256], attrs2[256], attrs3[256];
-    snprintf(attrs0, sizeof(attrs0), "dpi=%u", dpi);
-    snprintf(attrs1, sizeof(attrs1), "dpi=%u:weight=bold", dpi);
-    snprintf(attrs2, sizeof(attrs2), "dpi=%u:slant=italic", dpi);
-    snprintf(attrs3, sizeof(attrs3), "dpi=%u:weight=bold:slant=italic", dpi);
+    snprintf(attrs0, sizeof(attrs0), "dpi=%.2f", dpi);
+    snprintf(attrs1, sizeof(attrs1), "dpi=%.2f:weight=bold", dpi);
+    snprintf(attrs2, sizeof(attrs2), "dpi=%.2f:slant=italic", dpi);
+    snprintf(attrs3, sizeof(attrs3), "dpi=%.2f:weight=bold:slant=italic", dpi);
 
     const char *names[1] = {font_name};
 
@@ -445,7 +445,7 @@ reload_one_font_set(const struct notif *notif, const char *font_name,
 static bool
 notif_reload_fonts(struct notif *notif)
 {
-    unsigned dpi = get_dpi(notif);
+    float dpi = get_dpi(notif);
 
     if (notif->fonts.app.regular != NULL &&
         notif->fonts.dpi == dpi &&
