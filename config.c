@@ -143,21 +143,6 @@ parse_section_urgency(const char *key, const char *value,
              strcmp(key, "body-font") == 0 ||
              strcmp(key, "action-font") == 0)
     {
-#if 0
-        struct font_set fonts = str_to_font(value, path, lineno);
-        if (fonts.regular == NULL)
-            return false;
-
-        struct font_set *f =
-            strcmp(key, "title-font") == 0 ? &conf->app.fonts :
-            strcmp(key, "summary-font") == 0 ? &conf->summary.fonts :
-            strcmp(key, "body-font") == 0 ? &conf->body.fonts :
-            strcmp(key, "action-font") == 0 ? &conf->action.fonts : NULL;
-
-        assert(f != NULL);
-        font_set_destroy(f);
-        *f = fonts;
-#endif
         char **font =
             strcmp(key, "title-font") == 0 ? &conf->app.font :
             strcmp(key, "summary-font") == 0 ? &conf->summary.font :
