@@ -97,6 +97,10 @@ case they override the values specified in the default section.
 *body-color*
 	Text color to use for the text body. Default: _ffffff_.
 
+*timeout*
+	Time, in seconds, before notifications are automatically
+	dismissed. A value of 0 disables the timeout. Default: _0_.
+
 # SECTION: low
 
 This section allows you to override the options listed under
