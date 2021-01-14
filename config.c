@@ -318,25 +318,6 @@ parse_section_main(const char *key, const char *value, struct config *conf,
              strcmp(key, "body-font") == 0 ||
              strcmp(key, "action-font") == 0)
     {
-#if 0
-        struct font_set fonts = str_to_font(value, path, lineno);
-        if (fonts.regular == NULL)
-            return false;
-
-        for (int i = 0; i < 3; i++) {
-            struct urgency_config *urgency = &conf->by_urgency[i];
-            struct font_set *f =
-                strcmp(key, "title-font") == 0 ? &urgency->app.fonts :
-                strcmp(key, "summary-font") == 0 ? &urgency->summary.fonts :
-                strcmp(key, "body-font") == 0 ? &urgency->body.fonts :
-                strcmp(key, "action-font") == 0 ? &urgency->action.fonts : NULL;
-
-            assert(f != NULL);
-            font_set_destroy(f);
-            *f = font_set_clone(&fonts);
-        }
-        font_set_destroy(&fonts);
-#endif
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
             char **font =
