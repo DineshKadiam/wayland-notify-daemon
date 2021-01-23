@@ -13,6 +13,9 @@
 ### Fixed
 
 * PPI being incorrectly calculated.
+* Crash due to bug in Sway-1.5 when a notification is dismissed,
+  either with `fnottctl` or through its timeout, while the cursor is
+  above it.
 
 
 ### Security

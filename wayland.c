@@ -316,7 +316,16 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
     struct seat *seat = data;
     const struct notif *notif = notif_mgr_get_notif_for_surface(seat->wayl->notif_mgr, surface);
 
-    assert(notif != NULL);
+    if (notif == NULL) {
+        /*
+         * Seen on Sway-1.5 when cursor is hovering over the area
+         * where a notification is later shown, and that notification
+         * is then dismissed without moving the mouse (i.e. either
+         * with fnottctl, or a timeout).
+         */
+        return;
+    }
+
     const struct monitor *mon = notif_monitor(notif);
 
     assert(mon != NULL);
