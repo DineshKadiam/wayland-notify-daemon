@@ -19,6 +19,7 @@
 # summary-color=ffffff
 # body-font=sans serif
 # body-color=ffffff
+# timeout=0
 
 # [low]
 # background=2b2b2b

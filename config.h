@@ -31,6 +31,8 @@ struct urgency_config {
         char *font;
         pixman_color_t color;
     } action;
+
+    int timeout_secs;
 };
 
 struct config {

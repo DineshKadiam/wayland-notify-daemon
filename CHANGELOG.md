@@ -7,6 +7,13 @@
 ## Unreleased
 
 ### Added
+
+* `timeout` option to `fnottrc`. This option can be set on a
+  per-urgency basis. If both the user has set a timeout, and the
+  notification provides its own timeout, the shortest one is used
+  (https://codeberg.org/dnkl/fnott/issues/2).
+
+
 ### Changed
 ### Deprecated
 ### Removed
