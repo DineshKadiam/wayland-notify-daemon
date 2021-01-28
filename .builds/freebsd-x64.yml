@@ -16,9 +16,6 @@ packages:
 sources:
   - https://codeberg.org/dnkl/fnott
 
-environment:
-  CFLAGS: -Wno-missing-braces
-
 tasks:
   - debug: |
       mkdir -p bld/debug
