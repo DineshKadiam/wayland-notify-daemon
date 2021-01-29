@@ -1,10 +1,10 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.0.1](#1-0-1)
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.0.1
 
 ### Added
 
@@ -15,9 +15,6 @@
 * FreeBSD port (https://codeberg.org/dnkl/fnott/issues/1).
 
 
-### Changed
-### Deprecated
-### Removed
 ### Fixed
 
 * PPI being incorrectly calculated.
@@ -26,7 +23,6 @@
   above it.
 
 
-### Security
 ### Contributors
 
 * jbeich
