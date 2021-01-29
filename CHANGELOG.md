@@ -1,6 +1,35 @@
 # Changelog
 
+* [Unreleased](#unreleased)
 * [1.0.0](#1-0-0)
+
+
+## Unreleased
+
+### Added
+
+* `timeout` option to `fnottrc`. This option can be set on a
+  per-urgency basis. If both the user has set a timeout, and the
+  notification provides its own timeout, the shortest one is used
+  (https://codeberg.org/dnkl/fnott/issues/2).
+* FreeBSD port (https://codeberg.org/dnkl/fnott/issues/1).
+
+
+### Changed
+### Deprecated
+### Removed
+### Fixed
+
+* PPI being incorrectly calculated.
+* Crash due to bug in Sway-1.5 when a notification is dismissed,
+  either with `fnottctl` or through its timeout, while the cursor is
+  above it.
+
+
+### Security
+### Contributors
+
+* jbeich
 
 
 ## 1.0.0

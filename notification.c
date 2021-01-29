@@ -70,13 +70,10 @@ struct notif {
     wchar_t *body;
     tll(struct action) actions;
 
-    struct {
-        int ms;
-        int fd;
-    } timeout;
+    int timeout_fd;
 
     struct {
-        int dpi;
+        float dpi;
         enum urgency urgency;
         struct font_set app;
         struct font_set summary;
@@ -301,7 +298,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .id = next_id++,
         .urgency = URGENCY_NORMAL,
         .actions = tll_init(),
-        .timeout = {.ms = 0, .fd = -1},
+        .timeout_fd = -1,
         .mon = mon,
         .scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl),
     };
@@ -363,7 +360,7 @@ notif_destroy(struct notif *notif)
     if (notif == NULL)
         return;
 
-    fdm_del(notif->mgr->fdm, notif->timeout.fd);
+    fdm_del(notif->mgr->fdm, notif->timeout_fd);
 
     if (notif->frame_callback != NULL)
         wl_callback_destroy(notif->frame_callback);
@@ -393,11 +390,11 @@ notif_destroy(struct notif *notif)
     free(notif);
 }
 
-static unsigned
+static float
 get_dpi(const struct notif *notif)
 {
     if (notif->mon != NULL)
-        return notif->mon->ppi.scaled.y * notif->mon->scale;
+        return notif->mon->dpi;
     else
         return wayl_dpi_guess(notif->mgr->wayl);
 }
@@ -415,13 +412,13 @@ font_set_destroy(struct font_set *set)
 
 static bool
 reload_one_font_set(const struct notif *notif, const char *font_name,
-                    struct font_set *set, unsigned dpi)
+                    struct font_set *set, float dpi)
 {
     char attrs0[256], attrs1[256], attrs2[256], attrs3[256];
-    snprintf(attrs0, sizeof(attrs0), "dpi=%u", dpi);
-    snprintf(attrs1, sizeof(attrs1), "dpi=%u:weight=bold", dpi);
-    snprintf(attrs2, sizeof(attrs2), "dpi=%u:slant=italic", dpi);
-    snprintf(attrs3, sizeof(attrs3), "dpi=%u:weight=bold:slant=italic", dpi);
+    snprintf(attrs0, sizeof(attrs0), "dpi=%.2f", dpi);
+    snprintf(attrs1, sizeof(attrs1), "dpi=%.2f:weight=bold", dpi);
+    snprintf(attrs2, sizeof(attrs2), "dpi=%.2f:slant=italic", dpi);
+    snprintf(attrs3, sizeof(attrs3), "dpi=%.2f:weight=bold:slant=italic", dpi);
 
     const char *names[1] = {font_name};
 
@@ -445,7 +442,7 @@ reload_one_font_set(const struct notif *notif, const char *font_name,
 static bool
 notif_reload_fonts(struct notif *notif)
 {
-    unsigned dpi = get_dpi(notif);
+    float dpi = get_dpi(notif);
 
     if (notif->fonts.app.regular != NULL &&
         notif->fonts.dpi == dpi &&
@@ -642,6 +639,7 @@ notif_set_urgency(struct notif *notif, enum urgency urgency)
         return;
 
     notif->urgency = urgency;
+    notif_set_timeout(notif, 0);  /* Start user-configured timeout, if set */
     notif_reload_fonts(notif);
 
     if (tll_length(notif->mgr->notifs) <= 1)
@@ -728,19 +726,25 @@ void
 notif_set_timeout(struct notif *notif, int timeout_ms)
 {
     /* Delete previous timer, if any */
-    if (notif->timeout.fd != -1) {
-        fdm_del(notif->mgr->fdm, notif->timeout.fd);
-        notif->timeout.ms = 0;
-        notif->timeout.fd = -1;
+    if (notif->timeout_fd != -1) {
+        fdm_del(notif->mgr->fdm, notif->timeout_fd);
+        notif->timeout_fd = -1;
     }
+
+    const int user_timeout_ms =
+        notif->mgr->conf->by_urgency[notif->urgency].timeout_secs * 1000;
+
+    /* Use the smallest timeout */
+    timeout_ms = user_timeout_ms > 0 && (user_timeout_ms < timeout_ms || timeout_ms == 0)
+        ? user_timeout_ms : timeout_ms;
 
     if (timeout_ms == 0)
         return;
 
-    notif->timeout.fd = timerfd_create(
+    notif->timeout_fd = timerfd_create(
         CLOCK_BOOTTIME, TFD_CLOEXEC | TFD_NONBLOCK);
 
-    if (notif->timeout.fd == -1) {
+    if (notif->timeout_fd == -1) {
         LOG_ERRNO("failed to create notification timeout timer FD");
         return;
     }
@@ -755,26 +759,24 @@ notif_set_timeout(struct notif *notif, int timeout_ms)
         .it_value = {.tv_sec = secs, .tv_nsec = nsecs}
     };
 
-    if (timerfd_settime(notif->timeout.fd, 0, &timeout, NULL) < 0) {
+    if (timerfd_settime(notif->timeout_fd, 0, &timeout, NULL) < 0) {
         LOG_ERRNO("failed to configure notification timeout timer FD");
         goto fail;
     }
 
-    if (!fdm_add(notif->mgr->fdm, notif->timeout.fd, EPOLLIN,
+    if (!fdm_add(notif->mgr->fdm, notif->timeout_fd, EPOLLIN,
                  &fdm_timeout, notif))
     {
         LOG_ERR("failed to add notification timeout timer to FDM");
         goto fail;
     }
 
-    notif->timeout.ms = timeout_ms;
     return;
 
 fail:
-    if (notif->timeout.fd != -1)
-        close(notif->timeout.fd);
-    notif->timeout.fd = -1;
-    notif->timeout.ms = 0;
+    if (notif->timeout_fd != -1)
+        close(notif->timeout_fd);
+    notif->timeout_fd = -1;
 }
 
 void
@@ -939,7 +941,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
         if (!iswspace(*wc))
             continue;
 
-        /* Calculate distance to *this* space for all preceeding
+        /* Calculate distance to *this* space for all preceding
          * characters (up til the previous space) */
         for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
             if (iswspace(text[j]))
@@ -1414,8 +1416,8 @@ check_pollhup:
     uint32_t notif_id = async->notif_id;
     notif_select_action_cb completion_cb = async->completion_cb;
     void *cb_data = async->data;
-    char *choosen = async->output;
-    size_t choosen_len = async->output_len;
+    char *chosen = async->output;
+    size_t chosen_len = async->output_len;
 
     if (async->to_child != -1) {
         /* This is an error case - normally, the writer should have
@@ -1451,23 +1453,23 @@ check_pollhup:
     struct notif *notif = notif_mgr_get_notif(mgr, notif_id);
     if (notif == NULL) {
         LOG_WARN("notification was dismissed before we could signal action: %.*s",
-                 (int)choosen_len, choosen);
+                 (int)chosen_len, chosen);
         goto done;
     }
 
     /* Map returned label to action ID */
     tll_foreach(notif->actions, it) {
-        if (strncmp(it->item.label, choosen, choosen_len) == 0) {
+        if (strncmp(it->item.label, chosen, chosen_len) == 0) {
             action_id = it->item.id;
             goto done;
         }
     }
 
-    LOG_WARN("could not map choosen action label to action ID: %.*s", (int)choosen_len, choosen);
+    LOG_WARN("could not map chosen action label to action ID: %.*s", (int)chosen_len, chosen);
 
 done:
     completion_cb(notif_id, action_id, cb_data);
-    free(choosen);
+    free(chosen);
     return true;
 }
 

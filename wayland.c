@@ -184,8 +184,33 @@ output_update_ppi(struct monitor *mon)
     mon->ppi.real.x = mon->dim.px_real.width / x_inches;
     mon->ppi.real.y = mon->dim.px_real.height / y_inches;
 
+    /* The *logical* size is affected by the transform */
+    switch (mon->transform) {
+    case WL_OUTPUT_TRANSFORM_90:
+    case WL_OUTPUT_TRANSFORM_270:
+    case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+    case WL_OUTPUT_TRANSFORM_FLIPPED_270: {
+        int swap = x_inches;
+        x_inches = y_inches;
+        y_inches = swap;
+        break;
+    }
+
+    case WL_OUTPUT_TRANSFORM_NORMAL:
+    case WL_OUTPUT_TRANSFORM_180:
+    case WL_OUTPUT_TRANSFORM_FLIPPED:
+    case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+        break;
+    }
+
     mon->ppi.scaled.x = mon->dim.px_scaled.width / x_inches;
     mon->ppi.scaled.y = mon->dim.px_scaled.height / y_inches;
+
+    float px_diag = sqrt(
+        pow(mon->dim.px_scaled.width, 2) +
+        pow(mon->dim.px_scaled.height, 2));
+
+    mon->dpi = px_diag / mon->inch * mon->scale;
 }
 
 static void
@@ -201,6 +226,7 @@ output_geometry(void *data, struct wl_output *wl_output, int32_t x, int32_t y,
     mon->make = make != NULL ? strdup(make) : NULL;
     mon->model = model != NULL ? strdup(model) : NULL;
     mon->subpixel = subpixel;
+    mon->transform = transform;
     output_update_ppi(mon);
 }
 
@@ -290,7 +316,16 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
     struct seat *seat = data;
     const struct notif *notif = notif_mgr_get_notif_for_surface(seat->wayl->notif_mgr, surface);
 
-    assert(notif != NULL);
+    if (notif == NULL) {
+        /*
+         * Seen on Sway-1.5 when cursor is hovering over the area
+         * where a notification is later shown, and that notification
+         * is then dismissed without moving the mouse (i.e. either
+         * with fnottctl, or a timeout).
+         */
+        return;
+    }
+
     const struct monitor *mon = notif_monitor(notif);
 
     assert(mon != NULL);
@@ -704,13 +739,13 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
     tll_foreach(wayl->monitors, it) {
         const struct monitor *mon = &it->item;
         LOG_INFO(
-            "%s: %dx%d+%dx%d@%dHz %s %.2f\" scale=%d PPI=%dx%d (physical) PPI=%dx%d (logical)",
+            "%s: %dx%d+%dx%d@%dHz %s %.2f\" scale=%d PPI=%dx%d (physical) PPI=%dx%d (logical), DPI=%.2f",
             mon->name, mon->dim.px_real.width, mon->dim.px_real.height,
             mon->x, mon->y, (int)round(mon->refresh),
             mon->model != NULL ? mon->model : mon->description,
             mon->inch, mon->scale,
             mon->ppi.real.x, mon->ppi.real.y,
-            mon->ppi.scaled.x, mon->ppi.scaled.y);
+            mon->ppi.scaled.x, mon->ppi.scaled.y, mon->dpi);
     }
 
     if (wl_display_prepare_read(wayl->display) != 0) {
@@ -829,7 +864,7 @@ wayl_guess_scale(const struct wayland *wayl)
     return 1;
 }
 
-int
+float
 wayl_dpi_guess(const struct wayland *wayl)
 {
     const struct monitor *mon = NULL;
@@ -840,9 +875,9 @@ wayl_dpi_guess(const struct wayland *wayl)
         mon = &tll_front(wayl->monitors);
 
     if (mon != NULL)
-        return mon->ppi.scaled.y * mon->scale;
+        return mon->dpi;
 
-    return 96;
+    return 96.;
 }
 
 int

@@ -1,0 +1,42 @@
+image: alpine/edge
+packages:
+  - musl-dev
+  - linux-headers
+  - meson
+  - ninja
+  - gcc
+  - scdoc
+  - pixman-dev
+  - freetype-dev
+  - fontconfig-dev
+  - libpng-dev
+  - dbus-dev
+  - wayland-dev
+  - wayland-protocols
+  - wlroots-dev
+  - python3
+  - py3-pip
+
+sources:
+  - https://codeberg.org/dnkl/fnott
+
+# triggers:
+#   - action: email
+#     condition: failure
+#     to: <comitter>
+
+tasks:
+  - debug: |
+      mkdir -p bld/debug
+      meson --buildtype=debug fnott bld/debug
+      ninja -C bld/debug -k0
+      meson test -C bld/debug --print-errorlogs
+  - release: |
+      mkdir -p bld/release
+      meson --buildtype=release fnott bld/release
+      ninja -C bld/release -k0
+      meson test -C bld/release --print-errorlogs
+  - codespell: |
+      pip install codespell
+      cd fnott
+      ~/.local/bin/codespell README.md CHANGELOG.md *.c *.h doc/*.scd

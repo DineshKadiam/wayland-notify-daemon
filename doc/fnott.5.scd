@@ -97,12 +97,16 @@ case they override the values specified in the default section.
 *body-color*
 	Text color to use for the text body. Default: _ffffff_.
 
+*timeout*
+	Time, in seconds, before notifications are automatically
+	dismissed. A value of 0 disables the timeout. Default: _0_.
+
 # SECTION: low
 
 This section allows you to override the options listed under
 *per-urgency default options* for _low_ priority notifications.
 
-By default, the following options are already overriden:
+By default, the following options are already overridden:
 
 - *background*: _2b2b2b_
 - *title-color* _888888_
@@ -114,14 +118,14 @@ By default, the following options are already overriden:
 This section allows you to override the options listed under
 *per-urgency default options* for _normal_ priority notifications.
 
-By default, the following options are already overriden: _none_.
+By default, the following options are already overridden: _none_.
 
 # SECTION: critical
 
 This section allows you to override the options listed under
 *per-urgency default options* for _critical_ priority notifications.
 
-By default, the following options are already overriden:
+By default, the following options are already overridden:
 
 - *background*: _6c3333_
 
