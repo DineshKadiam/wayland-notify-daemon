@@ -12,6 +12,7 @@
   per-urgency basis. If both the user has set a timeout, and the
   notification provides its own timeout, the shortest one is used
   (https://codeberg.org/dnkl/fnott/issues/2).
+* FreeBSD port (https://codeberg.org/dnkl/fnott/issues/1).
 
 
 ### Changed
@@ -26,6 +27,9 @@
 
 
 ### Security
+### Contributors
+
+* jbeich
 
 
 ## 1.0.0
