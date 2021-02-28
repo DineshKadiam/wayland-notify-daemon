@@ -45,10 +45,13 @@ in this order:
 	Icon theme to use when a notification has requested an
 	non-embedded icon. Default: _hicolor_.
 
-
 *max-icon-size*
 	Maximum icon size, in pixels. Icons larger than this will be
 	scaled down. Default: _32_.
+
+*anchor*
+	Where notifications are positions: *top-left*, *top-right*,
+	*bottom-left* or *bottom-right*. Default: _top-right_.
 
 *edge-margin-vertical*
 	Vertical margin, in pixels, between the screen edge (top or

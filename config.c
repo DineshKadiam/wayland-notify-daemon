@@ -263,6 +263,27 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         conf->max_icon_size = sz;
     }
 
+    else if (strcmp(key, "anchor") == 0) {
+        if (strcasecmp(value, "top-left") == 0)
+            conf->anchor = ANCHOR_TOP_LEFT;
+        else if (strcasecmp(value, "top-right") == 0)
+            conf->anchor = ANCHOR_TOP_RIGHT;
+        else if (strcasecmp(value, "bottom-left") == 0)
+            conf->anchor = ANCHOR_BOTTOM_LEFT;
+        else if (strcasecmp(value, "bottom-right") == 0)
+            conf->anchor = ANCHOR_BOTTOM_RIGHT;
+        else {
+            LOG_ERR(
+                "%s:%u: %s: invalid anchor value, must be one of "
+                "\"top-left\", "
+                "\"top-right\", "
+                "\"bottom-left\" or "
+                "\"bottom-right\"",
+                path, lineno, value);
+            return false;
+        }
+    }
+
     else if (strcmp(key, "edge-margin-vertical") == 0) {
         unsigned long m;
         if (!str_to_ulong(value, 10, &m)) {
@@ -556,6 +577,7 @@ config_load(struct config *conf)
         .max_height = 200,
         .icon_theme_name = strdup("hicolor"),
         .max_icon_size = 32,
+        .anchor = ANCHOR_TOP_RIGHT,
         .margins = {
             .vertical = 10,
             .horizontal = 10,

@@ -43,6 +43,13 @@ struct config {
     char *icon_theme_name;
     int max_icon_size;
 
+    enum {
+        ANCHOR_TOP_LEFT,
+        ANCHOR_TOP_RIGHT,
+        ANCHOR_BOTTOM_LEFT,
+        ANCHOR_BOTTOM_RIGHT,
+    } anchor;
+
     struct {
         int vertical;
         int horizontal;
