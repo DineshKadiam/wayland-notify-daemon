@@ -263,15 +263,40 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         conf->max_icon_size = sz;
     }
 
-    else if (strcmp(key, "margin") == 0) {
+    else if (strcmp(key, "edge-margin-vertical") == 0) {
         unsigned long m;
         if (!str_to_ulong(value, 10, &m)) {
-            LOG_ERR("%s:%u: invalid margin (expected an integer): %s",
-                    path, lineno, value);
+            LOG_ERR(
+                "%s:%u: invalid edge-margin-vertical (expected an integer): %s",
+                path, lineno, value);
             return false;
         }
 
-        conf->margin = m;
+        conf->margins.vertical = m;
+    }
+
+    else if (strcmp(key, "edge-margin-horizontal") == 0) {
+        unsigned long m;
+        if (!str_to_ulong(value, 10, &m)) {
+            LOG_ERR(
+                "%s:%u: invalid edge-margin-horizontal (expected an integer): %s",
+                path, lineno, value);
+            return false;
+        }
+
+        conf->margins.horizontal = m;
+    }
+
+    else if (strcmp(key, "notification-margin") == 0) {
+        unsigned long m;
+        if (!str_to_ulong(value, 10, &m)) {
+            LOG_ERR(
+                "%s:%u: invalid nofication-margin (expected an integer): %s",
+                path, lineno, value);
+            return false;
+        }
+
+        conf->margins.between = m;
     }
 
     else if (strcmp(key, "selection-helper") == 0) {
@@ -531,7 +556,11 @@ config_load(struct config *conf)
         .max_height = 200,
         .icon_theme_name = strdup("hicolor"),
         .max_icon_size = 32,
-        .margin = 10,
+        .margins = {
+            .vertical = 10,
+            .horizontal = 10,
+            .between = 10,
+        },
         .by_urgency = {
             /* urgency == low */
             {

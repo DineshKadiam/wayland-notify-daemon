@@ -1105,10 +1105,10 @@ notif_show(struct notif *notif, int y)
     zwlr_layer_surface_v1_set_size(notif->layer_surface, width / scale, height / scale);
     zwlr_layer_surface_v1_set_margin(
         notif->layer_surface,
-        y / scale,              /* top */
-        conf->margin / scale,   /* right */
-        conf->margin / scale,   /* bottom */
-        conf->margin / scale);  /* left */
+        y / scale,                          /* top */
+        conf->margins.horizontal / scale,   /* right */
+        conf->margins.between / scale,      /* bottom */
+        conf->margins.horizontal / scale);  /* left */
 
     struct buffer *buf = wayl_get_buffer(wayl, width, height);
     const int brd_sz = urgency->border.size;;
@@ -1186,9 +1186,9 @@ notif_show(struct notif *notif, int y)
 void
 notif_mgr_refresh(struct notif_mgr *mgr)
 {
-    int y = mgr->conf->margin;
+    int y = mgr->conf->margins.vertical;
     tll_rforeach(mgr->notifs, it)
-        y += notif_show(it->item, y) + mgr->conf->margin;
+        y += notif_show(it->item, y) + mgr->conf->margins.between;
 }
 
 ssize_t

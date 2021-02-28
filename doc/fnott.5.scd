@@ -50,9 +50,18 @@ in this order:
 	Maximum icon size, in pixels. Icons larger than this will be
 	scaled down. Default: _32_.
 
-*margin*
-	Space, in pixels, added around each notification (but note that it
-	is only applied _once_ between two notifications). Default: _10_.
+*edge-margin-vertical*
+	Vertical margin, in pixels, between the screen edge (top or
+	bottom, depending on anchor pointer) and notifications. Default:
+	_10_.
+
+*edge-margin-horizontal*
+	Horizontal margin, in pixels, between the screen edge (left or
+	right, depending on anchor pointer) and notifications. Default:
+	_10_.
+
+*notification-margin*
+	Margin between notificaations. Default: _10_.
 
 *selection-helper*
 	Command (and optionally arguments) to execute to display actions

@@ -1,12 +1,15 @@
 # -*- conf -*-
 
 # Global values
-# output=<undefined>
+# output=<undefined>#
 # max-width=400
 # max-height=200
+# anchor=top-right
+# edge-margin-vertical=10
+# edge-margin-horizontal=10
+# notification-margin=10
 # icon-theme=hicolor
 # max-icon-size=32
-# margin=10
 # selection-helper=dmenu
 
 # Default values, may be overridden in 'urgency' specific sections
