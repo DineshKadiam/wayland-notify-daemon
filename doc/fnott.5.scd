@@ -64,7 +64,7 @@ in this order:
 	_10_.
 
 *notification-margin*
-	Margin between notificaations. Default: _10_.
+	Margin between notifications. Default: _10_.
 
 *selection-helper*
 	Command (and optionally arguments) to execute to display actions
