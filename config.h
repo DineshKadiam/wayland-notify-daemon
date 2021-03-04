@@ -43,7 +43,18 @@ struct config {
     char *icon_theme_name;
     int max_icon_size;
 
-    int margin;
+    enum {
+        ANCHOR_TOP_LEFT,
+        ANCHOR_TOP_RIGHT,
+        ANCHOR_BOTTOM_LEFT,
+        ANCHOR_BOTTOM_RIGHT,
+    } anchor;
+
+    struct {
+        int vertical;
+        int horizontal;
+        int between;
+    } margins;
 
     struct urgency_config by_urgency[3];
 

@@ -7,9 +7,20 @@
 
 ## Unreleased
 ### Added
+
+* Configurable anchor point and margins. New `fnottrc` options:
+  `anchor=top-left|top-right|bottom-left|bottom-right`,
+  `edge-margin-vertical`, `edge-margin-horizontal` and
+  `notification-margin` (https://codeberg.org/dnkl/fnott/issues/4).
+
+
 ### Changed
 ### Deprecated
 ### Removed
+
+* `margin` option from `fnottrc`
+
+
 ### Fixed
 ### Security
 ### Contributors

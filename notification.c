@@ -284,10 +284,16 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         return NULL;
     }
 
-    zwlr_layer_surface_v1_set_anchor(
-        layer_surface,
-        ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
-        ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+    const struct config *conf = mgr->conf;
+    enum zwlr_layer_surface_v1_anchor anchor
+        = (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT
+           ? ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
+           : ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM)
+        | (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_BOTTOM_LEFT
+           ? ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
+           : ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+
+    zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
     zwlr_layer_surface_v1_set_size(layer_surface, 1, 1);
 
     struct notif *notif = malloc(sizeof(*notif));
@@ -1101,14 +1107,21 @@ notif_show(struct notif *notif, int y)
     LOG_DBG("show: y = %d, width = %d, height = %d (scale = %d)",
             y, width, height, scale);
 
+    bool top_anchored
+        = conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT;
+
     /* Resize and position */
     zwlr_layer_surface_v1_set_size(notif->layer_surface, width / scale, height / scale);
     zwlr_layer_surface_v1_set_margin(
         notif->layer_surface,
-        y / scale,              /* top */
-        conf->margin / scale,   /* right */
-        conf->margin / scale,   /* bottom */
-        conf->margin / scale);  /* left */
+        (top_anchored
+         ? y
+         : conf->margins.vertical) / scale, /* top */
+        conf->margins.horizontal / scale,   /* right */
+        (!top_anchored
+         ? y
+         : conf->margins.between) / scale,  /* bottom */
+        conf->margins.horizontal / scale);  /* left */
 
     struct buffer *buf = wayl_get_buffer(wayl, width, height);
     const int brd_sz = urgency->border.size;;
@@ -1186,9 +1199,9 @@ notif_show(struct notif *notif, int y)
 void
 notif_mgr_refresh(struct notif_mgr *mgr)
 {
-    int y = mgr->conf->margin;
+    int y = mgr->conf->margins.vertical;
     tll_rforeach(mgr->notifs, it)
-        y += notif_show(it->item, y) + mgr->conf->margin;
+        y += notif_show(it->item, y) + mgr->conf->margins.between;
 }
 
 ssize_t
