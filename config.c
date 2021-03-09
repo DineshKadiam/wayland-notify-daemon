@@ -236,6 +236,17 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         conf->max_width = w;
     }
 
+    else if (strcmp(key, "min-width") == 0) {
+        unsigned long w;
+        if (!str_to_ulong(value, 10, &w)) {
+            LOG_ERR("%s:%u: invalid min-width (expected an integer): %s",
+                    path, lineno, value);
+            return false;
+        }
+
+        conf->min_width = w;
+    }
+
     else if (strcmp(key, "max-height") == 0) {
         unsigned long h;
         if (!str_to_ulong(value, 10, &h)) {
@@ -573,6 +584,7 @@ config_load(struct config *conf)
 
     *conf = (struct config){
         .output = NULL,
+        .min_width = 0,
         .max_width = 400,
         .max_height = 200,
         .icon_theme_name = strdup("hicolor"),

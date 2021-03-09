@@ -8,6 +8,9 @@
 ## Unreleased
 ### Added
 
+* Configurable minimal width of notifications. New `fnottrc` option:
+  `min-width`
+
 * Configurable anchor point and margins. New `fnottrc` options:
   `anchor=top-left|top-right|bottom-left|bottom-right`,
   `edge-margin-vertical`, `edge-margin-horizontal` and
@@ -25,6 +28,7 @@
 ### Security
 ### Contributors
 
+- yyp (Alexey Yerin)
 
 ## 1.0.1
 
