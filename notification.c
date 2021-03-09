@@ -984,6 +984,9 @@ notif_layout(struct notif *notif, struct font_set *fonts,
 
     int x = left_pad;
 
+    if (conf->min_width != 0)
+        *width = conf->min_width;
+
     for (size_t i = 0; i < char_count; i++) {
         const wchar_t wc = text[i];
         const struct fcft_glyph *glyph = glyphs[i].glyph;

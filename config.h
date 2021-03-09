@@ -37,6 +37,7 @@ struct urgency_config {
 
 struct config {
     char *output;
+    int min_width;
     int max_width;
     int max_height;
 

@@ -35,6 +35,9 @@ in this order:
 	In Sway, you can use *swaymsg -t get_outputs* to get a list of
 	available outputs.
 
+*min-width*
+	Minimum notification width, in pixels. Default: _0_.
+
 *max-width*
 	Maximum notification width, in pixels. Default: _400_.
 

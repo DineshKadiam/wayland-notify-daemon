@@ -2,6 +2,7 @@
 
 # Global values
 # output=<undefined>#
+# min-width=0
 # max-width=400
 # max-height=200
 # anchor=top-right
