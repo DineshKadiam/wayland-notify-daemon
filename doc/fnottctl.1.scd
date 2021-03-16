@@ -30,7 +30,7 @@ keyboard shortcut in your Wayland compositor configuration.
 
 To see, and select between, actions associated with the notification,
 use *fnottctl actions*. This requires a dmenu-like utility to have
-been configured in *fnott*(5).
+been configured in *fnott.ini*(5).
 
 You optionally specify a notification ID, to dismiss (or show actions
 for) a specific notification instead of the highest priority one.
@@ -40,4 +40,4 @@ unsurprisingly, dismiss *all* notifications.
 
 # SEE ALSO
 
-*fnott*(1), *fnott*(5)
+*fnott*(1), *fnott.ini*(5)

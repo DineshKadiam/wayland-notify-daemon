@@ -18,7 +18,21 @@
 
 
 ### Changed
+
+* Fnott now searches for its configuration in
+  `$XDG_DATA_DIRS/fnott/fnott.ini`, if no configuration is found in
+  `$XDG_CONFIG_HOME/fnott/fnott.ini` or in `$XDG_CONFIG_HOME/fnottrc`
+  (https://codeberg.org/dnkl/fnott/issues/7).
+
+
 ### Deprecated
+
+* `$XDG_CONFIG_HOME/fnottrc` and `~/.config/fnottrc`. Use
+  `$XDG_CONFIG_HOME/fnott/fnott.ini` (defaulting to
+  `~/.config/fnott/fnott.ini`) instead
+  (https://codeberg.org/dnkl/fnott/issues/7).
+
+
 ### Removed
 
 * `margin` option from `fnottrc`
