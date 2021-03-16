@@ -50,8 +50,8 @@ In addition to the dev variant of the packages above, you need:
 
 ## Usage
 
-Copy the example `fnottrc` to `${HOME}/.config/fnottrc` and edit to
-your liking.
+Copy the example `fnott.ini` to `${HOME}/.config/fnott/fnott.ini` and
+edit to your liking.
 
 Start the daemon by running `fnott`. Note that it does **not**
 daemonize or background itself.

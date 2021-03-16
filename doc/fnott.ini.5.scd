@@ -12,8 +12,9 @@ based key/value pairs. The default (global) section is unnamed
 fnott will search for a configuration file in the following locations,
 in this order:
 
-- _XDG_CONFIG_HOME/fnottrc_
-- _~/.config/fnottrc_
+- *XDG_CONFIG_HOME/fnott/fnott.ini*
+- *~/.config/fnott/fnott.ini*
+- *XDG_CONFIG_DIRS/fnott/fnott.ini*
 
 # SECTION: default
 

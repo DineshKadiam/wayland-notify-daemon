@@ -58,8 +58,8 @@ change).
 
 # CONFIGURATION
 
-See *fnott*(5)
+See *fnott.ini*(5)
 
 # SEE ALSO
 
-*fnott*(5), *fnottctl*(1)
+*fnott.ini*(5), *fnottctl*(1)
