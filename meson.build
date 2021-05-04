@@ -95,7 +95,7 @@ version = custom_target(
   'generate_version',
   build_always_stale: true,
   output: 'version.h',
-  command: [generate_version_sh, meson.project_version(), '@SOURCE_DIR@', '@OUTPUT@'])
+  command: [generate_version_sh, meson.project_version(), '@SOURCE_ROOT@', '@OUTPUT@'])
 
 nanosvg = declare_dependency(
   sources: ['nanosvg.c', '3rd-party/nanosvg.h', 'nanosvgrast.c', '3rd-party/nanosvgrast.h'],
