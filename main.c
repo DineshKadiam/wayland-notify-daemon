@@ -39,6 +39,7 @@ print_usage(const char *prog)
            "       %s --version\n"
            "\n"
            "Options:\n"
+           "  -c,--config=PATH                      load configuration from PATH ($XDG_CONFIG_HOME/fnott/fnott.ini)\n"
            "  -p,--print-pid=FILE|FD                print PID to file or FD\n"
            "  -l,--log-colorize=[never|always|auto] enable/disable colorization of log output on stderr\n"
            "  -s,--log-no-syslog                    disable syslog logging\n"
@@ -87,6 +88,7 @@ int
 main(int argc, char *const *argv)
 {
     static const struct option longopts[] = {
+        {"config",        required_argument, 0, 'c'},
         {"print-pid",     required_argument, 0, 'p'},
         {"log-colorize",  optional_argument, 0, 'l'},
         {"log-no-syslog", no_argument,       0, 's'},
@@ -97,16 +99,21 @@ main(int argc, char *const *argv)
 
     bool unlink_pid_file = false;
     const char *pid_file = NULL;
+    const char *conf_path = NULL;
 
     enum log_colorize log_colorize = LOG_COLORIZE_AUTO;
     bool log_syslog = true;
 
     while (true) {
-        int c = getopt_long(argc, argv, ":p:l::svh", longopts, NULL);
+        int c = getopt_long(argc, argv, ":c:p:l::svh", longopts, NULL);
         if (c == -1)
             break;
 
         switch (c) {
+        case 'c':
+            conf_path = optarg;
+            break;
+
         case 'p':
             pid_file = optarg;
             break;
@@ -160,7 +167,7 @@ main(int argc, char *const *argv)
     struct notif_mgr *mgr = NULL;
     icon_theme_list_t icon_theme = tll_init();
 
-    if (!config_load(&conf))
+    if (!config_load(&conf, conf_path))
         goto err;
 
     icon_theme = icon_load_theme(conf.icon_theme_name);
