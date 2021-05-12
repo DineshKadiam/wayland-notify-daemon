@@ -62,5 +62,5 @@ struct config {
     char *selection_helper;
 };
 
-bool config_load(struct config *conf);
+bool config_load(struct config *conf, const char *path);
 void config_destroy(struct config conf);

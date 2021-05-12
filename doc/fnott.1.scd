@@ -9,6 +9,10 @@ fnott - keyboard driven notification daemon for Wayland
 
 # OPTIONS
 
+*-c*,*--config*=_PATH_
+	Path to configuration file. Default:
+	*$XDG_CONFIG_HOME/fnott/fnott.ini*.
+
 *-p*,*--print-pid*=_FILE_|_FD_
 	Print PID to this file, or FD, when successfully started. The file
 	(or FD) is closed immediately after writing the PID. When a _FILE_

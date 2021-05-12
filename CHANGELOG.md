@@ -10,11 +10,12 @@
 
 * Configurable minimal width of notifications. New `fnottrc` option:
   `min-width`
-
 * Configurable anchor point and margins. New `fnottrc` options:
   `anchor=top-left|top-right|bottom-left|bottom-right`,
   `edge-margin-vertical`, `edge-margin-horizontal` and
   `notification-margin` (https://codeberg.org/dnkl/fnott/issues/4).
+* `-c,--config=PATH` command line option
+  (https://codeberg.org/dnkl/fnott/issues/10).
 
 
 ### Changed

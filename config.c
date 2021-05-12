@@ -718,7 +718,7 @@ err:
 }
 
 bool
-config_load(struct config *conf)
+config_load(struct config *conf, const char *path)
 {
     const char *const default_font_name = "sans serif";
 
@@ -814,13 +814,28 @@ config_load(struct config *conf)
 
     bool ret = false;
 
-    struct config_file conf_file = open_config();
-    if (conf_file.fd < 0) {
-        /* Default conf */
-        LOG_WARN("no configuration found, using defaults");
-        ret = true;
-        goto out;
+    struct config_file conf_file = {.path = NULL, .fd = -1};
+    if (path != NULL) {
+        int fd = open(path, O_RDONLY);
+        if (fd < 0) {
+            LOG_ERRNO("%s: failed to open", path);
+            goto out;
+        }
+
+        conf_file.path = strdup(path);
+        conf_file.fd = fd;
+    } else {
+        conf_file = open_config();
+        if (conf_file.fd < 0) {
+            /* Default conf */
+            LOG_WARN("no configuration found, using defaults");
+            ret = true;
+            goto out;
+        }
     }
+
+    assert(conf_file.path != NULL);
+    assert(conf_file.fd >= 0);
 
     LOG_INFO("loading configuration from %s", conf_file.path);
 
