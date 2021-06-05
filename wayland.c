@@ -882,7 +882,7 @@ wayl_dpi_guess(const struct wayland *wayl)
     else if (tll_length(wayl->monitors) > 0)
         mon = &tll_front(wayl->monitors);
 
-    if (mon != NULL)
+    if (mon != NULL && mon->dpi > 0)
         return mon->dpi;
 
     return 96.;

@@ -400,7 +400,7 @@ static float
 get_dpi(const struct notif *notif)
 {
     if (notif->mon != NULL)
-        return notif->mon->dpi;
+        return notif->mon->dpi > 0 ? notif->mon->dpi : 96.;
     else
         return wayl_dpi_guess(notif->mgr->wayl);
 }

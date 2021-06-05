@@ -24,6 +24,8 @@
   `$XDG_DATA_DIRS/fnott/fnott.ini`, if no configuration is found in
   `$XDG_CONFIG_HOME/fnott/fnott.ini` or in `$XDG_CONFIG_HOME/fnottrc`
   (https://codeberg.org/dnkl/fnott/issues/7).
+* Assume a DPI of 96 if the monitor’s DPI is 0 (seen on certain
+  emulated displays).
 
 
 ### Deprecated
