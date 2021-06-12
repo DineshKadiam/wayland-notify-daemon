@@ -60,6 +60,9 @@ icon_load(const char *name, int icon_size, icon_theme_list_t themes)
 
                 /* Check if a png/svg file exists at all */
                 char *full_path = malloc(len);
+                if (full_path == NULL)
+                    return NULL;
+
                 sprintf(full_path, "%s/%s/%s.png", theme->path, it->item.path, name);
                 if (access(full_path, O_RDONLY) == -1) {
                     /* Also check for svg variant */
