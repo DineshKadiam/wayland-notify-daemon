@@ -1197,6 +1197,9 @@ notif_show(struct notif *notif, int y)
     width = max(width, _w);
     height += _h;
 
+    /* Empty line between summary and body */
+    height += notif->fonts.body.regular->height;
+
     /* Body */
     notif_layout(notif, &notif->fonts.body, &urgency->body.color, subpixel, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
