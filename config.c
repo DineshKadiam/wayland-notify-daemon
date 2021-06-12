@@ -16,6 +16,7 @@
 #define LOG_MODULE "config"
 #define LOG_ENABLE_DBG 0
 #include "log.h"
+#include "tokenize.h"
 
 struct config_file {
     char *path;
@@ -243,6 +244,33 @@ str_to_color(const char *s, pixman_color_t *color, const char *path, int lineno)
     uint16_t alpha = value >> 24; alpha |= alpha << 8;
 
     *color = color_hex_to_pixman_with_alpha(rgb, alpha == 0 ? 0xffff : alpha);
+    return true;
+}
+
+static bool
+str_to_spawn_template(struct config *conf,
+                      const char *s, struct config_spawn_template *template,
+                      const char *path, int lineno)
+{
+    free(template->raw_cmd);
+    free(template->argv);
+
+    template->raw_cmd = NULL;
+    template->argv = NULL;
+
+    if (strlen(s) == 0)
+        return true;
+
+    char *raw_cmd = strdup(s);
+    char **argv = NULL;
+
+    if (!tokenize_cmdline(raw_cmd, &argv)) {
+        LOG_ERR("%s:%d: syntax error in command line", path, lineno);
+        return false;
+    }
+
+    template->raw_cmd = raw_cmd;
+    template->argv = argv;
     return true;
 }
 
@@ -479,6 +507,11 @@ parse_section_main(const char *key, const char *value, struct config *conf,
     else if (strcmp(key, "selection-helper") == 0) {
         free(conf->selection_helper);
         conf->selection_helper = strdup(value);
+    }
+
+    else if (strcmp(key, "play-sound") == 0) {
+        if (!str_to_spawn_template(conf, value, &conf->play_sound, path, lineno))
+            return false;
     }
 
     else if (strcmp(key, "background") == 0) {
@@ -823,7 +856,8 @@ config_load(struct config *conf, const char *path)
         .selection_helper = strdup("dmenu"),
     };
 
-    //font_set_destroy(&font_default);
+    conf->play_sound.raw_cmd = strdup("aplay ${filename}");
+    tokenize_cmdline(conf->play_sound.raw_cmd, &conf->play_sound.argv);
 
     bool ret = false;
 
@@ -866,11 +900,21 @@ out:
     return ret;
 }
 
+static void
+free_spawn_template(struct config_spawn_template *template)
+{
+    free(template->raw_cmd);
+    free(template->argv);
+}
+
 void
 config_destroy(struct config conf)
 {
     free(conf.output);
     free(conf.icon_theme_name);
+    free(conf.selection_helper);
+    free_spawn_template(&conf.play_sound);
+
     for (int i = 0; i < 3; i++) {
         struct urgency_config *uconf = &conf.by_urgency[i];
         free(uconf->app.font);
@@ -879,5 +923,4 @@ config_destroy(struct config conf)
         free(uconf->action.font);
         free(uconf->sound_file);
     }
-    free(conf.selection_helper);
 }

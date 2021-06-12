@@ -78,6 +78,11 @@ in this order:
 	(newline separated), and write the selected entry on
 	stdout. Default: _dmenu_.
 
+*play-sound*
+	Command to execute to play notification sounds. _${filename}_ will
+	be expanded to the path to the audio file to play. Default: _aplay
+	${filename}_.
+
 ## Per-urgency default options
 
 These options can also be specified in an _urgency_ section, in which

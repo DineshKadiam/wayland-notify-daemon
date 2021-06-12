@@ -17,7 +17,9 @@
 * `-c,--config=PATH` command line option
   (https://codeberg.org/dnkl/fnott/issues/10).
 * Text shaping support (https://codeberg.org/dnkl/fnott/issues/13).
-* `sound-file`, a per-urgency option in `foot.ini`, specifying the
+* `play-sound` to `fnott.ini`, specifying the command to execute to
+  play a sound (https://codeberg.org/dnkl/fnott/issues/12).
+* `sound-file`, a per-urgency option in `fnott.ini`, specifying the
   path to an audio file to play when a notification is received
   (https://codeberg.org/dnkl/fnott/issues/12).
 

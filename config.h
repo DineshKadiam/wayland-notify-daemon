@@ -36,6 +36,11 @@ struct urgency_config {
     char *sound_file;  /* Path to user-configured sound to play on notification */
 };
 
+struct config_spawn_template {
+    char *raw_cmd;
+    char **argv;
+};
+
 struct config {
     char *output;
     int min_width;
@@ -61,6 +66,7 @@ struct config {
     struct urgency_config by_urgency[3];
 
     char *selection_helper;
+    struct config_spawn_template play_sound;
 };
 
 bool config_load(struct config *conf, const char *path);
