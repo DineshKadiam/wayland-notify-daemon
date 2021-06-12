@@ -83,6 +83,7 @@ const struct monitor *wayl_monitor_get(
     const struct wayland *wayl, struct wl_output *output);
 int wayl_guess_scale(const struct wayland *wayl);
 float wayl_dpi_guess(const struct wayland *wayl);
+enum fcft_subpixel wayl_guess_subpixel(const struct wayland *wayl);
 
 int wayl_poll_fd(const struct wayland *wayl);
 void wayl_flush(struct wayland *wayl);

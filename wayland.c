@@ -872,6 +872,18 @@ wayl_guess_scale(const struct wayland *wayl)
     return 1;
 }
 
+enum fcft_subpixel
+wayl_guess_subpixel(const struct wayland *wayl)
+{
+    if (wayl->monitor != NULL)
+        return wayl->monitor->subpixel;
+
+    if (tll_length(wayl->monitors) == 0)
+        return FCFT_SUBPIXEL_DEFAULT;
+
+    return tll_front(wayl->monitors).subpixel;
+}
+
 float
 wayl_dpi_guess(const struct wayland *wayl)
 {
