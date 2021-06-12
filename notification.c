@@ -903,8 +903,6 @@ notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
 {
     uint64_t hash = sdbm_hash(len, text);
 
-    LOG_INFO("subpixel=%d", subpixel);
-
     tll_foreach(notif->text_run_cache, it) {
         if (it->item.hash != hash)
             continue;
@@ -916,7 +914,6 @@ notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
             continue;
         }
 
-        LOG_INFO("USING cached text-run");
         return (struct glyph_run){
             .count = it->item.run->count,
             .cluster = it->item.run->cluster,
@@ -925,8 +922,6 @@ notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
             .free_arrays = false,
         };
     }
-
-    LOG_INFO("generating new text run");
 
     struct fcft_text_run *run = fcft_text_run_rasterize(
         font, len, text, subpixel);
