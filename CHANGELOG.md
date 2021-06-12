@@ -16,6 +16,7 @@
   `notification-margin` (https://codeberg.org/dnkl/fnott/issues/4).
 * `-c,--config=PATH` command line option
   (https://codeberg.org/dnkl/fnott/issues/10).
+* Text shaping support (https://codeberg.org/dnkl/fnott/issues/13).
 
 
 ### Changed
@@ -26,6 +27,7 @@
   (https://codeberg.org/dnkl/fnott/issues/7).
 * Assume a DPI of 96 if the monitor’s DPI is 0 (seen on certain
   emulated displays).
+* There is now an empty line between the ‘summary’ and ‘body’.
 
 
 ### Deprecated
