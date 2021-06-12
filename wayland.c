@@ -876,12 +876,12 @@ enum fcft_subpixel
 wayl_guess_subpixel(const struct wayland *wayl)
 {
     if (wayl->monitor != NULL)
-        return wayl->monitor->subpixel;
+        return (enum fcft_subpixel)wayl->monitor->subpixel;
 
     if (tll_length(wayl->monitors) == 0)
         return FCFT_SUBPIXEL_DEFAULT;
 
-    return tll_front(wayl->monitors).subpixel;
+    return (enum fcft_subpixel)tll_front(wayl->monitors).subpixel;
 }
 
 float

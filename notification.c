@@ -194,8 +194,10 @@ surface_enter(void *data, struct wl_surface *wl_surface,
 
     int new_scale = mon != NULL
         ? mon->scale : wayl_guess_scale(notif->mgr->wayl);
+
     enum fcft_subpixel new_subpixel = mon != NULL
-        ? mon->subpixel : wayl_guess_subpixel(notif->mgr->wayl);
+        ? (enum fcft_subpixel)mon->subpixel
+        : wayl_guess_subpixel(notif->mgr->wayl);
 
     if (notif->scale == new_scale && notif->subpixel == new_subpixel)
         return;
@@ -320,7 +322,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .timeout_fd = -1,
         .mon = mon,
         .scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl),
-        .subpixel = mon != NULL ? mon->subpixel : wayl_guess_subpixel(wayl),
+        .subpixel = mon != NULL ? (enum fcft_subpixel)mon->subpixel : wayl_guess_subpixel(wayl),
     };
 
     notif_reload_fonts(notif);
@@ -1522,7 +1524,7 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
         }
 
         if (it->item->subpixel != (enum fcft_subpixel)mon->subpixel) {
-            it->item->subpixel = mon->subpixel;
+            it->item->subpixel = (enum fcft_subpixel)mon->subpixel;
             refresh_needed = true;
         }
     }
