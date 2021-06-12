@@ -55,6 +55,13 @@ struct action {
     wchar_t *wlabel;
 };
 
+struct text_run_cache {
+    struct fcft_text_run *run;
+    uint64_t hash;
+    enum fcft_subpixel subpixel;
+    size_t ofs;
+};
+
 struct notif {
     struct notif_mgr *mgr;
 
@@ -93,6 +100,8 @@ struct notif {
     int y;
 
     const struct monitor *mon;
+
+    tll(struct text_run_cache) text_run_cache;
 };
 
 struct notif_mgr {
@@ -391,9 +400,13 @@ notif_destroy(struct notif *notif)
         free(it->item.wid);
         free(it->item.label);
         free(it->item.wlabel);
+        tll_remove(notif->actions, it);
     }
 
-    tll_free(notif->actions);
+    tll_foreach(notif->text_run_cache, it) {
+        fcft_text_run_destroy(it->item.run);
+        tll_remove(notif->text_run_cache, it);
+    }
 
     free(notif->app);
     free(notif->summary);
@@ -864,13 +877,55 @@ struct glyph_run {
     bool underline;
     struct fcft_font *font;
 
-    struct fcft_text_run *run;
+    bool free_arrays;
 };
 
-static struct glyph_run
-notify_rasterize_text_run(struct fcft_font *font, enum fcft_subpixel subpixel,
-                          size_t len, const wchar_t text[static len], size_t ofs)
+static uint64_t
+sdbm_hash(size_t len, const wchar_t s[static len])
 {
+    uint64_t hash = 0;
+
+    for (size_t i = 0; i < len; i++) {
+        int c = s[i];
+        hash = c + (hash << 6) + (hash << 16) - hash;
+    }
+
+    return hash;
+}
+
+static struct glyph_run
+notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
+                          enum fcft_subpixel subpixel,
+                          size_t len, const wchar_t text[static len],
+                          size_t ofs)
+{
+    uint64_t hash = sdbm_hash(len, text);
+
+    LOG_INFO("subpixel=%d", subpixel);
+
+    tll_foreach(notif->text_run_cache, it) {
+        if (it->item.hash != hash)
+            continue;
+        if (it->item.subpixel != subpixel)
+            continue;
+        if (it->item.ofs != ofs) {
+            /* TODO: we could still re-use the run, but need to deal
+             * with cluster offsets */
+            continue;
+        }
+
+        LOG_INFO("USING cached text-run");
+        return (struct glyph_run){
+            .count = it->item.run->count,
+            .cluster = it->item.run->cluster,
+            .glyphs = it->item.run->glyphs,
+            .font = font,
+            .free_arrays = false,
+        };
+    }
+
+    LOG_INFO("generating new text run");
+
     struct fcft_text_run *run = fcft_text_run_rasterize(
         font, len, text, subpixel);
 
@@ -880,12 +935,20 @@ notify_rasterize_text_run(struct fcft_font *font, enum fcft_subpixel subpixel,
     for (size_t i = 0; i < run->count; i++)
         run->cluster[i] += ofs;
 
+    struct text_run_cache cache = {
+        .run = run,
+        .hash = hash,
+        .subpixel = subpixel,
+        .ofs = ofs,
+    };
+    tll_push_front(notif->text_run_cache, cache);
+
     return (struct glyph_run){
         .count = run->count,
         .cluster = run->cluster,
         .glyphs = run->glyphs,
         .font = font,
-        .run = run,
+        .free_arrays = false,
     };
 }
 
@@ -901,7 +964,7 @@ notify_rasterize_glyphs(struct fcft_font *font, enum fcft_subpixel subpixel,
         .cluster = cluster,
         .glyphs = glyphs,
         .font = font,
-        .run = NULL,
+        .free_arrays = true,
     };
 
     for (size_t i = 0; i < len; i++) {
@@ -920,14 +983,14 @@ notify_rasterize_glyphs(struct fcft_font *font, enum fcft_subpixel subpixel,
 }
 
 static struct glyph_run
-notify_rasterize(struct fcft_font *font, enum fcft_subpixel subpixel,
+notify_rasterize(struct notif *notif, struct fcft_font *font, enum fcft_subpixel subpixel,
                  size_t len, const wchar_t text[static len], size_t ofs)
 {
     if (len == 0)
         return (struct glyph_run){0};
 
     return fcft_capabilities() & FCFT_CAPABILITY_TEXT_RUN_SHAPING
-        ? notify_rasterize_text_run(font, subpixel, len, text, ofs)
+        ? notify_rasterize_text_run(notif, font, subpixel, len, text, ofs)
         : notify_rasterize_glyphs(font, subpixel, len, text, ofs);
 }
 
@@ -940,7 +1003,6 @@ struct glyph_layout {
         int y;
         int thickness;
     } underline;
-    struct fcft_text_run *run;
 };
 
 typedef tll(struct glyph_layout) glyph_list_t;
@@ -993,7 +1055,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
         size_t len = wc - _t;
         size_t ofs = _t - text;
 
-        struct glyph_run run = notify_rasterize(font, subpixel, len, _t, ofs);
+        struct glyph_run run = notify_rasterize(notif, font, subpixel, len, _t, ofs);
         total_glyph_count += run.count;
 
         if (run.count > 0) {
@@ -1145,13 +1207,11 @@ notif_layout(struct notif *notif, struct font_set *fonts,
             x += glyph->advance.x;
         }
 
-        if (run->run == NULL) {
+        if (run->free_arrays) {
             free(run->cluster);
             free(run->glyphs);
         }
 
-        /* Track text-run in the *last* glyph belonging to this run */
-        tll_back(*glyph_list).run = run->run;
         tll_remove(runs, it);
     }
 
@@ -1304,8 +1364,6 @@ notif_show(struct notif *notif, int y)
                     glyph->advance.x, it->item.underline.thickness});
         }
 
-        if (it->item.run != NULL)
-            fcft_text_run_destroy(it->item.run);
         tll_remove(glyphs, it);
     }
 
