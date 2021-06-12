@@ -1129,6 +1129,11 @@ notif_show(struct notif *notif, int y)
     struct buffer *buf = wayl_get_buffer(wayl, width, height);
     const int brd_sz = urgency->border.size;;
 
+    pixman_region32_t clip;
+    pixman_region32_init_rect(&clip, 0, 0, width, height);
+    pixman_image_set_clip_region32(buf->pix, &clip);
+    pixman_region32_fini(&clip);
+
     /* Border */
     pixman_image_fill_rectangles(
         PIXMAN_OP_SRC, buf->pix, &urgency->border.color,
