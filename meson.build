@@ -61,7 +61,7 @@ wayland_cursor = dependency('wayland-cursor')
 dbus = dependency('dbus-1')
 
 tllist = dependency('tllist', version: '>=1.0.1', fallback: 'tllist')
-fcft = dependency('fcft', version: ['>=2.3.90', '<3.0.0'], fallback: 'fcft')
+fcft = dependency('fcft', version: ['>=2.4.0', '<3.0.0'], fallback: 'fcft')
 
 wayland_protocols_datadir = wayland_protocols.get_pkgconfig_variable('pkgdatadir')
 

@@ -55,6 +55,13 @@ struct action {
     wchar_t *wlabel;
 };
 
+struct text_run_cache {
+    struct fcft_text_run *run;
+    uint64_t hash;
+    enum fcft_subpixel subpixel;
+    size_t ofs;
+};
+
 struct notif {
     struct notif_mgr *mgr;
 
@@ -85,6 +92,7 @@ struct notif {
     int image_width;
     int image_height;
     int scale;
+    enum fcft_subpixel subpixel;
 
     struct buffer *pending;
     struct wl_callback *frame_callback;
@@ -92,6 +100,8 @@ struct notif {
     int y;
 
     const struct monitor *mon;
+
+    tll(struct text_run_cache) text_run_cache;
 };
 
 struct notif_mgr {
@@ -185,10 +195,15 @@ surface_enter(void *data, struct wl_surface *wl_surface,
     int new_scale = mon != NULL
         ? mon->scale : wayl_guess_scale(notif->mgr->wayl);
 
-    if (notif->scale == new_scale)
+    enum fcft_subpixel new_subpixel = mon != NULL
+        ? (enum fcft_subpixel)mon->subpixel
+        : wayl_guess_subpixel(notif->mgr->wayl);
+
+    if (notif->scale == new_scale && notif->subpixel == new_subpixel)
         return;
 
     notif->scale = new_scale;
+    notif->subpixel = new_subpixel;
     notif_show(notif, notif->y);
 }
 
@@ -307,6 +322,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .timeout_fd = -1,
         .mon = mon,
         .scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl),
+        .subpixel = mon != NULL ? (enum fcft_subpixel)mon->subpixel : wayl_guess_subpixel(wayl),
     };
 
     notif_reload_fonts(notif);
@@ -386,9 +402,13 @@ notif_destroy(struct notif *notif)
         free(it->item.wid);
         free(it->item.label);
         free(it->item.wlabel);
+        tll_remove(notif->actions, it);
     }
 
-    tll_free(notif->actions);
+    tll_foreach(notif->text_run_cache, it) {
+        fcft_text_run_destroy(it->item.run);
+        tll_remove(notif->text_run_cache, it);
+    }
 
     free(notif->app);
     free(notif->summary);
@@ -851,6 +871,131 @@ frame_callback(void *data, struct wl_callback *wl_callback, uint32_t callback_da
     }
 }
 
+struct glyph_run {
+    size_t count;
+    int *cluster;
+    const struct fcft_glyph **glyphs;
+
+    bool underline;
+    struct fcft_font *font;
+
+    bool free_arrays;
+};
+
+static uint64_t
+sdbm_hash(size_t len, const wchar_t s[static len])
+{
+    uint64_t hash = 0;
+
+    for (size_t i = 0; i < len; i++) {
+        int c = s[i];
+        hash = c + (hash << 6) + (hash << 16) - hash;
+    }
+
+    return hash;
+}
+
+static struct glyph_run
+notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
+                          enum fcft_subpixel subpixel,
+                          size_t len, const wchar_t text[static len],
+                          size_t ofs)
+{
+    uint64_t hash = sdbm_hash(len, text);
+
+    LOG_INFO("subpixel=%d", subpixel);
+
+    tll_foreach(notif->text_run_cache, it) {
+        if (it->item.hash != hash)
+            continue;
+        if (it->item.subpixel != subpixel)
+            continue;
+        if (it->item.ofs != ofs) {
+            /* TODO: we could still re-use the run, but need to deal
+             * with cluster offsets */
+            continue;
+        }
+
+        LOG_INFO("USING cached text-run");
+        return (struct glyph_run){
+            .count = it->item.run->count,
+            .cluster = it->item.run->cluster,
+            .glyphs = it->item.run->glyphs,
+            .font = font,
+            .free_arrays = false,
+        };
+    }
+
+    LOG_INFO("generating new text run");
+
+    struct fcft_text_run *run = fcft_text_run_rasterize(
+        font, len, text, subpixel);
+
+    if (run == NULL)
+        return (struct glyph_run){0};
+
+    for (size_t i = 0; i < run->count; i++)
+        run->cluster[i] += ofs;
+
+    struct text_run_cache cache = {
+        .run = run,
+        .hash = hash,
+        .subpixel = subpixel,
+        .ofs = ofs,
+    };
+    tll_push_front(notif->text_run_cache, cache);
+
+    return (struct glyph_run){
+        .count = run->count,
+        .cluster = run->cluster,
+        .glyphs = run->glyphs,
+        .font = font,
+        .free_arrays = false,
+    };
+}
+
+static struct glyph_run
+notify_rasterize_glyphs(struct fcft_font *font, enum fcft_subpixel subpixel,
+                        size_t len, const wchar_t text[static len], size_t ofs)
+{
+    int *cluster = malloc(len * sizeof(cluster[0]));
+    const struct fcft_glyph **glyphs = malloc(len * sizeof(glyphs[0]));
+
+    struct glyph_run run = {
+        .count = 0,
+        .cluster = cluster,
+        .glyphs = glyphs,
+        .font = font,
+        .free_arrays = true,
+    };
+
+    for (size_t i = 0; i < len; i++) {
+        const struct fcft_glyph *glyph = fcft_glyph_rasterize(
+            font, text[i], subpixel);
+
+        if (glyph == NULL)
+            continue;
+
+        cluster[run.count] = ofs + i;
+        glyphs[run.count] = glyph;
+        run.count++;
+    }
+
+    return run;
+}
+
+static struct glyph_run
+notify_rasterize(struct notif *notif, struct fcft_font *font, enum fcft_subpixel subpixel,
+                 size_t len, const wchar_t text[static len], size_t ofs)
+{
+    if (len == 0)
+        return (struct glyph_run){0};
+
+    return fcft_capabilities() & FCFT_CAPABILITY_TEXT_RUN_SHAPING
+        ? notify_rasterize_text_run(notif, font, subpixel, len, text, ofs)
+        : notify_rasterize_glyphs(font, subpixel, len, text, ofs);
+}
+
 struct glyph_layout {
     const struct fcft_glyph *glyph;
     const pixman_color_t *color;
@@ -875,53 +1020,29 @@ notif_layout(struct notif *notif, struct font_set *fonts,
 
     const struct config *conf = notif->mgr->conf;
 
-    const size_t char_count = wcslen(text);
-    size_t *distance = calloc(char_count, sizeof(distance[0]));
-    struct glyph_and_font {
-        const struct fcft_glyph *glyph;
-        struct fcft_font *font;
-        long x_kern;
-    } *glyphs = calloc(char_count, sizeof(glyphs[0]));
-
     bool bold = false;
     bool italic = false;
     bool underline = false;
 
-    wchar_t prev = 0;
-    size_t i = 0;
-    for (const wchar_t *wc = text; *wc != L'\0'; wc++, i++) {
-        if (wcsncasecmp(wc, L"</b>", 4) == 0 ||
-            wcsncasecmp(wc, L"</i>", 4) == 0 ||
-            wcsncasecmp(wc, L"</u>", 4) == 0)
-        {
-            if (wc[2] == L'b' || wc[2] == L'B')
-                bold = false;
-            else if (wc[2] == L'i' || wc[2] == L'I')
-                italic = false;
-            else
-                underline = false;
+    tll(struct glyph_run) runs = tll_init();
+    size_t total_glyph_count = 0;
 
-            wc += 3;
+    /* Rasterize whole runs, if possible. Need to look for font
+     * formatters since we need to use different fonts for those */
+    const wchar_t *_t = text;
+    for (const wchar_t *wc = _t; true; wc++) {
+        if (!(*wc == L'\0' ||
+              wcsncasecmp(wc, L"<b>", 3) == 0 ||
+              wcsncasecmp(wc, L"<i>", 3) == 0 ||
+              wcsncasecmp(wc, L"<u>", 3) == 0 ||
+              wcsncasecmp(wc, L"</b>", 4) == 0 ||
+              wcsncasecmp(wc, L"</i>", 4) == 0 ||
+              wcsncasecmp(wc, L"</u>", 4) == 0))
+        {
             continue;
         }
 
-        if (wcsncasecmp(wc, L"<b>", 3) == 0 ||
-            wcsncasecmp(wc, L"<i>", 3) == 0 ||
-            wcsncasecmp(wc, L"<u>", 3) == 0)
-        {
-            if (wc[1] == L'b' || wc[1] == L'B')
-                bold = true;
-            else if (wc[1] == L'i' || wc[1] == L'I')
-                italic = true;
-            else
-                underline = true;
-
-            wc += 2;
-            continue;
-        }
-
-        /* TODO: filter out href and img tags */
-
+        /* Select font based on formatters currently enabled */
         struct fcft_font *font = NULL;
         if (bold && italic)
             font = fonts->bold_italic;
@@ -933,53 +1054,102 @@ notif_layout(struct notif *notif, struct font_set *fonts,
         if (font == NULL)
             font = fonts->regular;
 
-        glyphs[i] = (struct glyph_and_font){
-            fcft_glyph_rasterize(font, *wc, subpixel),
-            font,
-        };
+        size_t len = wc - _t;
+        size_t ofs = _t - text;
 
-        long x_kern = 0;
-        if (i > 0 && glyphs[i].font == font)
-            fcft_kerning(font, prev, *wc, &x_kern, NULL);
+        struct glyph_run run = notify_rasterize(notif, font, subpixel, len, _t, ofs);
+        total_glyph_count += run.count;
 
-        prev = *wc;
-
-        if (!iswspace(*wc))
-            continue;
-
-        /* Calculate distance to *this* space for all preceding
-         * characters (up til the previous space) */
-        for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
-            if (iswspace(text[j]))
-                break;
-            if (j == 0 || (j > 0 && iswspace(text[j - 1]))) {
-                /*
-                 * Store non-zero distance only in first character in a word
-                 * This ensures the layouting doesn't produce output like:
-                 *
-                 * x
-                 * x
-                 * x
-                 * x
-                 *
-                 * for very long words, that doesn't fit at all on single line.
-                 */
-                distance[j] = dist;
-            }
-            dist += glyphs[j].x_kern + (
-                glyphs[j].glyph != NULL ? glyphs[j].glyph->advance.x : 0);
+        if (run.count > 0) {
+            run.underline = underline;
+            tll_push_back(runs, run);
         }
+
+        if (*wc == L'\0')
+            break;
+
+        /* Update formatter state */
+        bool new_value = wc[1] == L'/' ? false : true;
+        wchar_t formatter = wc[1] == L'/' ? wc[2] : wc[1];
+
+        if (formatter == L'b' || formatter == L'B')
+            bold = new_value;
+        if (formatter == L'i' || formatter == L'I')
+            italic = new_value;
+        if (formatter == L'u' || formatter == L'U')
+            underline = new_value;
+
+        _t = wc + (wc[1] == L'/' ? 4 : 3);
     }
 
-    for (ssize_t j = i - 1, dist = 0; j >= 0; j--) {
-        if (iswspace(text[j]))
-            break;
-        if (j == 0 || (j > 0 && iswspace(text[j - 1]))) {
-            /* Store non-zero distance only in first character in a word */
-            distance[j] = dist;
+    /* Distance from glyph to next word boundary. Note: only the
+     * *first* glyph in a word has a non-zero distance */
+    int distance[total_glyph_count];
+
+    {
+        /* Need flat cluster+glyph arrays for this... */
+        int cluster[total_glyph_count];
+        const struct fcft_glyph *glyphs[total_glyph_count];
+
+        size_t idx = 0;
+        tll_foreach(runs, it) {
+            const struct glyph_run *run = &it->item;
+
+            for (size_t i = 0; i < run->count; i++, idx++) {
+                cluster[idx] = it->item.cluster[i];
+                glyphs[idx] = it->item.glyphs[i];
+            }
         }
-        dist += glyphs[j].x_kern + (
-            glyphs[j].glyph != NULL ? glyphs[j].glyph->advance.x : 0);
+
+        /* Loop glyph runs, looking for word boundaries */
+        idx = 0;
+        tll_foreach(runs, it) {
+            const struct glyph_run *run = &it->item;
+
+            for (size_t i = 0; i < run->count; i++, idx++) {
+                distance[idx] = 0;
+
+                if (!iswspace(text[run->cluster[i]]))
+                    continue;
+
+                /* Calculate distance to *this* space for all
+                 * preceding glyphs (up til the previous space) */
+                for (ssize_t j = idx - 1, dist = 0; j >= 0; j--) {
+                    if (iswspace(text[cluster[j]]))
+                        break;
+
+                    if (j == 0 || (j > 0 && iswspace(text[cluster[j - 1]]))) {
+                        /*
+                         * Store non-zero distance only in first character in a word
+                         * This ensures the layouting doesn't produce output like:
+                         *
+                         * x
+                         * x
+                         * x
+                         * x
+                         *
+                         * for very long words, that doesn't fit at all on single line.
+                         */
+                        distance[j] = dist;
+                    }
+
+                    dist += glyphs[j]->advance.x;
+                }
+            }
+        }
+
+        /* Calculate distance for the last word */
+        for (ssize_t j = total_glyph_count - 1, dist = 0; j >= 0; j--) {
+            if (iswspace(text[cluster[j]]))
+                break;
+
+            if (j == 0 || (j > 0 && iswspace(text[cluster[j - 1]]))) {
+                /* Store non-zero distance only in first character in a word */
+                distance[j] = dist;
+            }
+
+            dist += glyphs[j]->advance.x;
+        }
     }
 
     int x = left_pad;
@@ -987,59 +1157,68 @@ notif_layout(struct notif *notif, struct font_set *fonts,
     if (conf->min_width != 0)
         *width = conf->min_width;
 
-    for (size_t i = 0; i < char_count; i++) {
-        const wchar_t wc = text[i];
-        const struct fcft_glyph *glyph = glyphs[i].glyph;
-        struct fcft_font *font = glyphs[i].font;
-        const size_t dist = distance[i];
-        const long x_kern = glyphs[i].x_kern;
+    /*
+     * Finally, lay out the glyphs
+     *
+     * This is done by looping the glyphs, and inserting a newline
+     * whenever a word cannot be fitted in the remaining space.
+     */
+    size_t idx = 0;
+    tll_foreach(runs, it) {
+        struct glyph_run *run = &it->item;
 
-        if (glyph == NULL)
-            continue;
+        for (size_t i = 0; i < run->count; i++, idx++) {
 
-        if ((x > left_pad &&
-             x + x_kern + glyph->advance.x + dist + right_pad > conf->max_width) ||
-            wc == L'\n')
-        {
-            *width = max(*width, x + right_pad);
-            *height += fonts->regular->height;
+            const wchar_t wc = text[run->cluster[i]];
+            const struct fcft_glyph *glyph = run->glyphs[i];
+            struct fcft_font *font = run->font;
+            const int dist = distance[idx];
 
-            x = left_pad;
-            y += fonts->regular->height;
+            if ((x > left_pad &&
+                 x + glyph->advance.x + dist + right_pad > conf->max_width) ||
+                wc == L'\n')
+            {
+                *width = max(*width, x + right_pad);
+                *height += fonts->regular->height;
 
-            if (iswspace(wc)) {
-                /* Don't render trailing whitespace */
-                continue;
+                x = left_pad;
+                y += fonts->regular->height;
+
+                if (iswspace(wc)) {
+                    /* Don't render trailing whitespace */
+                    continue;
+                }
             }
+
+            if (glyph->cols <= 0)
+                continue;
+
+            struct glyph_layout layout = {
+                .glyph = glyph,
+                .color = color,
+                .x = x,
+                .y = y + font->ascent,
+                .underline = {
+                    .draw = run->underline,
+                    .y = y + font->ascent - font->underline.position,
+                    .thickness = font->underline.thickness,
+                },
+            };
+
+            tll_push_back(*glyph_list, layout);
+            x += glyph->advance.x;
         }
 
-        if (glyph->cols <= 0)
-            continue;
+        if (run->free_arrays) {
+            free(run->cluster);
+            free(run->glyphs);
+        }
 
-        struct glyph_layout layout = {
-            .glyph = glyph,
-            .color = color,
-            .x = x + x_kern,
-            .y = y + font->ascent,
-            .underline = {
-                .draw = underline,
-                .y = y + font->ascent - font->underline.position,
-                .thickness = font->underline.thickness,
-            }
-        };
-
-        tll_push_back(*glyph_list, layout);
-        LOG_DBG("GLYPH: advance=%d", glyph->advance.x);
-        x += x_kern + glyph->advance.x;
+        tll_remove(runs, it);
     }
 
     *width = max(*width, x + right_pad);
     *height += fonts->regular->height;
-
-    assert(*width <= conf->max_width);
-
-    free(glyphs);
-    free(distance);
 }
 
 static int
@@ -1050,12 +1229,9 @@ notif_show(struct notif *notif, int y)
     struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
     struct wayland *wayl = notif->mgr->wayl;
-    const struct monitor *mon
-        = notif->mon != NULL ? notif->mon : wayl_preferred_monitor(wayl);
 
     const enum fcft_subpixel subpixel = urgency->bg.alpha == 0xffff
-        ? mon != NULL ? (enum fcft_subpixel)mon->subpixel : FCFT_SUBPIXEL_DEFAULT
-        : FCFT_SUBPIXEL_NONE;
+        ? notif->subpixel : FCFT_SUBPIXEL_NONE;
 
     const int pad_horizontal = notif->fonts.body.regular->height;
     const int pad_vertical = pad_horizontal;
@@ -1084,6 +1260,9 @@ notif_show(struct notif *notif, int y)
     notif_layout(notif, &notif->fonts.summary, &urgency->summary.color, subpixel, notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
     width = max(width, _w);
     height += _h;
+
+    /* Empty line between summary and body */
+    height += notif->fonts.body.regular->height;
 
     /* Body */
     notif_layout(notif, &notif->fonts.body, &urgency->body.color, subpixel, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
@@ -1128,6 +1307,11 @@ notif_show(struct notif *notif, int y)
 
     struct buffer *buf = wayl_get_buffer(wayl, width, height);
     const int brd_sz = urgency->border.size;;
+
+    pixman_region32_t clip;
+    pixman_region32_init_rect(&clip, 0, 0, width, height);
+    pixman_image_set_clip_region32(buf->pix, &clip);
+    pixman_region32_fini(&clip);
 
     /* Border */
     pixman_image_fill_rectangles(
@@ -1181,9 +1365,9 @@ notif_show(struct notif *notif, int y)
                     it->item.x, it->item.underline.y,
                     glyph->advance.x, it->item.underline.thickness});
         }
-    }
 
-    tll_free(glyphs);
+        tll_remove(glyphs, it);
+    }
 
     if (notif->frame_callback != NULL) {
         if (notif->pending != NULL)
@@ -1336,6 +1520,11 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
         if (it->item->scale != mon->scale) {
             it->item->scale = mon->scale;
             notif_reload_fonts(it->item);
+            refresh_needed = true;
+        }
+
+        if (it->item->subpixel != (enum fcft_subpixel)mon->subpixel) {
+            it->item->subpixel = (enum fcft_subpixel)mon->subpixel;
             refresh_needed = true;
         }
     }
