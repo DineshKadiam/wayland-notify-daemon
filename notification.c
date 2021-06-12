@@ -85,6 +85,7 @@ struct notif {
     int image_width;
     int image_height;
     int scale;
+    enum fcft_subpixel subpixel;
 
     struct buffer *pending;
     struct wl_callback *frame_callback;
@@ -184,11 +185,14 @@ surface_enter(void *data, struct wl_surface *wl_surface,
 
     int new_scale = mon != NULL
         ? mon->scale : wayl_guess_scale(notif->mgr->wayl);
+    enum fcft_subpixel new_subpixel = mon != NULL
+        ? mon->subpixel : wayl_guess_subpixel(notif->mgr->wayl);
 
-    if (notif->scale == new_scale)
+    if (notif->scale == new_scale && notif->subpixel == new_subpixel)
         return;
 
     notif->scale = new_scale;
+    notif->subpixel = new_subpixel;
     notif_show(notif, notif->y);
 }
 
@@ -307,6 +311,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .timeout_fd = -1,
         .mon = mon,
         .scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl),
+        .subpixel = mon != NULL ? mon->subpixel : wayl_guess_subpixel(wayl),
     };
 
     notif_reload_fonts(notif);
@@ -1162,12 +1167,9 @@ notif_show(struct notif *notif, int y)
     struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
     struct wayland *wayl = notif->mgr->wayl;
-    const struct monitor *mon
-        = notif->mon != NULL ? notif->mon : wayl_preferred_monitor(wayl);
 
     const enum fcft_subpixel subpixel = urgency->bg.alpha == 0xffff
-        ? mon != NULL ? (enum fcft_subpixel)mon->subpixel : FCFT_SUBPIXEL_DEFAULT
-        : FCFT_SUBPIXEL_NONE;
+        ? notif->subpixel : FCFT_SUBPIXEL_NONE;
 
     const int pad_horizontal = notif->fonts.body.regular->height;
     const int pad_vertical = pad_horizontal;
@@ -1458,6 +1460,11 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
         if (it->item->scale != mon->scale) {
             it->item->scale = mon->scale;
             notif_reload_fonts(it->item);
+            refresh_needed = true;
+        }
+
+        if (it->item->subpixel != mon->subpixel) {
+            it->item->subpixel = mon->subpixel;
             refresh_needed = true;
         }
     }
