@@ -1521,7 +1521,7 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
             refresh_needed = true;
         }
 
-        if (it->item->subpixel != mon->subpixel) {
+        if (it->item->subpixel != (enum fcft_subpixel)mon->subpixel) {
             it->item->subpixel = mon->subpixel;
             refresh_needed = true;
         }
