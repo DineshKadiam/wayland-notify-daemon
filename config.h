@@ -33,6 +33,7 @@ struct urgency_config {
     } action;
 
     int timeout_secs;
+    char *sound_file;  /* Path to user-configured sound to play on notification */
 };
 
 struct config {

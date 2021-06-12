@@ -324,6 +324,11 @@ parse_section_urgency(const char *key, const char *value,
         conf->timeout_secs = timeout_secs;
     }
 
+    else if (strcmp(key, "sound-file") == 0) {
+        free(conf->sound_file);
+        conf->sound_file = strlen(value) > 0 ? strdup(value) : NULL;
+    }
+
     else {
         LOG_ERR("%s:%u: invalid key: %s", path, lineno, key);
         return false;
@@ -558,6 +563,14 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
             urgency->timeout_secs = timeout_secs;
+        }
+    }
+
+    else if (strcmp(key, "sound-file") == 0) {
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+            free(urgency->sound_file);
+            urgency->sound_file = strlen(value) > 0 ? strdup(value) : NULL;
         }
     }
 
@@ -859,10 +872,12 @@ config_destroy(struct config conf)
     free(conf.output);
     free(conf.icon_theme_name);
     for (int i = 0; i < 3; i++) {
-        free(conf.by_urgency[i].app.font);
-        free(conf.by_urgency[i].summary.font);
-        free(conf.by_urgency[i].body.font);
-        free(conf.by_urgency[i].action.font);
+        struct urgency_config *uconf = &conf.by_urgency[i];
+        free(uconf->app.font);
+        free(uconf->summary.font);
+        free(uconf->body.font);
+        free(uconf->action.font);
+        free(uconf->sound_file);
     }
     free(conf.selection_helper);
 }

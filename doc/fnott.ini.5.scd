@@ -117,6 +117,10 @@ case they override the values specified in the default section.
 	Time, in seconds, before notifications are automatically
 	dismissed. A value of 0 disables the timeout. Default: _0_.
 
+*sound-file*
+	Absolute path to audio file to play when a notification is
+	received. If unset, no sound is played. Default: _unset_.
+
 # SECTION: low
 
 This section allows you to override the options listed under
