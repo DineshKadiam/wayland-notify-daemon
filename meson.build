@@ -113,6 +113,7 @@ executable(
   'notification.c', 'notification.h',
   'png.c', 'png-fnott.h',
   'shm.c', 'shm.h',
+  'spawn.c', 'spawn.h',
   'svg.c', 'svg.h',
   'stride.h',
   'tokenize.c', 'tokenize.h',
