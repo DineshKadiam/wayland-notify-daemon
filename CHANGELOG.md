@@ -44,6 +44,11 @@
 
 
 ### Fixed
+
+* Notification sometimes not being rendered with the correct subpixel
+  mode, until updated.
+
+
 ### Security
 ### Contributors
 
