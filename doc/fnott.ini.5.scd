@@ -78,6 +78,11 @@ in this order:
 	(newline separated), and write the selected entry on
 	stdout. Default: _dmenu_.
 
+*play-sound*
+	Command to execute to play notification sounds. _${filename}_ will
+	be expanded to the path to the audio file to play. Default: _aplay
+	${filename}_.
+
 ## Per-urgency default options
 
 These options can also be specified in an _urgency_ section, in which
@@ -116,6 +121,10 @@ case they override the values specified in the default section.
 *timeout*
 	Time, in seconds, before notifications are automatically
 	dismissed. A value of 0 disables the timeout. Default: _0_.
+
+*sound-file*
+	Absolute path to audio file to play when a notification is
+	received. If unset, no sound is played. Default: _unset_.
 
 # SECTION: low
 

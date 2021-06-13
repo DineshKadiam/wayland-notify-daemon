@@ -302,6 +302,8 @@ notify(struct dbus *bus, DBusMessage *msg)
     tll_foreach(actions, it)
         notif_add_action(notif, it->item.id, it->item.label);
 
+    notif_play_sound(notif);
+
     notif_mgr_refresh(bus->notif_mgr);
 
     DBusMessage *reply = dbus_message_new_method_return(msg);

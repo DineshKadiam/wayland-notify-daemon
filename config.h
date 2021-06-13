@@ -33,6 +33,12 @@ struct urgency_config {
     } action;
 
     int timeout_secs;
+    char *sound_file;  /* Path to user-configured sound to play on notification */
+};
+
+struct config_spawn_template {
+    char *raw_cmd;
+    char **argv;
 };
 
 struct config {
@@ -60,6 +66,7 @@ struct config {
     struct urgency_config by_urgency[3];
 
     char *selection_helper;
+    struct config_spawn_template play_sound;
 };
 
 bool config_load(struct config *conf, const char *path);

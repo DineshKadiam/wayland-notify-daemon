@@ -25,6 +25,7 @@
 #define LOG_ENABLE_DBG 0
 #include "log.h"
 #include "dbus.h"
+#include "spawn.h"
 #include "wayland.h"
 
 #define max(x, y) ((x) > (y) ? (x) : (y))
@@ -826,6 +827,34 @@ notif_add_action(struct notif *notif, const char *id, const char *label)
         ((struct action){
             .id = strdup(id), .wid = wid,
             .label = strdup(label), .wlabel = wlabel}));
+}
+
+void
+notif_play_sound(struct notif *notif)
+{
+    const struct config *conf = notif->mgr->conf;
+    const struct urgency_config *uconf = &conf->by_urgency[notif->urgency];
+
+    if (conf->play_sound.raw_cmd == NULL || uconf->sound_file == NULL)
+        return;
+
+    size_t argc;
+    char **argv;
+
+    if (!spawn_expand_template(
+            &conf->play_sound,
+            1,
+            (const char *[]){"filename"},
+            (const char *[]){uconf->sound_file},
+            &argc, &argv))
+    {
+        return;
+    }
+
+    spawn(NULL, argv, -1, -1, -1);
+    for (size_t i = 0; i < argc; i++)
+        free(argv[i]);
+    free(argv);
 }
 
 static void frame_callback(

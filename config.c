@@ -16,6 +16,7 @@
 #define LOG_MODULE "config"
 #define LOG_ENABLE_DBG 0
 #include "log.h"
+#include "tokenize.h"
 
 struct config_file {
     char *path;
@@ -247,6 +248,33 @@ str_to_color(const char *s, pixman_color_t *color, const char *path, int lineno)
 }
 
 static bool
+str_to_spawn_template(struct config *conf,
+                      const char *s, struct config_spawn_template *template,
+                      const char *path, int lineno)
+{
+    free(template->raw_cmd);
+    free(template->argv);
+
+    template->raw_cmd = NULL;
+    template->argv = NULL;
+
+    if (strlen(s) == 0)
+        return true;
+
+    char *raw_cmd = strdup(s);
+    char **argv = NULL;
+
+    if (!tokenize_cmdline(raw_cmd, &argv)) {
+        LOG_ERR("%s:%d: syntax error in command line", path, lineno);
+        return false;
+    }
+
+    template->raw_cmd = raw_cmd;
+    template->argv = argv;
+    return true;
+}
+
+static bool
 parse_section_urgency(const char *key, const char *value,
                       struct urgency_config *conf,
                       const char *path, unsigned lineno)
@@ -322,6 +350,11 @@ parse_section_urgency(const char *key, const char *value,
         }
 
         conf->timeout_secs = timeout_secs;
+    }
+
+    else if (strcmp(key, "sound-file") == 0) {
+        free(conf->sound_file);
+        conf->sound_file = strlen(value) > 0 ? strdup(value) : NULL;
     }
 
     else {
@@ -476,6 +509,11 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         conf->selection_helper = strdup(value);
     }
 
+    else if (strcmp(key, "play-sound") == 0) {
+        if (!str_to_spawn_template(conf, value, &conf->play_sound, path, lineno))
+            return false;
+    }
+
     else if (strcmp(key, "background") == 0) {
         pixman_color_t bg;
         if (!str_to_color(value, &bg, path, lineno))
@@ -558,6 +596,14 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
             urgency->timeout_secs = timeout_secs;
+        }
+    }
+
+    else if (strcmp(key, "sound-file") == 0) {
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+            free(urgency->sound_file);
+            urgency->sound_file = strlen(value) > 0 ? strdup(value) : NULL;
         }
     }
 
@@ -810,7 +856,8 @@ config_load(struct config *conf, const char *path)
         .selection_helper = strdup("dmenu"),
     };
 
-    //font_set_destroy(&font_default);
+    conf->play_sound.raw_cmd = strdup("aplay ${filename}");
+    tokenize_cmdline(conf->play_sound.raw_cmd, &conf->play_sound.argv);
 
     bool ret = false;
 
@@ -853,16 +900,27 @@ out:
     return ret;
 }
 
+static void
+free_spawn_template(struct config_spawn_template *template)
+{
+    free(template->raw_cmd);
+    free(template->argv);
+}
+
 void
 config_destroy(struct config conf)
 {
     free(conf.output);
     free(conf.icon_theme_name);
-    for (int i = 0; i < 3; i++) {
-        free(conf.by_urgency[i].app.font);
-        free(conf.by_urgency[i].summary.font);
-        free(conf.by_urgency[i].body.font);
-        free(conf.by_urgency[i].action.font);
-    }
     free(conf.selection_helper);
+    free_spawn_template(&conf.play_sound);
+
+    for (int i = 0; i < 3; i++) {
+        struct urgency_config *uconf = &conf.by_urgency[i];
+        free(uconf->app.font);
+        free(uconf->summary.font);
+        free(uconf->body.font);
+        free(uconf->action.font);
+        free(uconf->sound_file);
+    }
 }
