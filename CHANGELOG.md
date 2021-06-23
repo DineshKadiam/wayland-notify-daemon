@@ -1,11 +1,12 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.1.0](#1-1-0)
 * [1.0.1](#1-0-1)
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.1.0
+
 ### Added
 
 * Configurable minimal width of notifications. New `fnottrc` option:
@@ -54,10 +55,10 @@
   mode, until updated.
 
 
-### Security
 ### Contributors
 
 - yyp (Alexey Yerin)
+
 
 ## 1.0.1
 
