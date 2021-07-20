@@ -12,6 +12,11 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* Icons not being searched for in all icon theme instances
+  (https://codeberg.org/dnkl/fnott/issues/17).
+
+
 ### Security
 ### Contributors
 
