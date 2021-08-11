@@ -15,6 +15,8 @@
 
 * Icons not being searched for in all icon theme instances
   (https://codeberg.org/dnkl/fnott/issues/17).
+* fnott crashing when a notification was received while no monitor was
+  attached to the wayland session.
 
 
 ### Security
@@ -74,6 +76,7 @@
 ### Contributors
 
 - yyp (Alexey Yerin)
+- Julian Scheel
 
 
 ## 1.0.1
