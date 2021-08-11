@@ -313,11 +313,12 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
     zwlr_layer_surface_v1_set_size(layer_surface, 1, 1);
 
     struct notif *notif = malloc(sizeof(*notif));
+    int notif_id = next_id++;
     *notif = (struct notif) {
         .mgr = mgr,
         .surface = surface,
         .layer_surface = layer_surface,
-        .id = next_id++,
+        .id = notif_id,
         .urgency = URGENCY_NORMAL,
         .actions = tll_init(),
         .timeout_fd = -1,
@@ -356,6 +357,15 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
      * been configured".
      */
     wayl_roundtrip(mgr->wayl);
+
+    /*
+     * The wayl_roundtrip call can cause wayland to close the layer_surface,
+     * which will cause the notification to be invalidated. This happens if no
+     * active monitor is available for output.
+     */
+    if (notif_mgr_get_notif(mgr, notif_id) == NULL)
+        return NULL;
+
     return notif;
 }
 
