@@ -1,7 +1,7 @@
 project('fnott', 'c',
         version: '1.1.0',
         license: 'MIT',
-        meson_version: '>=0.53.0',
+        meson_version: '>=0.54.0',
         default_options: [
           'c_std=c18',
           'warning_level=1',
