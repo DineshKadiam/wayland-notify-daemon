@@ -1421,8 +1421,18 @@ void
 notif_mgr_refresh(struct notif_mgr *mgr)
 {
     int y = mgr->conf->margins.vertical;
-    tll_rforeach(mgr->notifs, it)
-        y += notif_show(it->item, y) + mgr->conf->margins.between;
+
+    switch (mgr->conf->stacking_order) {
+    case STACK_BOTTOM_UP:
+        tll_rforeach(mgr->notifs, it)
+            y += notif_show(it->item, y) + mgr->conf->margins.between;
+        break;
+
+    case STACK_TOP_DOWN:
+        tll_foreach(mgr->notifs, it)
+            y += notif_show(it->item, y) + mgr->conf->margins.between;
+        break;
+    }
 }
 
 ssize_t
