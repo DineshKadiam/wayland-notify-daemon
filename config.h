@@ -51,6 +51,11 @@ struct config {
     int max_icon_size;
 
     enum {
+        STACK_BOTTOM_UP,
+        STACK_TOP_DOWN,
+    } stacking_order;
+
+    enum {
         ANCHOR_TOP_LEFT,
         ANCHOR_TOP_RIGHT,
         ANCHOR_BOTTOM_LEFT,

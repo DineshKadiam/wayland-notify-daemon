@@ -53,8 +53,21 @@ in this order:
 	Maximum icon size, in pixels. Icons larger than this will be
 	scaled down. Default: _32_.
 
+*stacking-order*
+	How to stack multiple notifications.
+	
+		- *bottom-up* : oldest, highest priority furthest away from
+		  the anchor point.
+		- *top-down*: oldest, highest priority at the anchor point.
+	
+	Thus, if the notifications are anchored at the top, *bottom-up*
+	will have the most recent notification in the upper corner, while
+	the oldest notification is in the bottom of the stack.
+	
+	Default: _bottom-up_.
+
 *anchor*
-	Where notifications are positions: *top-left*, *top-right*,
+	Where notifications are positioned: *top-left*, *top-right*,
 	*bottom-left* or *bottom-right*. Default: _top-right_.
 
 *edge-margin-vertical*

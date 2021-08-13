@@ -447,6 +447,20 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         conf->max_icon_size = sz;
     }
 
+    else if (strcmp(key, "stacking-order") == 0) {
+        if (strcasecmp(value, "bottom-up") == 0)
+            conf->stacking_order = STACK_BOTTOM_UP;
+        else if (strcasecmp(value, "top-down") == 0)
+            conf->stacking_order = STACK_TOP_DOWN;
+        else {
+            LOG_ERR("%s:%u: %s: invalid stacking-order value, must be one of "
+                    "\"bottom-up\", "
+                    "\"top-down\"",
+                    path, lineno, value);
+            return false;
+        }
+    }
+
     else if (strcmp(key, "anchor") == 0) {
         if (strcasecmp(value, "top-left") == 0)
             conf->anchor = ANCHOR_TOP_LEFT;
@@ -775,6 +789,7 @@ config_load(struct config *conf, const char *path)
         .max_height = 200,
         .icon_theme_name = strdup("hicolor"),
         .max_icon_size = 32,
+        .stacking_order = STACK_BOTTOM_UP,
         .anchor = ANCHOR_TOP_RIGHT,
         .margins = {
             .vertical = 10,
