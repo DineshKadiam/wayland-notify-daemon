@@ -231,12 +231,15 @@ layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
     zwlr_layer_surface_v1_ack_configure(surface, serial);
 }
 
+static bool notif_mgr_dismiss_id_internal(
+    struct notif_mgr *mgr, uint32_t id, bool refresh);
+
 static void
 layer_surface_closed(void *data, struct zwlr_layer_surface_v1 *surface)
 {
     struct notif *notif = data;
     struct notif_mgr *mgr = notif->mgr;
-    notif_mgr_dismiss_id(mgr, notif->id);
+    notif_mgr_dismiss_id_internal(mgr, notif->id, false);
 }
 
 static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
@@ -320,6 +323,9 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .layer_surface = layer_surface,
         .id = notif_id,
         .urgency = URGENCY_NORMAL,
+        .app = wcsdup(L""),
+        .summary = wcsdup(L""),
+        .body = wcsdup(L""),
         .actions = tll_init(),
         .timeout_fd = -1,
         .mon = mon,
@@ -1506,8 +1512,8 @@ notif_mgr_dismiss_current(struct notif_mgr *mgr)
     return ret;
 }
 
-bool
-notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id)
+static bool
+notif_mgr_dismiss_id_internal(struct notif_mgr *mgr, uint32_t id, bool refresh)
 {
     if (id == 0)
         return notif_mgr_dismiss_current(mgr);
@@ -1520,11 +1526,18 @@ notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id)
         tll_remove(mgr->notifs, it);
 
         bool ret = notif_dismiss(notif);
-        notif_mgr_refresh(mgr);
+        if (refresh)
+            notif_mgr_refresh(mgr);
         return ret;
     }
 
     return false;
+}
+
+bool
+notif_mgr_dismiss_id(struct notif_mgr *mgr, uint32_t id)
+{
+    return notif_mgr_dismiss_id_internal(mgr, id, true);
 }
 
 bool
