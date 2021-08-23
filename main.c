@@ -154,8 +154,9 @@ main(int argc, char *const *argv)
     }
 
     log_init(log_colorize, log_syslog, LOG_FACILITY_DAEMON, LOG_CLASS_DEBUG);
-    fcft_log_init(
-        (enum fcft_log_colorize)log_colorize, log_syslog, FCFT_LOG_CLASS_DEBUG);
+    fcft_init((enum fcft_log_colorize)log_colorize, log_syslog,
+              FCFT_LOG_CLASS_DEBUG);
+    atexit(&fcft_fini);
 
     int ret = EXIT_FAILURE;
 
