@@ -637,6 +637,7 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
         SECTION_LOW,
         SECTION_NORMAL,
         SECTION_CRITICAL,
+        SECTION_COUNT,
     } section = SECTION_MAIN;
 
     /* Function pointer, called for each key/value line */
@@ -652,14 +653,12 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
         [SECTION_CRITICAL] = &parse_section_critical,
     };
 
-#if defined(LOG_ENABLE_DBG) && LOG_ENABLE_DBG
     static const char *const section_names[] = {
         [SECTION_MAIN] = "main",
         [SECTION_LOW] = "low",
         [SECTION_NORMAL] = "normal",
         [SECTION_CRITICAL] = "critical",
     };
-#endif
 
     unsigned lineno = 0;
     char *_line = NULL;
@@ -710,13 +709,13 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
 
             *end = '\0';
 
-            if (strcmp(&key_value[1], "low") == 0)
-                section = SECTION_LOW;
-            else if (strcmp(&key_value[1], "normal") == 0)
-                section = SECTION_NORMAL;
-            else if (strcmp(&key_value[1], "critical") == 0)
-                section = SECTION_CRITICAL;
-            else {
+            for (section = SECTION_MAIN; section < SECTION_COUNT; ++section) {
+                if (strcmp(&key_value[1], section_names[section]) == 0) {
+                    break;
+                };
+            }
+
+            if (section == SECTION_COUNT) {
                 LOG_ERR("%s:%d: invalid section name: %s", path, lineno, &key_value[1]);
                 goto err;
             }
