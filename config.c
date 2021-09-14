@@ -352,6 +352,16 @@ parse_section_urgency(const char *key, const char *value,
         conf->timeout_secs = timeout_secs;
     }
 
+    else if (strcmp(key, "default-timeout") == 0) {
+        unsigned long default_timeout_secs;
+        if (!str_to_ulong(value, 10, &default_timeout_secs)) {
+            LOG_ERR("%s:%d: invalid default-timeout (expected an integer): %s", path,
+                    lineno, value);
+            return false;
+        }
+        conf->default_timeout_secs = default_timeout_secs;
+    }
+
     else if (strcmp(key, "sound-file") == 0) {
         free(conf->sound_file);
         conf->sound_file = strlen(value) > 0 ? strdup(value) : NULL;
@@ -610,6 +620,20 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
             urgency->timeout_secs = timeout_secs;
+        }
+    }
+
+    else if (strcmp(key, "default-timeout") == 0) {
+        unsigned long default_timeout_secs;
+        if (!str_to_ulong(value, 10, &default_timeout_secs)) {
+             LOG_ERR("%s:%d: invalid default-timeout (expected an integer): %s", path,
+                     lineno, value);
+             return false;
+        }
+
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+            urgency->default_timeout_secs = default_timeout_secs;
         }
     }
 
