@@ -843,6 +843,7 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
+                .default_timeout_secs = 0,
             },
             {
                 .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
@@ -866,6 +867,7 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
+                .default_timeout_secs = 0,
             },
             {
                 .bg = {0x6c6c, 0x3333, 0x3333, 0xffff},
@@ -889,6 +891,7 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
+                .default_timeout_secs = 0,
             },
         },
         .selection_helper = strdup("dmenu"),
