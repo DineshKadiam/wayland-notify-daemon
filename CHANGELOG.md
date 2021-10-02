@@ -9,6 +9,11 @@
 ## Unreleased
 ### Added
 ### Changed
+
+* Updated nanosvg to ccdb1995134d340a93fb20e3a3d323ccb3838dd0
+  (20210903).
+
+
 ### Deprecated
 ### Removed
 ### Fixed
