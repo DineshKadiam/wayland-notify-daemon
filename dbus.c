@@ -305,7 +305,9 @@ notify(struct dbus *bus, DBusMessage *msg)
     notif_set_summary(notif, summary);
     notif_set_body(notif, body);
     notif_set_urgency(notif, urgency);
-    notif_set_timeout(notif, timeout_ms == -1 ? 0 : timeout_ms);
+
+    if (timeout_ms >= 0)
+        notif_set_timeout(notif, timeout_ms);
 
     if (pix != NULL)
         notif_set_image(notif, pix);
