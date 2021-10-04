@@ -104,3 +104,10 @@ Optionally, install it:
 ```sh
 ninja install
 ```
+
+## License
+
+Fnott is released under the [MIT license](LICENSE).
+
+Fnott uses nanosvg, released under the [Zlib
+license](3rd-party/nanosvg/LICENSE.txt).
