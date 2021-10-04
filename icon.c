@@ -10,10 +10,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "3rd-party/nanosvg.h"
-#include "3rd-party/nanosvgrast.h"
-
 #include <tllist.h>
+
+#include <nanosvg.h>
+#include <nanosvgrast.h>
 
 #define LOG_MODULE "icon"
 #define LOG_ENABLE_DBG 0
