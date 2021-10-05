@@ -13,6 +13,7 @@
 * `default-timeout` option, to adjust the timeout when applications
   ask us to pick the timeout
   (https://codeberg.org/dnkl/fnott/issues/27).
+* `max-timeout` option (https://codeberg.org/dnkl/fnott/issues/29).
 
 
 ### Changed
@@ -23,6 +24,11 @@
 
 ### Deprecated
 ### Removed
+
+* `timeout` option (replaced with `max-timeout`,
+  https://codeberg.org/dnkl/fnott/issues/29).
+
+
 ### Fixed
 
 * Icons not being searched for in all icon theme instances

@@ -555,20 +555,21 @@ fdm_timeout(struct fdm *fdm, int fd, int events, void *data)
 static bool
 notif_reload_timeout(struct notif *notif)
 {
-    int notif_timeout = notif->timeout_ms;
-    int conf_timeout =
-        notif->mgr->conf->by_urgency[notif->urgency].timeout_secs * 1000;
-    int default_timeout_ms = notif->mgr->conf->by_urgency[notif->urgency].default_timeout_secs * 1000;
+    const struct urgency_config *urgency =
+        &notif->mgr->conf->by_urgency[notif->urgency];
 
-    int timeout_ms = 0;
-    if (notif_timeout > 0 && conf_timeout > 0)
-        timeout_ms = min(notif_timeout, conf_timeout);
-    else if (notif_timeout > 0)
-        timeout_ms = notif_timeout;
-    else if (conf_timeout > 0)
-        timeout_ms = conf_timeout;
-    else if (notif_timeout == -1)
-        timeout_ms = default_timeout_ms;
+    const int notif_timeout_ms = notif->timeout_ms;
+    const int max_timeout_ms = urgency->max_timeout_secs * 1000;
+    const int default_timeout_ms = urgency->default_timeout_secs * 1000;
+
+    int timeout_ms = notif_timeout_ms == -1
+        ? default_timeout_ms
+        : notif_timeout_ms;
+
+    assert(timeout_ms >= 0);
+
+    if (max_timeout_ms > 0)
+        timeout_ms = min(timeout_ms, max_timeout_ms);
 
     /* Remove existing timer */
     if (notif->timeout_fd >= 0) {
