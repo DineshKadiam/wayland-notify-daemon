@@ -7,7 +7,13 @@
 
 
 ## Unreleased
+
 ### Added
+* `default-timeout` option, to adjust the timeout when applications
+  ask us to pick the timeout
+  (https://codeberg.org/dnkl/fnott/issues/27).
+
+
 ### Changed
 
 * Updated nanosvg to ccdb1995134d340a93fb20e3a3d323ccb3838dd0
@@ -22,8 +28,6 @@
   (https://codeberg.org/dnkl/fnott/issues/17).
 * fnott crashing when a notification was received while no monitor was
   attached to the wayland session.
-* Add support for `default-timeout` configuration to adjust the timeout when
-  applications ask us to pick the timeout.
 
 
 ### Security
