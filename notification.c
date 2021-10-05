@@ -558,6 +558,7 @@ notif_reload_timeout(struct notif *notif)
     int notif_timeout = notif->timeout_ms;
     int conf_timeout =
         notif->mgr->conf->by_urgency[notif->urgency].timeout_secs * 1000;
+    int default_timeout_ms = notif->mgr->conf->by_urgency[notif->urgency].default_timeout_secs * 1000;
 
     int timeout_ms = 0;
     if (notif_timeout > 0 && conf_timeout > 0)
@@ -566,6 +567,8 @@ notif_reload_timeout(struct notif *notif)
         timeout_ms = notif_timeout;
     else if (conf_timeout > 0)
         timeout_ms = conf_timeout;
+    else if (notif_timeout == -1)
+        timeout_ms = default_timeout_ms;
 
     /* Remove existing timer */
     if (notif->timeout_fd >= 0) {

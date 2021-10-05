@@ -22,6 +22,8 @@
   (https://codeberg.org/dnkl/fnott/issues/17).
 * fnott crashing when a notification was received while no monitor was
   attached to the wayland session.
+* Add support for `default-timeout` configuration to adjust the timeout when
+  applications ask us to pick the timeout.
 
 
 ### Security
