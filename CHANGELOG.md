@@ -9,6 +9,7 @@
 ## Unreleased
 
 ### Added
+
 * `default-timeout` option, to adjust the timeout when applications
   ask us to pick the timeout
   (https://codeberg.org/dnkl/fnott/issues/27).
