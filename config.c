@@ -341,15 +341,15 @@ parse_section_urgency(const char *key, const char *value,
         *c = color;
     }
 
-    else if (strcmp(key, "timeout") == 0) {
-        unsigned long timeout_secs;
-        if (!str_to_ulong(value, 10, &timeout_secs)) {
-            LOG_ERR("%s:%d: invalid timeout (expected an integer): %s",
+    else if (strcmp(key, "max-timeout") == 0) {
+        unsigned long max_timeout_secs;
+        if (!str_to_ulong(value, 10, &max_timeout_secs)) {
+            LOG_ERR("%s:%d: invalid max-timeout (expected an integer): %s",
                     path, lineno, value);
             return false;
         }
 
-        conf->timeout_secs = timeout_secs;
+        conf->max_timeout_secs = max_timeout_secs;
     }
 
     else if (strcmp(key, "default-timeout") == 0) {
@@ -609,17 +609,17 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
     }
 
-    else if (strcmp(key, "timeout") == 0) {
-        unsigned long timeout_secs;
-        if (!str_to_ulong(value, 10, &timeout_secs)) {
-            LOG_ERR("%s:%d: invalid timeout (expected an integer): %s",
+    else if (strcmp(key, "max-timeout") == 0) {
+        unsigned long max_timeout_secs;
+        if (!str_to_ulong(value, 10, &max_timeout_secs)) {
+            LOG_ERR("%s:%d: invalid max-timeout (expected an integer): %s",
                     path, lineno, value);
             return false;
         }
 
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
-            urgency->timeout_secs = timeout_secs;
+            urgency->max_timeout_secs = max_timeout_secs;
         }
     }
 
@@ -843,6 +843,7 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
+                .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
             },
             {
@@ -867,6 +868,7 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
+                .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
             },
             {
@@ -891,6 +893,7 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
+                .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
             },
         },
