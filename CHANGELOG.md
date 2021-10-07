@@ -28,6 +28,7 @@
   (https://codeberg.org/dnkl/fnott/issues/17).
 * fnott crashing when a notification was received while no monitor was
   attached to the wayland session.
+* Wrong colors in (semi-)transparent areas of SVG icons.
 
 
 ### Security
