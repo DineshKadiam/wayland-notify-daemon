@@ -13,6 +13,11 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* `max-timeout` not having any effect when the timeout is 0
+  (https://codeberg.org/dnkl/fnott/issues/32).
+
+
 ### Security
 ### Contributors
 
