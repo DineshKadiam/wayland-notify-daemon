@@ -1,12 +1,12 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.1.1](#1-1-1)
 * [1.1.0](#1-1-0)
 * [1.0.1](#1-0-1)
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.1.1
 
 ### Added
 
@@ -22,7 +22,6 @@
   (20210903).
 
 
-### Deprecated
 ### Removed
 
 * `timeout` option (replaced with `max-timeout`,
@@ -38,8 +37,11 @@
 * Wrong colors in (semi-)transparent areas of SVG icons.
 
 
-### Security
 ### Contributors
+
+* Julian Scheel
+* polykernel
+* Stanislav Ochotnický
 
 
 ## 1.1.0
