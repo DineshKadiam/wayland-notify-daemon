@@ -1,25 +1,18 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.1.2](#1-1-2)
 * [1.1.1](#1-1-1)
 * [1.1.0](#1-1-0)
 * [1.0.1](#1-0-1)
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
-### Added
-### Changed
-### Deprecated
-### Removed
+## 1.1.2
+
 ### Fixed
 
 * `max-timeout` not having any effect when the timeout is 0
   (https://codeberg.org/dnkl/fnott/issues/32).
-
-
-### Security
-### Contributors
 
 
 ## 1.1.1
