@@ -568,8 +568,16 @@ notif_reload_timeout(struct notif *notif)
 
     assert(timeout_ms >= 0);
 
-    if (max_timeout_ms > 0)
-        timeout_ms = min(timeout_ms, max_timeout_ms);
+    if (max_timeout_ms > 0) {
+        if (timeout_ms > 0)
+            timeout_ms = min(timeout_ms, max_timeout_ms);
+        else
+            timeout_ms = max_timeout_ms;
+    }
+
+    LOG_DBG("timeout=%dms "
+            "(notif-timeout=%dms, max-timeout=%dms, default-timeout=%dms)",
+            timeout_ms, notif_timeout_ms, max_timeout_ms, default_timeout_ms);
 
     /* Remove existing timer */
     if (notif->timeout_fd >= 0) {
@@ -593,8 +601,6 @@ notif_reload_timeout(struct notif *notif)
     long nsecs = (long)timeout_ms * 1000000;
     time_t secs = nsecs / 1000000000l;
     nsecs %= 1000000000l;
-
-    LOG_DBG("timeout: %dms", timeout_ms);
 
     struct itimerspec timeout = {
         .it_value = {.tv_sec = secs, .tv_nsec = nsecs}
