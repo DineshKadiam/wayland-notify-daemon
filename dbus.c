@@ -290,11 +290,24 @@ notify(struct dbus *bus, DBusMessage *msg)
     LOG_DBG("timeout = %dms", timeout_ms);
 
     struct notif *notif = notif_mgr_create_notif(bus->notif_mgr, replaces_id);
+    if (notif == NULL) {
+        if (pix != NULL) {
+            free(pixman_image_get_data(pix));
+            pixman_image_unref(pix);
+        }
+
+        tll_free(actions);
+
+        return false;
+    }
+
     notif_set_application(notif, app_name);
     notif_set_summary(notif, summary);
     notif_set_body(notif, body);
     notif_set_urgency(notif, urgency);
-    notif_set_timeout(notif, timeout_ms == -1 ? 0 : timeout_ms);
+
+    if (timeout_ms >= 0)
+        notif_set_timeout(notif, timeout_ms);
 
     if (pix != NULL)
         notif_set_image(notif, pix);

@@ -341,15 +341,25 @@ parse_section_urgency(const char *key, const char *value,
         *c = color;
     }
 
-    else if (strcmp(key, "timeout") == 0) {
-        unsigned long timeout_secs;
-        if (!str_to_ulong(value, 10, &timeout_secs)) {
-            LOG_ERR("%s:%d: invalid timeout (expected an integer): %s",
+    else if (strcmp(key, "max-timeout") == 0) {
+        unsigned long max_timeout_secs;
+        if (!str_to_ulong(value, 10, &max_timeout_secs)) {
+            LOG_ERR("%s:%d: invalid max-timeout (expected an integer): %s",
                     path, lineno, value);
             return false;
         }
 
-        conf->timeout_secs = timeout_secs;
+        conf->max_timeout_secs = max_timeout_secs;
+    }
+
+    else if (strcmp(key, "default-timeout") == 0) {
+        unsigned long default_timeout_secs;
+        if (!str_to_ulong(value, 10, &default_timeout_secs)) {
+            LOG_ERR("%s:%d: invalid default-timeout (expected an integer): %s", path,
+                    lineno, value);
+            return false;
+        }
+        conf->default_timeout_secs = default_timeout_secs;
     }
 
     else if (strcmp(key, "sound-file") == 0) {
@@ -445,6 +455,20 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
 
         conf->max_icon_size = sz;
+    }
+
+    else if (strcmp(key, "stacking-order") == 0) {
+        if (strcasecmp(value, "bottom-up") == 0)
+            conf->stacking_order = STACK_BOTTOM_UP;
+        else if (strcasecmp(value, "top-down") == 0)
+            conf->stacking_order = STACK_TOP_DOWN;
+        else {
+            LOG_ERR("%s:%u: %s: invalid stacking-order value, must be one of "
+                    "\"bottom-up\", "
+                    "\"top-down\"",
+                    path, lineno, value);
+            return false;
+        }
     }
 
     else if (strcmp(key, "anchor") == 0) {
@@ -585,17 +609,31 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
     }
 
-    else if (strcmp(key, "timeout") == 0) {
-        unsigned long timeout_secs;
-        if (!str_to_ulong(value, 10, &timeout_secs)) {
-            LOG_ERR("%s:%d: invalid timeout (expected an integer): %s",
+    else if (strcmp(key, "max-timeout") == 0) {
+        unsigned long max_timeout_secs;
+        if (!str_to_ulong(value, 10, &max_timeout_secs)) {
+            LOG_ERR("%s:%d: invalid max-timeout (expected an integer): %s",
                     path, lineno, value);
             return false;
         }
 
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
-            urgency->timeout_secs = timeout_secs;
+            urgency->max_timeout_secs = max_timeout_secs;
+        }
+    }
+
+    else if (strcmp(key, "default-timeout") == 0) {
+        unsigned long default_timeout_secs;
+        if (!str_to_ulong(value, 10, &default_timeout_secs)) {
+             LOG_ERR("%s:%d: invalid default-timeout (expected an integer): %s", path,
+                     lineno, value);
+             return false;
+        }
+
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+            urgency->default_timeout_secs = default_timeout_secs;
         }
     }
 
@@ -623,6 +661,7 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
         SECTION_LOW,
         SECTION_NORMAL,
         SECTION_CRITICAL,
+        SECTION_COUNT,
     } section = SECTION_MAIN;
 
     /* Function pointer, called for each key/value line */
@@ -638,14 +677,12 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
         [SECTION_CRITICAL] = &parse_section_critical,
     };
 
-#if defined(LOG_ENABLE_DBG) && LOG_ENABLE_DBG
     static const char *const section_names[] = {
         [SECTION_MAIN] = "main",
         [SECTION_LOW] = "low",
         [SECTION_NORMAL] = "normal",
         [SECTION_CRITICAL] = "critical",
     };
-#endif
 
     unsigned lineno = 0;
     char *_line = NULL;
@@ -696,13 +733,13 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
 
             *end = '\0';
 
-            if (strcmp(&key_value[1], "low") == 0)
-                section = SECTION_LOW;
-            else if (strcmp(&key_value[1], "normal") == 0)
-                section = SECTION_NORMAL;
-            else if (strcmp(&key_value[1], "critical") == 0)
-                section = SECTION_CRITICAL;
-            else {
+            for (section = SECTION_MAIN; section < SECTION_COUNT; ++section) {
+                if (strcmp(&key_value[1], section_names[section]) == 0) {
+                    break;
+                };
+            }
+
+            if (section == SECTION_COUNT) {
                 LOG_ERR("%s:%d: invalid section name: %s", path, lineno, &key_value[1]);
                 goto err;
             }
@@ -775,6 +812,7 @@ config_load(struct config *conf, const char *path)
         .max_height = 200,
         .icon_theme_name = strdup("hicolor"),
         .max_icon_size = 32,
+        .stacking_order = STACK_BOTTOM_UP,
         .anchor = ANCHOR_TOP_RIGHT,
         .margins = {
             .vertical = 10,
@@ -805,6 +843,8 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
+                .max_timeout_secs = 0,
+                .default_timeout_secs = 0,
             },
             {
                 .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
@@ -828,6 +868,8 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
+                .max_timeout_secs = 0,
+                .default_timeout_secs = 0,
             },
             {
                 .bg = {0x6c6c, 0x3333, 0x3333, 0xffff},
@@ -851,6 +893,8 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
+                .max_timeout_secs = 0,
+                .default_timeout_secs = 0,
             },
         },
         .selection_helper = strdup("dmenu"),

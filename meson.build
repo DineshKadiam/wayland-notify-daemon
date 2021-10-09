@@ -1,7 +1,7 @@
 project('fnott', 'c',
         version: '1.1.0',
         license: 'MIT',
-        meson_version: '>=0.53.0',
+        meson_version: '>=0.54.0',
         default_options: [
           'c_std=c18',
           'warning_level=1',
@@ -90,15 +90,18 @@ foreach prot : [
     command: [wscanner_prog, 'private-code', '@INPUT@', '@OUTPUT@'])
 endforeach
 
+env = find_program('env', native: true)
 generate_version_sh = files('generate-version.sh')
 version = custom_target(
   'generate_version',
   build_always_stale: true,
   output: 'version.h',
-  command: [generate_version_sh, meson.project_version(), '@SOURCE_ROOT@', '@OUTPUT@'])
+  command: [env, 'LC_ALL=C', generate_version_sh, meson.project_version(), '@SOURCE_ROOT@', '@OUTPUT@'])
 
 nanosvg = declare_dependency(
-  sources: ['nanosvg.c', '3rd-party/nanosvg.h', 'nanosvgrast.c', '3rd-party/nanosvgrast.h'],
+  sources: ['nanosvg.c', '3rd-party/nanosvg/src/nanosvg.h',
+            'nanosvgrast.c', '3rd-party/nanosvg/src/nanosvgrast.h'],
+  include_directories: '3rd-party/nanosvg/src',
   dependencies: math)
 
 executable(

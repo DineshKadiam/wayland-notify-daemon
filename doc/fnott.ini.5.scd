@@ -53,8 +53,21 @@ in this order:
 	Maximum icon size, in pixels. Icons larger than this will be
 	scaled down. Default: _32_.
 
+*stacking-order*
+	How to stack multiple notifications.
+	
+		- *bottom-up* : oldest, highest priority furthest away from
+		  the anchor point.
+		- *top-down*: oldest, highest priority at the anchor point.
+	
+	Thus, if the notifications are anchored at the top, *bottom-up*
+	will have the most recent notification in the upper corner, while
+	the oldest notification is in the bottom of the stack.
+	
+	Default: _bottom-up_.
+
 *anchor*
-	Where notifications are positions: *top-left*, *top-right*,
+	Where notifications are positioned: *top-left*, *top-right*,
 	*bottom-left* or *bottom-right*. Default: _top-right_.
 
 *edge-margin-vertical*
@@ -118,9 +131,18 @@ case they override the values specified in the default section.
 *body-color*
 	Text color to use for the text body. Default: _ffffff_.
 
-*timeout*
-	Time, in seconds, before notifications are automatically
-	dismissed. A value of 0 disables the timeout. Default: _0_.
+*max-timeout*
+	Time limit, in seconds, before notifications are automatically
+	dismissed. Applications can provide their own timeout when they
+	create a notification. This option can be used to limit that
+	timeout. A value of 0 disables the limit. Default: _0_.
+
+*default-timeout*
+	Time, in seconds, before notifications are automatically dismissed
+	if the notifying application does not specify a timeout. A value
+	of 0 disables the timeout. I.e. if the application does not
+	provide a timeout, the notification is never automatically
+	dismissed (unless *max-timeout* has been set). Default: _0_.
 
 *sound-file*
 	Absolute path to audio file to play when a notification is

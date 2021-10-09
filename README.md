@@ -16,7 +16,9 @@ It implements (parts of) the [Desktop Notification Specification](https://develo
 * Body
 * Actions (requires a dmenu-like utility to display and let user select action)
 * Urgency
-* Icons (PNG + SVG)
+* Icons
+  - PNGs (using libpng)
+  - SVGs (using bundled [nanosvg](https://github.com/memononen/nanosvg))
 * Markup
 * Timeout
 
@@ -102,3 +104,10 @@ Optionally, install it:
 ```sh
 ninja install
 ```
+
+## License
+
+Fnott is released under the [MIT license](LICENSE).
+
+Fnott uses nanosvg, released under the [Zlib
+license](3rd-party/nanosvg/LICENSE.txt).

@@ -32,7 +32,8 @@ struct urgency_config {
         pixman_color_t color;
     } action;
 
-    int timeout_secs;
+    int max_timeout_secs;
+    int default_timeout_secs;
     char *sound_file;  /* Path to user-configured sound to play on notification */
 };
 
@@ -49,6 +50,11 @@ struct config {
 
     char *icon_theme_name;
     int max_icon_size;
+
+    enum {
+        STACK_BOTTOM_UP,
+        STACK_TOP_DOWN,
+    } stacking_order;
 
     enum {
         ANCHOR_TOP_LEFT,

@@ -1,8 +1,45 @@
 # Changelog
 
+* [Unreleased](#unreleased)
 * [1.1.0](#1-1-0)
 * [1.0.1](#1-0-1)
 * [1.0.0](#1-0-0)
+
+
+## Unreleased
+
+### Added
+
+* `default-timeout` option, to adjust the timeout when applications
+  ask us to pick the timeout
+  (https://codeberg.org/dnkl/fnott/issues/27).
+* `max-timeout` option (https://codeberg.org/dnkl/fnott/issues/29).
+
+
+### Changed
+
+* Updated nanosvg to ccdb1995134d340a93fb20e3a3d323ccb3838dd0
+  (20210903).
+
+
+### Deprecated
+### Removed
+
+* `timeout` option (replaced with `max-timeout`,
+  https://codeberg.org/dnkl/fnott/issues/29).
+
+
+### Fixed
+
+* Icons not being searched for in all icon theme instances
+  (https://codeberg.org/dnkl/fnott/issues/17).
+* fnott crashing when a notification was received while no monitor was
+  attached to the wayland session.
+* Wrong colors in (semi-)transparent areas of SVG icons.
+
+
+### Security
+### Contributors
 
 
 ## 1.1.0
@@ -58,6 +95,7 @@
 ### Contributors
 
 - yyp (Alexey Yerin)
+- Julian Scheel
 
 
 ## 1.0.1

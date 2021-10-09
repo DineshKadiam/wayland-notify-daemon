@@ -10,10 +10,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "3rd-party/nanosvg.h"
-#include "3rd-party/nanosvgrast.h"
-
 #include <tllist.h>
+
+#include <nanosvg.h>
+#include <nanosvgrast.h>
 
 #define LOG_MODULE "icon"
 #define LOG_ENABLE_DBG 0
@@ -45,6 +45,13 @@ icon_load(const char *name, int icon_size, icon_theme_list_t themes)
     tll_foreach(themes, theme_it) {
         const struct icon_theme *theme = &theme_it->item;
         int min_diff = 10000;
+
+#if defined(_DEBUG)
+        LOG_DBG("looking in theme %s (%zu dirs)",
+                theme->name, tll_length(theme->dirs));
+        tll_foreach(theme->dirs, it)
+            LOG_DBG("  %s", it->item.path);
+#endif
 
         /* Assume sorted */
         for (size_t i = 0; i < 4; i++) {
@@ -364,7 +371,6 @@ icon_load_theme(const char *name)
             if (load_theme_in(path, &theme, &themes_to_load)) {
                 theme.name = strdup(theme_name);
                 tll_push_back(themes, theme);
-                break;
             }
         }
 
@@ -393,10 +399,25 @@ icon_load_theme(const char *name)
             if (load_theme_in(path, &theme, &themes_to_load)) {
                 theme.name = strdup(theme_name);
                 tll_push_back(themes, theme);
-                break;
             }
         }
     }
+
+#if defined(_DEBUG)
+    LOG_DBG("loaded %zu themes", tll_length(themes));
+    tll_foreach(themes, theme_it) {
+        const struct icon_theme *theme = &theme_it->item;
+        LOG_DBG("%s (%zu dirs)", theme->name, tll_length(theme->dirs));
+
+        tll_foreach(theme->dirs, dir_it) {
+            const struct icon_dir *dir __attribute__((unused))  = &dir_it->item;
+            LOG_DBG(
+                "  %s (scalable=%d, scale=%d, size=%d, min-size=%d, max-size=%d)",
+                dir->path, dir->scalable, dir->scale, dir->size,
+                dir->min_size, dir->max_size);
+        }
+    }
+#endif
 
     xdg_data_dirs_destroy(dirs);
     return themes;
