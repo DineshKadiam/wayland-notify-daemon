@@ -1,3 +1,5 @@
+[![CI status](https://ci.codeberg.org/api/badges/dnkl/fnott/status.svg)](https://ci.codeberg.org/dnkl/fnott)
+
 # Fnott
 
 Fnott is a keyboard driven and lightweight notification daemon for
