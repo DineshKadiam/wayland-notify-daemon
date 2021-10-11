@@ -33,11 +33,13 @@ pipeline:
       - mkdir -p bld/debug-x64
       - meson --buildtype=debug . bld/debug-x64
       - ninja -C bld/debug-x64 -v -k0
+      - bld/debug-x64/fnott --version
 
       # Release
       - mkdir -p bld/release-x64
       - meson --buildtype=release . bld/release-x64
       - ninja -C bld/release-x64 -v -k0
+      - bld/release-x64/fnott --version
 
   x86:
     when: { branch: master }
@@ -54,8 +56,10 @@ pipeline:
       - mkdir -p bld/debug-x86
       - meson --buildtype=debug . bld/debug-x86
       - ninja -C bld/debug-x86 -v -k0
+      - bld/debug-x86/fnott --version
 
       # Release
       - mkdir -p bld/release-x86
       - meson --buildtype=release . bld/release-x86
       - ninja -C bld/release-x86 -v -k0
+      - bld/release-x86/fnott --version
