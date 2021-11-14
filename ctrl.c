@@ -68,6 +68,9 @@ static void
 actions_complete(uint32_t notif_id, const char *action_id, void *data)
 {
     struct actions_cb_data *info = data;
+    struct ctrl *ctrl = info->ctrl;
+    int fd = info->client_fd;
+
     struct ctrl_reply reply = {.result = CTRL_INVALID_ID};
 
     LOG_DBG("actions callback: notif=%u, ID=%s", notif_id, action_id);
@@ -79,7 +82,16 @@ actions_complete(uint32_t notif_id, const char *action_id, void *data)
         ? CTRL_OK : CTRL_ERROR;
 
 out:
-    send_reply(info->client_fd, &reply);
+    send_reply(fd, &reply);
+    fdm_del(ctrl->fdm, fd);
+
+    tll_foreach(ctrl->clients, it) {
+        if (it->item.fd == fd) {
+            tll_remove(ctrl->clients, it);
+            break;
+        }
+    }
+
     free(info);
 }
 
@@ -204,7 +216,6 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     }
 
 no_err:
-no_reply:
     ret = true;
 
 err:
@@ -224,6 +235,10 @@ err:
     }
 
     return ret;
+
+no_reply:
+    free(ids);
+    return true;
 }
 
 static bool

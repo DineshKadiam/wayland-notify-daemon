@@ -14,6 +14,10 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* `fnottctl actions` exiting without receiving a reply.
+
+
 ### Security
 ### Contributors
 
