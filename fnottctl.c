@@ -71,6 +71,8 @@ main(int argc, char *const *argv)
         return EXIT_FAILURE;
     }
 
+    log_init(LOG_COLORIZE_AUTO, false, LOG_FACILITY_USER, LOG_CLASS_DEBUG);
+
     bool have_id = argc >= 2;
     const char *cmd_word = argv[0];
     const char *id_str = have_id ? argv[1] : NULL;
