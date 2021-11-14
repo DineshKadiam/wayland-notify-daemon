@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <sys/epoll.h>
 
+#include <linux/input-event-codes.h>
 #include <wayland-client.h>
 #include <wayland-cursor.h>
 #include <xdg-output-unstable-v1.h>
@@ -388,11 +389,13 @@ wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
 
     switch (state) {
     case WL_POINTER_BUTTON_STATE_PRESSED: {
-        struct notif *notif = notif_mgr_get_notif_for_surface(
-            wayl->notif_mgr, seat->pointer.on_surface);
+        if (button == BTN_LEFT) {
+            struct notif *notif = notif_mgr_get_notif_for_surface(
+                wayl->notif_mgr, seat->pointer.on_surface);
 
-        if (notif != NULL)
-            notif_mgr_dismiss_id(wayl->notif_mgr, notif_id(notif));
+            if (notif != NULL)
+                notif_mgr_dismiss_id(wayl->notif_mgr, notif_id(notif));
+        }
         break;
     }
 
