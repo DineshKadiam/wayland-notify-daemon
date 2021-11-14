@@ -59,6 +59,21 @@ send_reply(int fd, const struct ctrl_reply *reply)
     return true;
 }
 
+static void
+client_disconnected(struct ctrl *ctrl, int fd)
+{
+    LOG_DBG("client: FD=%d disconnected", fd);
+
+    fdm_del(ctrl->fdm, fd);
+
+    tll_foreach(ctrl->clients, it) {
+        if (it->item.fd == fd) {
+            tll_remove(ctrl->clients, it);
+            break;
+        }
+    }
+}
+
 struct actions_cb_data {
     struct ctrl *ctrl;
     int client_fd;
@@ -83,15 +98,7 @@ actions_complete(uint32_t notif_id, const char *action_id, void *data)
 
 out:
     send_reply(fd, &reply);
-    fdm_del(ctrl->fdm, fd);
-
-    tll_foreach(ctrl->clients, it) {
-        if (it->item.fd == fd) {
-            tll_remove(ctrl->clients, it);
-            break;
-        }
-    }
-
+    client_disconnected(ctrl, fd);
     free(info);
 }
 
@@ -223,15 +230,7 @@ err:
 
     if ((events & EPOLLHUP) || client->recv.idx >= sizeof(client->recv.cmd)) {
         /* Client disconnected */
-        LOG_DBG("client: FD=%d disconnected", fd);
-        fdm_del(fdm, fd);
-
-        tll_foreach(ctrl->clients, it) {
-            if (it->item.fd == fd) {
-                tll_remove(ctrl->clients, it);
-                break;
-            }
-        }
+        client_disconnected(ctrl, fd);
     }
 
     return ret;
