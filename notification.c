@@ -1377,7 +1377,8 @@ notif_show(struct notif *notif, int y)
 
     /* Resize and position */
     if (notif->surface == NULL) {
-        notif_instantiate_surface(notif, width, height);
+        if (!notif_instantiate_surface(notif, width, height))
+            return 0;
         scale = notif->scale;
     } else {
         scale = notif->scale;
