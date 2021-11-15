@@ -743,6 +743,7 @@ notif_set_application(struct notif *notif, const char *text)
 void
 notif_set_summary(struct notif *notif, const char *text)
 {
+    free(notif->summary);
     notif->summary = decode_html_entities(notif->mgr, text);
 }
 
@@ -761,6 +762,7 @@ notif_get_summary(const struct notif *notif)
 void
 notif_set_body(struct notif *notif, const char *text)
 {
+    free(notif->body);
     notif->body = decode_html_entities(notif->mgr, text);
 }
 
