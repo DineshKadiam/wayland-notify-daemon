@@ -267,7 +267,7 @@ layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
     notif->is_configured = true;
     zwlr_layer_surface_v1_ack_configure(surface, serial);
 
-    if (notif->pending != NULL) {
+    if (notif->pending != NULL && notif->frame_callback == NULL) {
         commit_buffer(notif, notif->pending);
         notif->pending = NULL;
     }
