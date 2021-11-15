@@ -1601,7 +1601,9 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
     bool refresh_needed = false;
 
     tll_foreach(mgr->notifs, it) {
-        if (it->item->mon != mon)
+        if (it->item->surface == NULL)
+            refresh_needed = true;
+        else if (it->item->mon != NULL && it->item->mon != mon)
             continue;
 
         if (it->item->scale != mon->scale) {
