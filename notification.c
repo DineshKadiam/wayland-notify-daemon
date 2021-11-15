@@ -384,6 +384,7 @@ notif_destroy_surfaces(struct notif *notif)
     notif->is_configured = false;
     notif->surface = NULL;
     notif->layer_surface = NULL;
+    notif->frame_callback = NULL;
     notif->mon = NULL;
     notif->scale = 0;
     notif->fonts.dpi = 0;
