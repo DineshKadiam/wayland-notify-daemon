@@ -1606,7 +1606,7 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
         else if (it->item->mon != NULL && it->item->mon != mon)
             continue;
 
-        if (it->item->scale != mon->scale) {
+        if (it->item->scale != mon->scale || it->item->fonts.dpi != mon->dpi) {
             it->item->scale = mon->scale;
             notif_reload_fonts(it->item);
             refresh_needed = true;
