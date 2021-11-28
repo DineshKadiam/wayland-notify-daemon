@@ -16,6 +16,8 @@
 ### Fixed
 
 * `fnottctl actions` exiting without receiving a reply.
+* Fnott is now much better at surviving monitors being disabled and
+  re-enabled (https://codeberg.org/dnkl/fnott/issues/25).
 
 
 ### Security
