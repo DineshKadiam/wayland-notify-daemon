@@ -287,6 +287,9 @@ xdg_output_handle_logical_size(void *data, struct zxdg_output_v1 *xdg_output,
 static void
 xdg_output_handle_done(void *data, struct zxdg_output_v1 *xdg_output)
 {
+    struct monitor *mon = data;
+    if (notif_mgr_monitor_updated(mon->wayl->notif_mgr, mon))
+        notif_mgr_refresh(mon->wayl->notif_mgr);
 }
 
 static void

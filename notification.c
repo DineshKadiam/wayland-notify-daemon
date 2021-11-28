@@ -192,6 +192,10 @@ surface_enter(void *data, struct wl_surface *wl_surface,
     if (notif->mon == mon)
         return;
 
+    const int old_scale = notif->scale;
+    const float old_dpi = notif->fonts.dpi;
+    const enum fcft_subpixel old_subpixel = notif->subpixel;
+
     notif->mon = mon;
     notif_reload_fonts(notif);
 
@@ -202,8 +206,12 @@ surface_enter(void *data, struct wl_surface *wl_surface,
         ? (enum fcft_subpixel)mon->subpixel
         : wayl_guess_subpixel(notif->mgr->wayl);
 
-    if (notif->scale == new_scale && notif->subpixel == new_subpixel)
+    if (old_scale == new_scale &&
+        old_subpixel == new_subpixel &&
+        old_dpi == mon->dpi)
+    {
         return;
+    }
 
     notif->scale = new_scale;
     notif->subpixel = new_subpixel;
@@ -223,6 +231,33 @@ static const struct wl_surface_listener surface_listener = {
     .leave = &surface_leave,
 };
 
+static void frame_callback(
+    void *data, struct wl_callback *wl_callback, uint32_t callback_data);
+
+static const struct wl_callback_listener frame_listener = {
+    .done = &frame_callback,
+};
+
+static void
+commit_buffer(struct notif *notif, struct buffer *buf)
+{
+    struct wayland *wayl = notif->mgr->wayl;
+
+    assert(notif->scale >= 1);
+    assert(buf->busy);
+
+    wl_surface_set_buffer_scale(notif->surface, notif->scale);
+    wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
+    wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
+
+    assert(notif->frame_callback == NULL);
+    notif->frame_callback = wl_surface_frame(notif->surface);
+    wl_callback_add_listener(notif->frame_callback, &frame_listener, notif);
+
+    wl_surface_commit(notif->surface);
+    wayl_flush(wayl);
+}
+
 static void
 layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
                         uint32_t serial, uint32_t w, uint32_t h)
@@ -231,17 +266,20 @@ layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
     struct notif *notif = data;
     notif->is_configured = true;
     zwlr_layer_surface_v1_ack_configure(surface, serial);
+
+    if (notif->pending != NULL && notif->frame_callback == NULL) {
+        commit_buffer(notif, notif->pending);
+        notif->pending = NULL;
+    }
 }
 
-static bool notif_mgr_dismiss_id_internal(
-    struct notif_mgr *mgr, uint32_t id, bool refresh);
+static void notif_destroy_surfaces(struct notif *notif);
 
 static void
 layer_surface_closed(void *data, struct zwlr_layer_surface_v1 *surface)
 {
     struct notif *notif = data;
-    struct notif_mgr *mgr = notif->mgr;
-    notif_mgr_dismiss_id_internal(mgr, notif->id, false);
+    notif_destroy_surfaces(notif);
 }
 
 static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
@@ -286,43 +324,10 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
             return old_notif;
     }
 
-    struct wayland *wayl = mgr->wayl;
-    const struct monitor *mon = wayl_preferred_monitor(wayl);
-
-    struct wl_surface *surface = wl_compositor_create_surface(wayl_compositor(wayl));
-    if (surface == NULL) {
-        LOG_ERR("failed to create wayland surface");
-        return NULL;
-    }
-
-    struct zwlr_layer_surface_v1 *layer_surface = zwlr_layer_shell_v1_get_layer_surface(
-        wayl_layer_shell(wayl), surface, mon != NULL ? mon->output : NULL,
-        ZWLR_LAYER_SHELL_V1_LAYER_TOP, "notifications");
-
-    if (layer_surface == NULL) {
-        LOG_ERR("failed to create layer shell surface");
-        wl_surface_destroy(surface);
-        return NULL;
-    }
-
-    const struct config *conf = mgr->conf;
-    enum zwlr_layer_surface_v1_anchor anchor
-        = (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT
-           ? ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
-           : ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM)
-        | (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_BOTTOM_LEFT
-           ? ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
-           : ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
-
-    zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
-    zwlr_layer_surface_v1_set_size(layer_surface, 1, 1);
-
     struct notif *notif = malloc(sizeof(*notif));
     int notif_id = next_id++;
     *notif = (struct notif) {
         .mgr = mgr,
-        .surface = surface,
-        .layer_surface = layer_surface,
         .id = notif_id,
         .urgency = URGENCY_NORMAL,
         .app = wcsdup(L""),
@@ -331,51 +336,19 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .actions = tll_init(),
         .timeout_ms = -1,  /* -1, up to us, 0 - never expire */
         .timeout_fd = -1,
-        .mon = mon,
-        .scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl),
-        .subpixel = mon != NULL ? (enum fcft_subpixel)mon->subpixel : wayl_guess_subpixel(wayl),
     };
 
     notif_reload_fonts(notif);
     notif_reload_timeout(notif);
 
-    bool inserted = false;
     tll_rforeach(mgr->notifs, it) {
         if (it->item->urgency >= notif->urgency) {
             tll_insert_after(mgr->notifs, it, notif);
-            inserted = true;
-            break;
+            return notif;
         }
     }
 
-    if (!inserted)
-        tll_push_front(mgr->notifs, notif);
-
-    wl_surface_add_listener(surface, &surface_listener, notif);
-
-    zwlr_layer_surface_v1_add_listener(
-        layer_surface, &layer_surface_listener, notif);
-    wl_surface_commit(notif->surface);
-
-    /*
-     * Ensure the surface has been configured before we
-     * continue.
-     *
-     * Without this, a subsequent call to notif_show() (either
-     * directly, or via notif_mgr_refresh()) will result in
-     * "zwlr_layer_surface_v1@15: error 2: layer_surface has never
-     * been configured".
-     */
-    wayl_roundtrip(mgr->wayl);
-
-    /*
-     * The wayl_roundtrip call can cause wayland to close the layer_surface,
-     * which will cause the notification to be invalidated. This happens if no
-     * active monitor is available for output.
-     */
-    if (notif_mgr_get_notif(mgr, notif_id) == NULL)
-        return NULL;
-
+    tll_push_front(mgr->notifs, notif);
     return notif;
 }
 
@@ -397,14 +370,9 @@ notif_mgr_del_notif(struct notif_mgr *mgr, uint32_t id)
     return false;
 }
 
-void
-notif_destroy(struct notif *notif)
+static void
+notif_destroy_surfaces(struct notif *notif)
 {
-    if (notif == NULL)
-        return;
-
-    fdm_del(notif->mgr->fdm, notif->timeout_fd);
-
     if (notif->frame_callback != NULL)
         wl_callback_destroy(notif->frame_callback);
 
@@ -412,6 +380,26 @@ notif_destroy(struct notif *notif)
         zwlr_layer_surface_v1_destroy(notif->layer_surface);
     if (notif->surface)
         wl_surface_destroy(notif->surface);
+
+    notif->is_configured = false;
+    notif->surface = NULL;
+    notif->layer_surface = NULL;
+    notif->frame_callback = NULL;
+    notif->mon = NULL;
+    notif->scale = 0;
+    notif->fonts.dpi = 0;
+    notif->subpixel = FCFT_SUBPIXEL_DEFAULT;
+}
+
+void
+notif_destroy(struct notif *notif)
+{
+    if (notif == NULL)
+        return;
+
+    notif_destroy_surfaces(notif);
+
+    fdm_del(notif->mgr->fdm, notif->timeout_fd);
 
     if (notif->pix != NULL) {
         free(pixman_image_get_data(notif->pix));
@@ -756,6 +744,7 @@ notif_set_application(struct notif *notif, const char *text)
 void
 notif_set_summary(struct notif *notif, const char *text)
 {
+    free(notif->summary);
     notif->summary = decode_html_entities(notif->mgr, text);
 }
 
@@ -774,6 +763,7 @@ notif_get_summary(const struct notif *notif)
 void
 notif_set_body(struct notif *notif, const char *text)
 {
+    free(notif->body);
     notif->body = decode_html_entities(notif->mgr, text);
 }
 
@@ -903,33 +893,6 @@ notif_play_sound(struct notif *notif)
     free(argv);
 }
 
-static void frame_callback(
-    void *data, struct wl_callback *wl_callback, uint32_t callback_data);
-
-static const struct wl_callback_listener frame_listener = {
-    .done = &frame_callback,
-};
-
-static void
-commit_buffer(struct notif *notif, struct buffer *buf)
-{
-    struct wayland *wayl = notif->mgr->wayl;
-
-    assert(notif->scale >= 1);
-    assert(buf->busy);
-
-    wl_surface_set_buffer_scale(notif->surface, notif->scale);
-    wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
-    wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
-
-    assert(notif->frame_callback == NULL);
-    notif->frame_callback = wl_surface_frame(notif->surface);
-    wl_callback_add_listener(notif->frame_callback, &frame_listener, notif);
-
-    wl_surface_commit(notif->surface);
-    wayl_flush(wayl);
-}
-
 static void
 frame_callback(void *data, struct wl_callback *wl_callback, uint32_t callback_data)
 {
@@ -944,6 +907,63 @@ frame_callback(void *data, struct wl_callback *wl_callback, uint32_t callback_da
         commit_buffer(notif, notif->pending);
         notif->pending = NULL;
     }
+}
+
+static bool
+notif_instantiate_surface(struct notif *notif, int width, int height)
+{
+    assert(notif->surface == NULL);
+    assert(notif->layer_surface == NULL);
+
+    struct notif_mgr *mgr = notif->mgr;
+    struct wayland *wayl = mgr->wayl;
+    const struct monitor *mon = wayl_preferred_monitor(wayl);
+
+    struct wl_surface *surface =
+        wl_compositor_create_surface(wayl_compositor(wayl));
+
+    if (surface == NULL) {
+        LOG_ERR("failed to create wayland surface");
+        return false;
+    }
+
+    struct zwlr_layer_surface_v1 *layer_surface =
+        zwlr_layer_shell_v1_get_layer_surface(
+            wayl_layer_shell(wayl), surface, mon != NULL ? mon->output : NULL,
+            ZWLR_LAYER_SHELL_V1_LAYER_TOP, "notifications");
+
+    if (layer_surface == NULL) {
+        LOG_ERR("failed to create layer shell surface");
+        wl_surface_destroy(surface);
+        return false;
+    }
+
+    const struct config *conf = mgr->conf;
+    enum zwlr_layer_surface_v1_anchor anchor
+        = (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT
+           ? ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
+           : ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM)
+        | (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_BOTTOM_LEFT
+           ? ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
+           : ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+
+    zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
+    zwlr_layer_surface_v1_set_size(layer_surface, width, height);
+
+    wl_surface_add_listener(surface, &surface_listener, notif);
+
+    zwlr_layer_surface_v1_add_listener(
+        layer_surface, &layer_surface_listener, notif);
+    wl_surface_commit(surface);
+
+    notif->surface = surface;
+    notif->layer_surface = layer_surface;
+    notif->mon = mon;
+    notif->scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl);
+    notif->subpixel = mon != NULL
+        ? (enum fcft_subpixel)mon->subpixel : wayl_guess_subpixel(wayl);
+
+    return true;
 }
 
 struct glyph_run {
@@ -1353,17 +1373,24 @@ notif_show(struct notif *notif, int y)
 
     height = min(height, conf->max_height);
 
-    assert(notif->scale >= 1);
-    const int scale = notif->scale;
+    bool top_anchored
+        = conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT;
+
+    int scale;
+
+    /* Resize and position */
+    if (notif->surface == NULL) {
+        if (!notif_instantiate_surface(notif, width, height))
+            return 0;
+        scale = notif->scale;
+    } else {
+        scale = notif->scale;
+        zwlr_layer_surface_v1_set_size(notif->layer_surface, width / scale, height / scale);
+    }
 
     LOG_DBG("show: y = %d, width = %d, height = %d (scale = %d)",
             y, width, height, scale);
 
-    bool top_anchored
-        = conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT;
-
-    /* Resize and position */
-    zwlr_layer_surface_v1_set_size(notif->layer_surface, width / scale, height / scale);
     zwlr_layer_surface_v1_set_margin(
         notif->layer_surface,
         (top_anchored
@@ -1439,12 +1466,11 @@ notif_show(struct notif *notif, int y)
         tll_remove(glyphs, it);
     }
 
-    if (notif->frame_callback != NULL) {
+    if (!notif->is_configured || notif->frame_callback != NULL) {
         if (notif->pending != NULL)
             notif->pending->busy = false;
         notif->pending = buf;
     } else {
-
         assert(notif->pending == NULL);
         commit_buffer(notif, buf);
     }
@@ -1601,10 +1627,12 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
     bool refresh_needed = false;
 
     tll_foreach(mgr->notifs, it) {
-        if (it->item->mon != mon)
+        if (it->item->surface == NULL)
+            refresh_needed = true;
+        else if (it->item->mon != NULL && it->item->mon != mon)
             continue;
 
-        if (it->item->scale != mon->scale) {
+        if (it->item->scale != mon->scale || it->item->fonts.dpi != mon->dpi) {
             it->item->scale = mon->scale;
             notif_reload_fonts(it->item);
             refresh_needed = true;
