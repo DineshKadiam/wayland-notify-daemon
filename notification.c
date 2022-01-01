@@ -58,6 +58,7 @@ struct action {
 
 struct text_run_cache {
     struct fcft_text_run *run;
+    const struct fcft_font *font;
     uint64_t hash;
     enum fcft_subpixel subpixel;
     size_t ofs;
@@ -1001,6 +1002,8 @@ notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
     tll_foreach(notif->text_run_cache, it) {
         if (it->item.hash != hash)
             continue;
+        if (it->item.font != font)
+            continue;
         if (it->item.subpixel != subpixel)
             continue;
         if (it->item.ofs != ofs) {
@@ -1029,6 +1032,7 @@ notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
 
     struct text_run_cache cache = {
         .run = run,
+        .font = font,
         .hash = hash,
         .subpixel = subpixel,
         .ofs = ofs,

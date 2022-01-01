@@ -18,6 +18,9 @@
 * `fnottctl actions` exiting without receiving a reply.
 * Fnott is now much better at surviving monitors being disabled and
   re-enabled (https://codeberg.org/dnkl/fnott/issues/25).
+* Wrong font being used when the body and summary (or title and body,
+  or title and summary) is set to the same text
+  (https://codeberg.org/dnkl/fnott/issues/36).
 
 
 ### Security
