@@ -9,7 +9,14 @@
 
 
 ## Unreleased
+
 ### Added
+
+* Configurable padding of notification text. New `fnottrc` option:
+  `padding-vertical` and `padding-horizontal`
+  (https://codeberg.org/dnkl/fnott/issues/35).
+
+
 ### Changed
 ### Deprecated
 ### Removed

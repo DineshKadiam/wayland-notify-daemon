@@ -568,6 +568,30 @@ parse_section_main(const char *key, const char *value, struct config *conf,
             conf->by_urgency[i].border.size = sz;
     }
 
+    else if (strcmp(key, "padding-vertical") == 0) {
+        unsigned long p;
+        if (!str_to_ulong(value, 10, &p)) {
+            LOG_ERR("%s:%u: invalid padding-vertical (expected an integer): %s",
+                    path, lineno, value);
+            return false;
+        }
+
+        for (int i = 0; i < 3; i++)
+            conf->by_urgency[i].padding.vertical = p;
+    }
+
+    else if (strcmp(key, "padding-horizontal") == 0) {
+        unsigned long p;
+        if (!str_to_ulong(value, 10, &p)) {
+            LOG_ERR("%s:%u: invalid padding-horizontal (expected an integer): %s",
+                    path, lineno, value);
+            return false;
+        }
+
+        for (int i = 0; i < 3; i++)
+            conf->by_urgency[i].padding.horizontal = p;
+    }
+
     else if (strcmp(key, "title-font") == 0 ||
              strcmp(key, "summary-font") == 0 ||
              strcmp(key, "body-font") == 0 ||
@@ -827,6 +851,10 @@ config_load(struct config *conf, const char *path)
                     .color = {0x9090, 0x9090, 0x9090, 0xffff},
                     .size = 1,
                 },
+                .padding = {
+                    .vertical = 20,
+                    .horizontal = 20,
+                },
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
@@ -852,6 +880,10 @@ config_load(struct config *conf, const char *path)
                     .color = {0x9090, 0x9090, 0x9090, 0xffff},
                     .size = 1,
                 },
+                .padding = {
+                    .vertical = 20,
+                    .horizontal = 20,
+                },
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
@@ -876,6 +908,10 @@ config_load(struct config *conf, const char *path)
                 .border = {
                     .color = {0x9090, 0x9090, 0x9090, 0xffff},
                     .size = 1,
+                },
+                .padding = {
+                    .vertical = 20,
+                    .horizontal = 20,
                 },
                 .app = {
                     .font = strdup(default_font_name),

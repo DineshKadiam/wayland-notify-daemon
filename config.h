@@ -13,6 +13,11 @@ struct urgency_config {
     } border;
 
     struct {
+        int vertical;
+        int horizontal;
+    } padding;
+
+    struct {
         char *font;
         pixman_color_t color;
     } app;
