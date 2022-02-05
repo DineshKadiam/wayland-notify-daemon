@@ -17,7 +17,6 @@ debug-x64:
   script:
     - cd subprojects
     - git clone https://codeberg.org/dnkl/fcft.git
-    - cd fcft && git checkout 3.0-dev && cd ..
     - cd ..
     - mkdir -p bld/debug
     - meson --buildtype=debug . bld/debug
@@ -29,7 +28,6 @@ debug-x86:
   script:
     - cd subprojects
     - git clone https://codeberg.org/dnkl/fcft.git
-    - cd fcft && git checkout 3.0-dev && cd ..
     - cd ..
     - mkdir -p bld/debug
     - meson --buildtype=debug . bld/debug
@@ -41,7 +39,6 @@ release-x64:
   script:
     - cd subprojects
     - git clone https://codeberg.org/dnkl/fcft.git
-    - cd fcft && git checkout 3.0-dev && cd ..
     - cd ..
     - mkdir -p bld/release
     - meson --buildtype=release . bld/release
@@ -53,7 +50,6 @@ release-x86:
   script:
     - cd subprojects
     - git clone https://codeberg.org/dnkl/fcft.git
-    - cd fcft && git checkout 3.0-dev && cd ..
     - cd ..
     - mkdir -p bld/release
     - meson --buildtype=release . bld/release
