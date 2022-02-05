@@ -110,6 +110,14 @@ case they override the values specified in the default section.
 *border-size*
 	Border size, in pixels. Default: _1_.
 
+*padding-vertical*
+	Vertical padding, in pixels, between the notification edge (top or
+	bottom) and notification text. Default: _20_.
+
+*padding-horizontal*
+	Horizontal padding, in pixels, between the notification edge (left
+	or right) and notification text. Default: _20_.
+
 *title-font*
 	Font to use for the application title, in fontconfig format (see
 	*FONT FORMAT*). Default: _sans serif_.

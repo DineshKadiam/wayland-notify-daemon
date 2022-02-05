@@ -1327,8 +1327,8 @@ notif_show(struct notif *notif, int y)
     const enum fcft_subpixel subpixel = urgency->bg.alpha == 0xffff
         ? notif->subpixel : FCFT_SUBPIXEL_NONE;
 
-    const int pad_horizontal = notif->fonts.body.regular->height;
-    const int pad_vertical = pad_horizontal;
+    const int pad_horizontal = urgency->padding.horizontal;
+    const int pad_vertical = urgency->padding.vertical;
 
     int width = 0;
     int height = pad_vertical;
