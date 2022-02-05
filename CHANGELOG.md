@@ -28,6 +28,9 @@
 * Wrong font being used when the body and summary (or title and body,
   or title and summary) is set to the same text
   (https://codeberg.org/dnkl/fnott/issues/36).
+* Fnott no longer allocates the vertical padding space between summary
+  and body text, if the body text is empty
+  (https://codeberg.org/dnkl/fnott/issues/41).
 
 
 ### Security

@@ -1340,28 +1340,44 @@ notif_show(struct notif *notif, int y)
     if (notif->pix != NULL)
         indent += notif->image_width + pad_horizontal;
 
-    /* App */
-    notif_layout(notif, &notif->fonts.app, &urgency->app.color, subpixel, notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
-    if (tll_length(notif->actions) > 0) {
-        /* TODO: better 'action' indicator */
-        int _a, _b;
-        notif_layout(notif, &notif->fonts.app, &urgency->app.color, subpixel, L"*", _w - pad_horizontal, pad_horizontal, height, &_a, &_b, &glyphs);
+    /* App name */
+    if (notif->app != NULL && notif->app[0] != L'\0') {
+        notif_layout(
+            notif, &notif->fonts.app, &urgency->app.color, subpixel,
+            notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+
+        if (tll_length(notif->actions) > 0) {
+            /* TODO: better 'action' indicator */
+            int _a, _b;
+            notif_layout(
+                notif, &notif->fonts.app, &urgency->app.color,
+                subpixel, L"*", _w - pad_horizontal, pad_horizontal,
+                height, &_a, &_b, &glyphs);
+        }
+        width = max(width, _w);
+        height += _h;
     }
-    width = max(width, _w);
-    height += _h;
 
     /* Summary */
-    notif_layout(notif, &notif->fonts.summary, &urgency->summary.color, subpixel, notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
-    width = max(width, _w);
-    height += _h;
-
-    /* Empty line between summary and body */
-    height += notif->fonts.body.regular->height;
+    if (notif->summary != NULL && notif->summary[0] != L'\0') {
+        notif_layout(
+            notif, &notif->fonts.summary, &urgency->summary.color, subpixel,
+            notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+        width = max(width, _w);
+        height += _h;
+    }
 
     /* Body */
-    notif_layout(notif, &notif->fonts.body, &urgency->body.color, subpixel, notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
-    width = max(width, _w);
-    height += _h;
+    if (notif->body != NULL && notif->body[0] != L'\0') {
+        /* Empty line between summary and body */
+        height += notif->fonts.body.regular->height;
+
+        notif_layout(
+            notif, &notif->fonts.body, &urgency->body.color, subpixel,
+            notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+        width = max(width, _w);
+        height += _h;
+    }
 
 #if 0
     tll_foreach(notif->actions, it) {
