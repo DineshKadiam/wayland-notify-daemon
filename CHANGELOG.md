@@ -18,6 +18,11 @@
 
 
 ### Changed
+
+* Default padding is now fixed at 20, instead of depending on the font
+  size. This is due to the new `padding-horizontal|vertical` options.
+
+
 ### Deprecated
 ### Removed
 ### Fixed
