@@ -1,6 +1,6 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.2.0](#1-2-0)
 * [1.1.2](#1-1-2)
 * [1.1.1](#1-1-1)
 * [1.1.0](#1-1-0)
@@ -8,7 +8,7 @@
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.2.0
 
 ### Added
 
@@ -23,8 +23,6 @@
   size. This is due to the new `padding-horizontal|vertical` options.
 
 
-### Deprecated
-### Removed
 ### Fixed
 
 * `fnottctl actions` exiting without receiving a reply.
@@ -38,8 +36,10 @@
   (https://codeberg.org/dnkl/fnott/issues/41).
 
 
-### Security
 ### Contributors
+
+* fauxmight
+* Rishabh Das
 
 
 ## 1.1.2
