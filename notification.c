@@ -4,9 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-#include <wchar.h>
 #include <ctype.h>
-#include <wctype.h>
 #include <regex.h>
 #include <unistd.h>
 #include <errno.h>
@@ -24,6 +22,7 @@
 #define LOG_MODULE "notification"
 #define LOG_ENABLE_DBG 0
 #include "log.h"
+#include "char32.h"
 #include "dbus.h"
 #include "spawn.h"
 #include "wayland.h"
@@ -52,8 +51,8 @@ struct font_set {
 struct action {
     char *id;
     char *label;
-    wchar_t *wid;
-    wchar_t *wlabel;
+    char32_t *wid;
+    char32_t *wlabel;
 };
 
 struct text_run_cache {
@@ -74,9 +73,9 @@ struct notif {
     uint32_t id;
     enum urgency urgency;
 
-    wchar_t *app;
-    wchar_t *summary;
-    wchar_t *body;
+    char32_t *app;
+    char32_t *summary;
+    char32_t *body;
     tll(struct action) actions;
 
     int timeout_ms;  /* Timeout provided by the notification itself */
@@ -331,9 +330,9 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .mgr = mgr,
         .id = notif_id,
         .urgency = URGENCY_NORMAL,
-        .app = wcsdup(L""),
-        .summary = wcsdup(L""),
-        .body = wcsdup(L""),
+        .app = c32dup(U""),
+        .summary = c32dup(U""),
+        .body = c32dup(U""),
         .actions = tll_init(),
         .timeout_ms = -1,  /* -1, up to us, 0 - never expire */
         .timeout_fd = -1,
@@ -628,22 +627,22 @@ notif_monitor(const struct notif *notif)
     return notif->mon;
 }
 
-static wchar_t *
+static char32_t *
 decode_html_entities(const struct notif_mgr *mgr, const char *s)
 {
     /* Guesstimate initial size */
     size_t sz = strlen(s) + 1;
-    wchar_t *result = malloc(sz * sizeof(wchar_t));
+    char32_t *result = malloc(sz * sizeof(char32_t));
 
     /* Output so far */
     size_t len = 0;
-    wchar_t *out = result;
+    char32_t *out = result;
 
 #define ensure_size(new_size)                               \
     do {                                                    \
         while (sz < (new_size)) {                           \
             sz *= 2;                                        \
-            result = realloc(result, sz * sizeof(wchar_t)); \
+            result = realloc(result, sz * sizeof(char32_t)); \
             out = &result[len];                             \
         }                                                   \
     } while (0)
@@ -657,14 +656,10 @@ decode_html_entities(const struct notif_mgr *mgr, const char *s)
 
 #define append_u8(s, s_len)                                      \
     do {                                                         \
-        const char *_s = (s);                                    \
-        mbstate_t _ps = {0};                                     \
-        size_t _w_len = mbsnrtowcs(NULL, &_s, s_len, 0, &_ps);   \
+        size_t _w_len = mbsntoc32(NULL, s, s_len, 0);            \
         if (_w_len > 0) {                                        \
             ensure_size(len + _w_len + 1);                       \
-            memset(&_ps, 0, sizeof(_ps));                        \
-            _s = (s);                                            \
-            mbsnrtowcs(out, &_s, s_len, _w_len + 1, &_ps);       \
+            mbsntoc32(out, s, s_len, _w_len + 1);                \
             out += _w_len;                                       \
             len += _w_len;                                       \
         }                                                        \
@@ -688,18 +683,18 @@ decode_html_entities(const struct notif_mgr *mgr, const char *s)
             size_t match_len = named->rm_eo - named->rm_so;
             const char *match = &s[named->rm_so];
 
-            if (strncmp(match, "nbsp", match_len) == 0)       append(L' ');
-            else if (strncmp(match, "lt", match_len) == 0)    append(L'<');
-            else if (strncmp(match, "gt", match_len) == 0)    append(L'>');
-            else if (strncmp(match, "amp", match_len) == 0)   append(L'&');
-            else if (strncmp(match, "quot", match_len) == 0)  append(L'"');
-            else if (strncmp(match, "apos", match_len) == 0)  append(L'\'');
-            else if (strncmp(match, "cent", match_len) == 0)  append(L'¢');
-            else if (strncmp(match, "pound", match_len) == 0) append(L'£');
-            else if (strncmp(match, "yen", match_len) == 0)   append(L'¥');
-            else if (strncmp(match, "euro", match_len) == 0)  append(L'€');
-            else if (strncmp(match, "copy", match_len) == 0)  append(L'©');
-            else if (strncmp(match, "reg", match_len) == 0)   append(L'®');
+            if (strncmp(match, "nbsp", match_len) == 0)       append(U' ');
+            else if (strncmp(match, "lt", match_len) == 0)    append(U'<');
+            else if (strncmp(match, "gt", match_len) == 0)    append(U'>');
+            else if (strncmp(match, "amp", match_len) == 0)   append(U'&');
+            else if (strncmp(match, "quot", match_len) == 0)  append(U'"');
+            else if (strncmp(match, "apos", match_len) == 0)  append(U'\'');
+            else if (strncmp(match, "cent", match_len) == 0)  append(U'¢');
+            else if (strncmp(match, "pound", match_len) == 0) append(U'£');
+            else if (strncmp(match, "yen", match_len) == 0)   append(U'¥');
+            else if (strncmp(match, "euro", match_len) == 0)  append(U'€');
+            else if (strncmp(match, "copy", match_len) == 0)  append(U'©');
+            else if (strncmp(match, "reg", match_len) == 0)   append(U'®');
             else assert(false);
         }
 
@@ -715,7 +710,7 @@ decode_html_entities(const struct notif_mgr *mgr, const char *s)
 
             if (errno == 0) {
                 assert(*end == ';');
-                append((wchar_t)v);
+                append((char32_t)v);
             }
         }
 
@@ -726,20 +721,15 @@ decode_html_entities(const struct notif_mgr *mgr, const char *s)
 #undef append_n
 #undef ensure_size
 
-    result[len] = L'\0';
+    result[len] = U'\0';
     return result;
 }
 
 void
 notif_set_application(struct notif *notif, const char *text)
 {
-    size_t chars = mbstowcs(NULL, text, 0);
-    if (chars == (size_t) -1)
-        return;
-
     free(notif->app);
-    notif->app = malloc((chars + 1) * sizeof(wchar_t));
-    mbstowcs(notif->app, text, chars + 1);
+    notif->app = ambstoc32(text);
 }
 
 void
@@ -755,10 +745,7 @@ notif_get_summary(const struct notif *notif)
     if (notif->summary == NULL)
         return NULL;
 
-    size_t chars = wcstombs(NULL, notif->summary, 0);
-    char *ret = malloc(chars + 1);
-    wcstombs(ret, notif->summary, chars + 1);
-    return ret;
+    return ac32tombs(notif->summary);
 }
 
 void
@@ -847,17 +834,14 @@ void
 notif_add_action(struct notif *notif, const char *id, const char *label)
 {
 
-    size_t wid_chars = mbstowcs(NULL, id, 0);
-    size_t label_chars = mbstowcs(NULL, label, 0);
+    char32_t *wid = ambstoc32(id);
+    char32_t *wlabel = ambstoc32(label);
 
-    if (wid_chars == (size_t)-1 || label_chars == (size_t)-1)
+    if (wid == NULL || wlabel == NULL) {
+        free(wid);
+        free(wlabel);
         return;
-
-    wchar_t *wid = malloc((wid_chars + 1) * sizeof(wchar_t));
-    mbstowcs(wid, id, wid_chars + 1);
-
-    wchar_t *wlabel = malloc((label_chars + 1) * sizeof(wchar_t));
-    mbstowcs(wlabel, label, label_chars + 1);
+    }
 
     tll_push_back(
         notif->actions,
@@ -979,7 +963,7 @@ struct glyph_run {
 };
 
 static uint64_t
-sdbm_hash(size_t len, const wchar_t s[static len])
+sdbm_hash(size_t len, const char32_t s[static len])
 {
     uint64_t hash = 0;
 
@@ -994,7 +978,7 @@ sdbm_hash(size_t len, const wchar_t s[static len])
 static struct glyph_run
 notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
                           enum fcft_subpixel subpixel,
-                          size_t len, const wchar_t text[static len],
+                          size_t len, const char32_t text[static len],
                           size_t ofs)
 {
     uint64_t hash = sdbm_hash(len, text);
@@ -1021,7 +1005,7 @@ notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
         };
     }
 
-    struct fcft_text_run *run = fcft_text_run_rasterize(
+    struct fcft_text_run *run = fcft_rasterize_text_run_utf32(
         font, len, text, subpixel);
 
     if (run == NULL)
@@ -1050,7 +1034,7 @@ notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
 
 static struct glyph_run
 notify_rasterize_glyphs(struct fcft_font *font, enum fcft_subpixel subpixel,
-                        size_t len, const wchar_t text[static len], size_t ofs)
+                        size_t len, const char32_t text[static len], size_t ofs)
 {
     int *cluster = malloc(len * sizeof(cluster[0]));
     const struct fcft_glyph **glyphs = malloc(len * sizeof(glyphs[0]));
@@ -1064,7 +1048,7 @@ notify_rasterize_glyphs(struct fcft_font *font, enum fcft_subpixel subpixel,
     };
 
     for (size_t i = 0; i < len; i++) {
-        const struct fcft_glyph *glyph = fcft_glyph_rasterize(
+        const struct fcft_glyph *glyph = fcft_rasterize_char_utf32(
             font, text[i], subpixel);
 
         if (glyph == NULL)
@@ -1080,7 +1064,7 @@ notify_rasterize_glyphs(struct fcft_font *font, enum fcft_subpixel subpixel,
 
 static struct glyph_run
 notify_rasterize(struct notif *notif, struct fcft_font *font, enum fcft_subpixel subpixel,
-                 size_t len, const wchar_t text[static len], size_t ofs)
+                 size_t len, const char32_t text[static len], size_t ofs)
 {
     if (len == 0)
         return (struct glyph_run){0};
@@ -1106,7 +1090,7 @@ typedef tll(struct glyph_layout) glyph_list_t;
 static void
 notif_layout(struct notif *notif, struct font_set *fonts,
              const pixman_color_t *color, enum fcft_subpixel subpixel,
-             const wchar_t *text, int left_pad, int right_pad,
+             const char32_t *text, int left_pad, int right_pad,
              int y, int *width, int *height, glyph_list_t *glyph_list)
 {
     *width = 0;
@@ -1123,15 +1107,15 @@ notif_layout(struct notif *notif, struct font_set *fonts,
 
     /* Rasterize whole runs, if possible. Need to look for font
      * formatters since we need to use different fonts for those */
-    const wchar_t *_t = text;
-    for (const wchar_t *wc = _t; true; wc++) {
-        if (!(*wc == L'\0' ||
-              wcsncasecmp(wc, L"<b>", 3) == 0 ||
-              wcsncasecmp(wc, L"<i>", 3) == 0 ||
-              wcsncasecmp(wc, L"<u>", 3) == 0 ||
-              wcsncasecmp(wc, L"</b>", 4) == 0 ||
-              wcsncasecmp(wc, L"</i>", 4) == 0 ||
-              wcsncasecmp(wc, L"</u>", 4) == 0))
+    const char32_t *_t = text;
+    for (const char32_t *wc = _t; true; wc++) {
+        if (!(*wc == U'\0' ||
+              c32ncasecmp(wc, U"<b>", 3) == 0 ||
+              c32ncasecmp(wc, U"<i>", 3) == 0 ||
+              c32ncasecmp(wc, U"<u>", 3) == 0 ||
+              c32ncasecmp(wc, U"</b>", 4) == 0 ||
+              c32ncasecmp(wc, U"</i>", 4) == 0 ||
+              c32ncasecmp(wc, U"</u>", 4) == 0))
         {
             continue;
         }
@@ -1159,21 +1143,21 @@ notif_layout(struct notif *notif, struct font_set *fonts,
             tll_push_back(runs, run);
         }
 
-        if (*wc == L'\0')
+        if (*wc == U'\0')
             break;
 
         /* Update formatter state */
-        bool new_value = wc[1] == L'/' ? false : true;
-        wchar_t formatter = wc[1] == L'/' ? wc[2] : wc[1];
+        bool new_value = wc[1] == U'/' ? false : true;
+        char32_t formatter = wc[1] == U'/' ? wc[2] : wc[1];
 
-        if (formatter == L'b' || formatter == L'B')
+        if (formatter == U'b' || formatter == U'B')
             bold = new_value;
-        if (formatter == L'i' || formatter == L'I')
+        if (formatter == U'i' || formatter == U'I')
             italic = new_value;
-        if (formatter == L'u' || formatter == L'U')
+        if (formatter == U'u' || formatter == U'U')
             underline = new_value;
 
-        _t = wc + (wc[1] == L'/' ? 4 : 3);
+        _t = wc + (wc[1] == U'/' ? 4 : 3);
     }
 
     /* Distance from glyph to next word boundary. Note: only the
@@ -1203,16 +1187,16 @@ notif_layout(struct notif *notif, struct font_set *fonts,
             for (size_t i = 0; i < run->count; i++, idx++) {
                 distance[idx] = 0;
 
-                if (!iswspace(text[run->cluster[i]]))
+                if (!isc32space(text[run->cluster[i]]))
                     continue;
 
                 /* Calculate distance to *this* space for all
                  * preceding glyphs (up til the previous space) */
                 for (ssize_t j = idx - 1, dist = 0; j >= 0; j--) {
-                    if (iswspace(text[cluster[j]]))
+                    if (isc32space(text[cluster[j]]))
                         break;
 
-                    if (j == 0 || (j > 0 && iswspace(text[cluster[j - 1]]))) {
+                    if (j == 0 || (j > 0 && isc32space(text[cluster[j - 1]]))) {
                         /*
                          * Store non-zero distance only in first character in a word
                          * This ensures the layouting doesn't produce output like:
@@ -1234,10 +1218,10 @@ notif_layout(struct notif *notif, struct font_set *fonts,
 
         /* Calculate distance for the last word */
         for (ssize_t j = total_glyph_count - 1, dist = 0; j >= 0; j--) {
-            if (iswspace(text[cluster[j]]))
+            if (isc32space(text[cluster[j]]))
                 break;
 
-            if (j == 0 || (j > 0 && iswspace(text[cluster[j - 1]]))) {
+            if (j == 0 || (j > 0 && isc32space(text[cluster[j - 1]]))) {
                 /* Store non-zero distance only in first character in a word */
                 distance[j] = dist;
             }
@@ -1263,14 +1247,14 @@ notif_layout(struct notif *notif, struct font_set *fonts,
 
         for (size_t i = 0; i < run->count; i++, idx++) {
 
-            const wchar_t wc = text[run->cluster[i]];
+            const char32_t wc = text[run->cluster[i]];
             const struct fcft_glyph *glyph = run->glyphs[i];
             struct fcft_font *font = run->font;
             const int dist = distance[idx];
 
             if ((x > left_pad &&
                  x + glyph->advance.x + dist + right_pad > conf->max_width) ||
-                wc == L'\n')
+                wc == U'\n')
             {
                 *width = max(*width, x + right_pad);
                 *height += fonts->regular->height;
@@ -1278,7 +1262,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
                 x = left_pad;
                 y += fonts->regular->height;
 
-                if (iswspace(wc)) {
+                if (isc32space(wc)) {
                     /* Don't render trailing whitespace */
                     continue;
                 }
@@ -1341,7 +1325,7 @@ notif_show(struct notif *notif, int y)
         indent += notif->image_width + pad_horizontal;
 
     /* App name */
-    if (notif->app != NULL && notif->app[0] != L'\0') {
+    if (notif->app != NULL && notif->app[0] != U'\0') {
         notif_layout(
             notif, &notif->fonts.app, &urgency->app.color, subpixel,
             notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
@@ -1351,7 +1335,7 @@ notif_show(struct notif *notif, int y)
             int _a, _b;
             notif_layout(
                 notif, &notif->fonts.app, &urgency->app.color,
-                subpixel, L"*", _w - pad_horizontal, pad_horizontal,
+                subpixel, U"*", _w - pad_horizontal, pad_horizontal,
                 height, &_a, &_b, &glyphs);
         }
         width = max(width, _w);
@@ -1359,7 +1343,7 @@ notif_show(struct notif *notif, int y)
     }
 
     /* Summary */
-    if (notif->summary != NULL && notif->summary[0] != L'\0') {
+    if (notif->summary != NULL && notif->summary[0] != U'\0') {
         notif_layout(
             notif, &notif->fonts.summary, &urgency->summary.color, subpixel,
             notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
@@ -1368,7 +1352,7 @@ notif_show(struct notif *notif, int y)
     }
 
     /* Body */
-    if (notif->body != NULL && notif->body[0] != L'\0') {
+    if (notif->body != NULL && notif->body[0] != U'\0') {
         /* Empty line between summary and body */
         height += notif->fonts.body.regular->height;
 

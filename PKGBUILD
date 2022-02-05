@@ -8,7 +8,7 @@ license=(mit)
 makedepends=('meson' 'ninja' 'scdoc' 'tllist>=1.0.1')
 depends=(
   'wayland' 'pixman' 'libpng' 'dbus'
-  'fcft>=2.4.0')
+  'fcft>=3.0.0' 'fcft<4.0.0')
 source=()
 
 pkgver() {

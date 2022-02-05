@@ -15,6 +15,9 @@ debug-x64:
   image: alpine:latest
   stage: build
   script:
+    - cd subprojects
+    - git clone https://codeberg.org/dnkl/fcft.git
+    - cd ..
     - mkdir -p bld/debug
     - meson --buildtype=debug . bld/debug
     - ninja -C bld/debug -v -k0
@@ -23,6 +26,9 @@ debug-x86:
   image: i386/alpine:latest
   stage: build
   script:
+    - cd subprojects
+    - git clone https://codeberg.org/dnkl/fcft.git
+    - cd ..
     - mkdir -p bld/debug
     - meson --buildtype=debug . bld/debug
     - ninja -C bld/debug -v -k0
@@ -31,6 +37,9 @@ release-x64:
   image: alpine:latest
   stage: build
   script:
+    - cd subprojects
+    - git clone https://codeberg.org/dnkl/fcft.git
+    - cd ..
     - mkdir -p bld/release
     - meson --buildtype=release . bld/release
     - ninja -C bld/release -v -k0
@@ -39,6 +48,9 @@ release-x86:
   image: i386/alpine:latest
   stage: build
   script:
+    - cd subprojects
+    - git clone https://codeberg.org/dnkl/fcft.git
+    - cd ..
     - mkdir -p bld/release
     - meson --buildtype=release . bld/release
     - ninja -C bld/release -v -k0

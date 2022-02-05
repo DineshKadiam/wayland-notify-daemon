@@ -26,6 +26,10 @@ sources:
 #     to: <comitter>
 
 tasks:
+  - fcft: |
+      cd fnott/subprojects
+      git clone https://codeberg.org/dnkl/fcft.git
+      cd ../..
   - debug: |
       mkdir -p bld/debug
       meson --buildtype=debug fnott bld/debug
