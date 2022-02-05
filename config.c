@@ -306,6 +306,28 @@ parse_section_urgency(const char *key, const char *value,
         conf->border.size = sz;
     }
 
+    else if (strcmp(key, "padding-vertical") == 0) {
+        unsigned long p;
+        if (!str_to_ulong(value, 10, &p)) {
+            LOG_ERR("%s:%u: invalid padding-vertical (expected an integer): %s",
+                    path, lineno, value);
+            return false;
+        }
+
+        conf->padding.vertical = p;
+    }
+
+    else if (strcmp(key, "padding-horizontal") == 0) {
+        unsigned long p;
+        if (!str_to_ulong(value, 10, &p)) {
+            LOG_ERR("%s:%u: invalid padding-horizontal (expected an integer): %s",
+                    path, lineno, value);
+            return false;
+        }
+
+        conf->padding.horizontal = p;
+    }
+
     else if (strcmp(key, "title-font") == 0 ||
              strcmp(key, "summary-font") == 0 ||
              strcmp(key, "body-font") == 0 ||
