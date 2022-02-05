@@ -1,11 +1,22 @@
 # Changelog
 
+* [Unreleased](#unreleased)
 * [1.2.0](#1-2-0)
 * [1.1.2](#1-1-2)
 * [1.1.1](#1-1-1)
 * [1.1.0](#1-1-0)
 * [1.0.1](#1-0-1)
 * [1.0.0](#1-0-0)
+
+
+## Unreleased
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+### Contributors
 
 
 ## 1.2.0
