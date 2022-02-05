@@ -1,5 +1,5 @@
 project('fnott', 'c',
-        version: '1.1.2',
+        version: '1.2.0',
         license: 'MIT',
         meson_version: '>=0.54.0',
         default_options: [
