@@ -97,13 +97,20 @@ notify(struct dbus *bus, DBusMessage *msg)
     DBusError dbus_error;
     dbus_error_init(&dbus_error);
 
-    DBusMessageIter args_iter;
-    dbus_message_iter_init(msg, &args_iter);
-
+    DBusMessage *reply = NULL;
     pixman_image_t *pix = NULL;
 
+    struct action {
+        const char *id;
+        const char *label;
+    };
+
+    /* D-Bus arguments */
     uint32_t replaces_id;
     char *app_name, *app_icon, *summary, *body;
+    tll(struct action) actions = tll_init();
+    enum urgency urgency = URGENCY_NORMAL;
+
     if (!dbus_message_get_args(
             msg, &dbus_error,
             DBUS_TYPE_STRING, &app_name,
@@ -158,48 +165,64 @@ notify(struct dbus *bus, DBusMessage *msg)
         free(app_name_locase);
     }
 
-    dbus_message_iter_next(&args_iter);
-    dbus_message_iter_next(&args_iter);
-    dbus_message_iter_next(&args_iter);
-    dbus_message_iter_next(&args_iter);
-    dbus_message_iter_next(&args_iter);
+    DBusMessageIter args_iter;
+    dbus_message_iter_init(msg, &args_iter);
 
-    assert(dbus_message_iter_get_arg_type(&args_iter) == DBUS_TYPE_ARRAY);
+    dbus_message_iter_next(&args_iter);  /* app name */
+    dbus_message_iter_next(&args_iter);  /* replaces ID */
+    dbus_message_iter_next(&args_iter);  /* app icon */
+    dbus_message_iter_next(&args_iter);  /* summary */
+    dbus_message_iter_next(&args_iter);  /* body */
+
+    if (dbus_message_iter_get_arg_type(&args_iter) != DBUS_TYPE_ARRAY)
+        goto err;
 
     DBusMessageIter actions_iter;
     dbus_message_iter_recurse(&args_iter, &actions_iter);
 
-    struct action {
-        const char *id;
-        const char *label;
-    };
-
-    tll(struct action) actions = tll_init();
     while (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_INVALID) {
+        if (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_STRING)
+            goto err;
+
         const char *id;
-        const char *label;
         dbus_message_iter_get_basic(&actions_iter, &id);
         dbus_message_iter_next(&actions_iter);
+
+        if (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_STRING)
+            goto err;
+
+        const char *label;
         dbus_message_iter_get_basic(&actions_iter, &label);
         dbus_message_iter_next(&actions_iter);
+
         LOG_DBG("action: %s %s", id, label);
         tll_push_back(actions, ((struct action){id, label}));
     }
+
     dbus_message_iter_next(&args_iter);
+    if (dbus_message_iter_get_arg_type(&args_iter) != DBUS_TYPE_ARRAY)
+        goto err;
 
     DBusMessageIter hints_iter;
     dbus_message_iter_recurse(&args_iter, &hints_iter);
 
-    enum urgency urgency = URGENCY_NORMAL;
-
     while (dbus_message_iter_get_arg_type(&hints_iter) != DBUS_TYPE_INVALID) {
         DBusMessageIter entry_iter;
+        if (dbus_message_iter_get_arg_type(&hints_iter) != DBUS_TYPE_DICT_ENTRY)
+            goto err;
+
         dbus_message_iter_recurse(&hints_iter, &entry_iter);
         dbus_message_iter_next(&hints_iter);
+
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_STRING)
+            goto err;
 
         const char *name;
         dbus_message_iter_get_basic(&entry_iter, &name);
         dbus_message_iter_next(&entry_iter);
+
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_VARIANT)
+            goto err;
 
         DBusMessageIter value_iter;
         dbus_message_iter_recurse(&entry_iter, &value_iter);
@@ -210,6 +233,8 @@ notify(struct dbus *bus, DBusMessage *msg)
         if (strcmp(name, "urgency") == 0) {
             /* low=0, normal=1, critical=2 */
             uint8_t level;
+            if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_BYTE)
+                goto err;
             dbus_message_iter_get_basic(&value_iter, &level);
             urgency = level;
         }
@@ -218,22 +243,41 @@ notify(struct dbus *bus, DBusMessage *msg)
                  strcmp(name, "image_data") == 0 ||
                  strcmp(name, "icon_data") == 0)
         {
+            if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_STRUCT)
+                goto err;
+
             DBusMessageIter img_iter;
             dbus_message_iter_recurse(&value_iter, &img_iter);
 
+#define iter_get(dest)                                                  \
+            do {                                                        \
+                if (dbus_message_iter_get_arg_type(&img_iter) != DBUS_TYPE_INT32) \
+                    goto err;                                           \
+                dbus_message_iter_get_basic(&img_iter, &dest);          \
+                dbus_message_iter_next(&img_iter);                      \
+            } while (0)
+
             bool has_alpha;
-            uint32_t width, height, stride, bpp, channels;
-            dbus_message_iter_get_basic(&img_iter, &width); dbus_message_iter_next(&img_iter);
-            dbus_message_iter_get_basic(&img_iter, &height); dbus_message_iter_next(&img_iter);
-            dbus_message_iter_get_basic(&img_iter, &stride); dbus_message_iter_next(&img_iter);
-            dbus_message_iter_get_basic(&img_iter, &has_alpha); dbus_message_iter_next(&img_iter);
-            dbus_message_iter_get_basic(&img_iter, &bpp); dbus_message_iter_next(&img_iter);
-            dbus_message_iter_get_basic(&img_iter, &channels); dbus_message_iter_next(&img_iter);
+            int32_t width, height, stride, bpp, channels;
+
+            iter_get(width);
+            iter_get(height);
+            iter_get(stride);
+
+            if (dbus_message_iter_get_arg_type(&img_iter) != DBUS_TYPE_BOOLEAN)
+                goto err;
+            dbus_message_iter_get_basic(&img_iter, &has_alpha);
+            dbus_message_iter_next(&img_iter);
+
+            iter_get(bpp);
+            iter_get(channels);
+#undef iter_get
 
             LOG_DBG("image: width=%u, height=%u, stride=%u, has-alpha=%d, bpp=%u, channels=%u",
                     width, height, stride, has_alpha, bpp, channels);
 
-            assert(dbus_message_iter_get_arg_type(&img_iter) == DBUS_TYPE_ARRAY);
+            if (dbus_message_iter_get_arg_type(&img_iter) != DBUS_TYPE_ARRAY)
+                goto err;
 
             if (width * channels * bpp / 8 > stride)
                 LOG_WARN("image width exceeds image stride");
@@ -245,10 +289,15 @@ notify(struct dbus *bus, DBusMessage *msg)
             dbus_message_iter_recurse(&img_iter, &data_iter);
             for (size_t i = 0; i < image_size; i++)
             {
-                if (dbus_message_iter_get_arg_type(&data_iter) == DBUS_TYPE_INVALID) {
+                int type = dbus_message_iter_get_arg_type(&data_iter);
+
+                if (type == DBUS_TYPE_INVALID) {
                     LOG_WARN("image data truncated");
                     break;
                 }
+
+                if (type != DBUS_TYPE_BYTE)
+                    goto err;
 
                 dbus_message_iter_get_basic(&data_iter, &image_data[i]);
                 dbus_message_iter_next(&data_iter);
@@ -283,6 +332,8 @@ notify(struct dbus *bus, DBusMessage *msg)
     }
 
     dbus_message_iter_next(&args_iter);
+    if (dbus_message_iter_get_arg_type(&args_iter) != DBUS_TYPE_INT32)
+        goto err;
 
     /* -1 - up to server (us), 0 - never expire */
     int32_t timeout_ms;
@@ -290,16 +341,8 @@ notify(struct dbus *bus, DBusMessage *msg)
     LOG_DBG("timeout = %dms", timeout_ms);
 
     struct notif *notif = notif_mgr_create_notif(bus->notif_mgr, replaces_id);
-    if (notif == NULL) {
-        if (pix != NULL) {
-            free(pixman_image_get_data(pix));
-            pixman_image_unref(pix);
-        }
-
-        tll_free(actions);
-
-        return false;
-    }
+    if (notif == NULL)
+        goto err;
 
     notif_set_application(notif, app_name);
     notif_set_summary(notif, summary);
@@ -319,8 +362,7 @@ notify(struct dbus *bus, DBusMessage *msg)
 
     notif_mgr_refresh(bus->notif_mgr);
 
-    DBusMessage *reply = dbus_message_new_method_return(msg);
-    if (reply == NULL)
+    if ((reply = dbus_message_new_method_return(msg)) == NULL)
         goto err;
 
     DBusMessageIter iter;
@@ -336,9 +378,18 @@ notify(struct dbus *bus, DBusMessage *msg)
     if (dbus_connection_has_messages_to_send(bus->conn))
         fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     ret = true;
+    goto out;
+
 err:
+    if (pix != NULL) {
+        free(pixman_image_get_data(pix));
+        pixman_image_unref(pix);
+    }
+
+out:
     tll_free(actions);
-    dbus_message_unref(reply);
+    if (reply != NULL)
+        dbus_message_unref(reply);
     return ret;
 }
 
