@@ -106,7 +106,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     };
 
     /* D-Bus arguments */
-    uint32_t replaces_id;
+    dbus_uint32_t replaces_id;
     char *app_name, *app_icon, *summary, *body;
     tll(struct action) actions = tll_init();
     enum urgency urgency = URGENCY_NORMAL;
@@ -257,8 +257,8 @@ notify(struct dbus *bus, DBusMessage *msg)
                 dbus_message_iter_next(&img_iter);                      \
             } while (0)
 
-            bool has_alpha;
-            int32_t width, height, stride, bpp, channels;
+            dbus_bool_t has_alpha;
+            dbus_int32_t width, height, stride, bpp, channels;
 
             iter_get(width);
             iter_get(height);
@@ -336,7 +336,7 @@ notify(struct dbus *bus, DBusMessage *msg)
         goto err;
 
     /* -1 - up to server (us), 0 - never expire */
-    int32_t timeout_ms;
+    dbus_int32_t timeout_ms;
     dbus_message_iter_get_basic(&args_iter, &timeout_ms);
     LOG_DBG("timeout = %dms", timeout_ms);
 
@@ -359,7 +359,6 @@ notify(struct dbus *bus, DBusMessage *msg)
         notif_add_action(notif, it->item.id, it->item.label);
 
     notif_play_sound(notif);
-
     notif_mgr_refresh(bus->notif_mgr);
 
     if ((reply = dbus_message_new_method_return(msg)) == NULL)
@@ -369,7 +368,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     dbus_message_iter_init_append(reply, &iter);
 
     if (!dbus_message_iter_append_basic(
-            &iter, DBUS_TYPE_UINT32, &(uint32_t){notif_id(notif)}))
+            &iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){notif_id(notif)}))
         goto err;
 
     if (!dbus_connection_send(bus->conn, reply, NULL))
@@ -399,7 +398,7 @@ close_notification(struct dbus *bus, DBusMessage *msg)
     DBusError dbus_error;
     dbus_error_init(&dbus_error);
 
-    uint32_t id;
+    dbus_uint32_t id;
     if (!dbus_message_get_args(
             msg, &dbus_error,
             DBUS_TYPE_UINT32, &id,
@@ -486,8 +485,8 @@ signal_notification_closed(struct dbus *bus, uint32_t id, uint32_t reason)
 
     DBusMessageIter iter;
     dbus_message_iter_init_append(signal, &iter);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &id);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &reason);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){id});
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){reason});
     dbus_connection_send(bus->conn, signal, NULL);
     dbus_message_unref(signal);
     if (dbus_connection_has_messages_to_send(bus->conn))
@@ -526,7 +525,7 @@ dbus_signal_action(struct dbus *bus, uint32_t id, const char *action_id)
 
     DBusMessageIter iter;
     dbus_message_iter_init_append(signal, &iter);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &id);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){id});
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &action_id);
     dbus_connection_send(bus->conn, signal, NULL);
     dbus_message_unref(signal);
