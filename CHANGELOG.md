@@ -15,6 +15,11 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* Crash when receiving notification with inline image data
+  (https://codeberg.org/dnkl/fnott/issues/44).
+
+
 ### Security
 ### Contributors
 
