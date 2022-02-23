@@ -24,6 +24,11 @@ It implements (parts of) the [Desktop Notification Specification](https://develo
 * Markup
 * Timeout
 
+More documentation is available in the installed man pages:
+
+ * [man fnott](./doc/fnott.1.scd) documents the server
+ * [man fnottctl](./doc/fnott.ini.5.scd) documents the client
+ * [man fnott.ini](./doc/fnottctl.1.scd) documents the configuration
 
 ## Requirements
 
