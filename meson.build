@@ -1,7 +1,7 @@
 project('fnott', 'c',
         version: '1.2.1',
         license: 'MIT',
-        meson_version: '>=0.54.0',
+        meson_version: '>=0.58.0',
         default_options: [
           'c_std=c18',
           'warning_level=1',
@@ -23,7 +23,7 @@ endif
 
 # Compute the relative path used by compiler invocations.
 source_root = meson.current_source_dir().split('/')
-build_root = meson.build_root().split('/')
+build_root = meson.global_build_root().split('/')
 relative_dir_parts = []
 i = 0
 in_prefix = true
@@ -63,11 +63,11 @@ dbus = dependency('dbus-1')
 tllist = dependency('tllist', version: '>=1.0.1', fallback: 'tllist')
 fcft = dependency('fcft', version: ['>=3.0.0', '<4.0.0'], fallback: 'fcft')
 
-wayland_protocols_datadir = wayland_protocols.get_pkgconfig_variable('pkgdatadir')
+wayland_protocols_datadir = wayland_protocols.get_variable('pkgdatadir')
 
 wscanner = dependency('wayland-scanner', native: true)
 wscanner_prog = find_program(
-  wscanner.get_pkgconfig_variable('wayland_scanner'), native: true)
+  wscanner.get_variable('wayland_scanner'), native: true)
 
 wl_proto_headers = []
 wl_proto_src = []
