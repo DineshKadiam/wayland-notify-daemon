@@ -1094,7 +1094,8 @@ static void
 notif_layout(struct notif *notif, struct font_set *fonts,
              const pixman_color_t *color, enum fcft_subpixel subpixel,
              const char32_t *text, int left_pad, int right_pad,
-             int y, int *width, int *height, glyph_list_t *glyph_list)
+             int y, int max_y, int *width, int *height,
+             glyph_list_t *glyph_list)
 {
     *width = 0;
     *height = 0;
@@ -1271,6 +1272,9 @@ notif_layout(struct notif *notif, struct font_set *fonts,
                 }
             }
 
+            if (y + fonts->regular->height > max_y)
+                break;
+
             if (glyph->cols <= 0)
                 continue;
 
@@ -1331,7 +1335,8 @@ notif_show(struct notif *notif, int y)
     if (notif->app != NULL && notif->app[0] != U'\0') {
         notif_layout(
             notif, &notif->fonts.app, &urgency->app.color, subpixel,
-            notif->app, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+            notif->app, indent, pad_horizontal, height,
+            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
 
         if (tll_length(notif->actions) > 0) {
             /* TODO: better 'action' indicator */
@@ -1339,7 +1344,7 @@ notif_show(struct notif *notif, int y)
             notif_layout(
                 notif, &notif->fonts.app, &urgency->app.color,
                 subpixel, U"*", _w - pad_horizontal, pad_horizontal,
-                height, &_a, &_b, &glyphs);
+                height, conf->max_height - pad_vertical, &_a, &_b, &glyphs);
         }
         width = max(width, _w);
         height += _h;
@@ -1349,7 +1354,8 @@ notif_show(struct notif *notif, int y)
     if (notif->summary != NULL && notif->summary[0] != U'\0') {
         notif_layout(
             notif, &notif->fonts.summary, &urgency->summary.color, subpixel,
-            notif->summary, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+            notif->summary, indent, pad_horizontal, height,
+            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
@@ -1361,14 +1367,15 @@ notif_show(struct notif *notif, int y)
 
         notif_layout(
             notif, &notif->fonts.body, &urgency->body.color, subpixel,
-            notif->body, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+            notif->body, indent, pad_horizontal, height,
+            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
 
 #if 0
     tll_foreach(notif->actions, it) {
-        notif_layout(notif, &notif->fonts.action, &urgency->action.color, subpixel, it->item.label, indent, pad_horizontal, height, &_w, &_h, &glyphs);
+        notif_layout(notif, &notif->fonts.action, &urgency->action.color, subpixel, it->item.label, indent, pad_horizontal, height, conf->max_height - pad_veritcal, &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }

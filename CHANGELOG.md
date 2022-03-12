@@ -16,6 +16,9 @@
 ### Changed
 
 * Minimum required meson version is now 0.58.
+* Notification text is now truncated instead of running into, and
+  past, the vertical padding
+  (https://codeberg.org/dnkl/fnott/issues/52).
 
 
 ### Deprecated
