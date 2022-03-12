@@ -904,6 +904,9 @@ notif_instantiate_surface(struct notif *notif, int width, int height)
     struct wayland *wayl = mgr->wayl;
     const struct monitor *mon = wayl_preferred_monitor(wayl);
 
+    /* Will be updated, if necessary, once we’ve been mapped */
+    const int scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl);
+
     struct wl_surface *surface =
         wl_compositor_create_surface(wayl_compositor(wayl));
 
@@ -933,7 +936,7 @@ notif_instantiate_surface(struct notif *notif, int width, int height)
            : ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
 
     zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
-    zwlr_layer_surface_v1_set_size(layer_surface, width, height);
+    zwlr_layer_surface_v1_set_size(layer_surface, width / scale, height / scale);
 
     wl_surface_add_listener(surface, &surface_listener, notif);
 
