@@ -778,13 +778,11 @@ notif_set_urgency(struct notif *notif, enum urgency urgency)
     tll_rforeach(notif->mgr->notifs, it) {
         if (it->item->urgency >= notif->urgency) {
             tll_insert_after(notif->mgr->notifs, it, notif);
-            notif_mgr_refresh(notif->mgr);
             return;
         }
     }
 
     tll_push_front(notif->mgr->notifs, notif);
-    notif_mgr_refresh(notif->mgr);
 }
 
 void
