@@ -1329,6 +1329,9 @@ notif_show(struct notif *notif, int y)
     const int pad_horizontal = urgency->padding.horizontal;
     const int pad_vertical = urgency->padding.vertical;
 
+    const int pbar_height = urgency->progress.height;
+    int pbar_y = -1;
+
     int width = 0;
     int height = pad_vertical;
     glyph_list_t glyphs = tll_init();
@@ -1391,6 +1394,13 @@ notif_show(struct notif *notif, int y)
 
     if (notif->pix != NULL)
         height = max(height, pad_vertical + notif->image_height);
+    if (notif->progress >= 0) {
+        const int bar_y = height + notif->fonts.body.regular->height;
+        if (bar_y + pbar_height <= conf->max_height - pad_vertical) {
+            pbar_y = bar_y;
+            height += notif->fonts.body.regular->height + pbar_height;
+        }
+    }
     height += pad_vertical;
 
     height = min(height, conf->max_height);
@@ -1486,6 +1496,28 @@ notif_show(struct notif *notif, int y)
         }
 
         tll_remove(glyphs, it);
+    }
+
+    /* Progress bar */
+    if (pbar_y >= 0) {
+        const int full_width = buf->width - pad_horizontal * 2;
+        const int width = full_width * notif->progress / 100;
+
+        const int border =
+            pbar_height > 2 * scale && width > 2 * scale ? 1 * scale : 0;
+
+        pixman_image_fill_rectangles(
+            PIXMAN_OP_OVER, buf->pix, &urgency->progress.color,
+            5, (pixman_rectangle16_t []){
+                /* Edges: left, top, bottom, right */
+                {pad_horizontal, pbar_y, border, pbar_height},
+                {pad_horizontal + border, pbar_y, full_width - border * 2, border},
+                {pad_horizontal + border, pbar_y + pbar_height - border, full_width - border * 2, border},
+                {pad_horizontal + full_width - border, pbar_y, border, pbar_height},
+
+                /* The bar */
+                {pad_horizontal + border, pbar_y + border, width - border * 2, pbar_height - border * 2}
+            });
     }
 
     if (!notif->is_configured || notif->frame_callback != NULL) {
