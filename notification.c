@@ -78,6 +78,7 @@ struct notif {
     char32_t *body;
     tll(struct action) actions;
 
+    int8_t progress;
     int timeout_ms;  /* Timeout provided by the notification itself */
     int timeout_fd;
 
@@ -783,6 +784,15 @@ notif_set_urgency(struct notif *notif, enum urgency urgency)
     }
 
     tll_push_front(notif->mgr->notifs, notif);
+}
+
+void
+notif_set_progress(struct notif *notif, int8_t progress)
+{
+    if (notif->progress == progress)
+        return;
+
+    notif->progress = progress;
 }
 
 void
