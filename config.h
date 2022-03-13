@@ -37,6 +37,11 @@ struct urgency_config {
         pixman_color_t color;
     } action;
 
+    struct {
+        int height;
+        pixman_color_t color;
+    } progress;
+
     int max_timeout_secs;
     int default_timeout_secs;
     char *sound_file;  /* Path to user-configured sound to play on notification */

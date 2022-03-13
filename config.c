@@ -363,6 +363,26 @@ parse_section_urgency(const char *key, const char *value,
         *c = color;
     }
 
+    else if (strcmp(key, "progress-bar-color") == 0) {
+        pixman_color_t color;
+        if (!str_to_color(value, &color, path, lineno))
+            return false;
+
+        conf->progress.color = color;
+    }
+
+    else if (strcmp(key, "progress-bar-height") == 0) {
+        unsigned long height;
+        if (!str_to_ulong(value, 10, &height)) {
+            LOG_ERR(
+                "%s:%d: invalid progress-bar-height (expected an integer): %s",
+                path, lineno, value);
+            return false;
+        }
+
+        conf->progress.height = height;
+    }
+
     else if (strcmp(key, "max-timeout") == 0) {
         unsigned long max_timeout_secs;
         if (!str_to_ulong(value, 10, &max_timeout_secs)) {
@@ -655,6 +675,32 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
     }
 
+    else if (strcmp(key, "progress-bar-color") == 0) {
+        pixman_color_t color;
+        if (!str_to_color(value, &color, path, lineno))
+            return false;
+
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+            urgency->progress.color = color;
+        }
+    }
+
+    else if (strcmp(key, "progress-bar-height") == 0) {
+        unsigned long height;
+        if (!str_to_ulong(value, 10, &height)) {
+            LOG_ERR(
+                "%s:%d: invalid progress-bar-height (expected an integer): %s",
+                path, lineno, value);
+            return false;
+        }
+
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+            urgency->progress.height = height;
+        }
+    }
+
     else if (strcmp(key, "max-timeout") == 0) {
         unsigned long max_timeout_secs;
         if (!str_to_ulong(value, 10, &max_timeout_secs)) {
@@ -857,7 +903,7 @@ config_load(struct config *conf, const char *path)
         .max_width = 400,
         .max_height = 200,
         .icon_theme_name = strdup("hicolor"),
-        .max_icon_size = 32,
+        .max_icon_size = 48,
         .stacking_order = STACK_BOTTOM_UP,
         .anchor = ANCHOR_TOP_RIGHT,
         .margins = {
@@ -893,6 +939,10 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
+                .progress = {
+                    .height = 20,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
                 .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
             },
@@ -922,6 +972,10 @@ config_load(struct config *conf, const char *path)
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
+                .progress = {
+                    .height = 20,
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
                 .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
             },
@@ -949,6 +1003,10 @@ config_load(struct config *conf, const char *path)
                 },
                 .action = {
                     .font = strdup(default_font_name),
+                    .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                },
+                .progress = {
+                    .height = 20,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .max_timeout_secs = 0,
