@@ -17,6 +17,9 @@
 #include "icon.h"
 #include "version.h"
 
+#define min(x, y) ((x) < (y) ? (x) : (y))
+#define max(x, y) ((x) > (y) ? (x) : (y))
+
 struct dbus {
     DBusConnection *conn;
     const struct config *conf;
@@ -110,6 +113,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     char *app_name, *app_icon, *summary, *body;
     tll(struct action) actions = tll_init();
     enum urgency urgency = URGENCY_NORMAL;
+    int8_t progress_percent = -1;
 
     if (!dbus_message_get_args(
             msg, &dbus_error,
@@ -231,12 +235,26 @@ notify(struct dbus *bus, DBusMessage *msg)
         LOG_DBG("hint: %s", name);
 
         if (strcmp(name, "urgency") == 0) {
-            /* low=0, normal=1, critical=2 */
-            uint8_t level;
             if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_BYTE)
                 goto err;
+
+            /* low=0, normal=1, critical=2 */
+            uint8_t level;
             dbus_message_iter_get_basic(&value_iter, &level);
+            LOG_DBG("hint: urgency=%hhu", level);
+
             urgency = level;
+        }
+
+        else if (strcmp(name, "value") == 0) {
+            if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_INT32)
+                goto err;
+
+            dbus_int32_t progress;
+            dbus_message_iter_get_basic(&value_iter, &progress);
+            LOG_DBG("hint: progress=%d", progress);
+
+            progress_percent = min(100, max(0, progress));
         }
 
         else if (strcmp(name, "image-data") == 0 ||
@@ -348,6 +366,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     notif_set_summary(notif, summary);
     notif_set_body(notif, body);
     notif_set_urgency(notif, urgency);
+    notif_set_progress(notif, progress_percent);
 
     if (timeout_ms >= 0)
         notif_set_timeout(notif, timeout_ms);
