@@ -11,7 +11,12 @@
 
 
 ## Unreleased
+
 ### Added
+
+* Support for a “progress” hints, `notify-send -h int:value:20 ...`,
+  (https://codeberg.org/dnkl/fnott/issues/51).
+
 
 ### Changed
 
