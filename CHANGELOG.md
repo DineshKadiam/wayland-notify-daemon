@@ -24,6 +24,10 @@
 * Notification text is now truncated instead of running into, and
   past, the vertical padding
   (https://codeberg.org/dnkl/fnott/issues/52).
+* All color configuration options have been changed from (A)RGB
+  (i.e. ARGB, where the alpha component is optional), to RGBA. This
+  means **all** color values **must** be specified with 8 digits
+  (https://codeberg.org/dnkl/fnott/issues/47).
 
 
 ### Deprecated

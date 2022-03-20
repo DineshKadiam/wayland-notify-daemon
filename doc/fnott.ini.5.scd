@@ -102,10 +102,12 @@ These options can also be specified in an _urgency_ section, in which
 case they override the values specified in the default section.
 
 *background*
-	Background color of the notification. Default: _3f5f3f_.
+	Background color of the notification, in RGBA format. Default:
+	_3f5f3fff_.
 
 *border-color*
-	Border color of the notification. Default: _909090_.
+	Border color of the notification, in RGBA format. Default:
+	_909090ff_.
 
 *border-size*
 	Border size, in pixels. Default: _1_.
@@ -123,21 +125,24 @@ case they override the values specified in the default section.
 	*FONT FORMAT*). Default: _sans serif_.
 
 *title-color*
-	Text color to use for the application title. Default: _ffffff_.
+	Text color to use for the application title, in RGBA
+	format. Default: _ffffffff_.
 
 *summary-font*
 	Font to use for the summary, in fontconfig format (see *FONT
 	FORMAT*). Default: _sans serif_.
 
 *summary-color*
-	Text color to use for the summary. Default: _ffffff_.
+	Text color to use for the summary, in RGBA format. Default:
+	_ffffffff_.
 
 *body-font*
 	Font to use for the text body, in fontconfig format (see *FONT
 	FORMAT*). Default: _sans serif_.
 
 *body-color*
-	Text color to use for the text body. Default: _ffffff_.
+	Text color to use for the text body, in RGBA format. Default:
+	_ffffffff_.
 
 *max-timeout*
 	Time limit, in seconds, before notifications are automatically
@@ -163,10 +168,10 @@ This section allows you to override the options listed under
 
 By default, the following options are already overridden:
 
-- *background*: _2b2b2b_
-- *title-color* _888888_
-- *summary-color*: _888888_
-- *body-color*: _888888_
+- *background*: _2b2b2bff_
+- *title-color* _888888ff_
+- *summary-color*: _888888ff_
+- *body-color*: _888888ff_
 
 # SECTION: normal
 
@@ -182,7 +187,7 @@ This section allows you to override the options listed under
 
 By default, the following options are already overridden:
 
-- *background*: _6c3333_
+- *background*: _6c3333ff_
 
 
 # FONT FORMAT

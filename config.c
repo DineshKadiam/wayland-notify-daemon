@@ -234,16 +234,22 @@ color_hex_to_pixman_with_alpha(uint32_t color, uint16_t alpha)
 static bool
 str_to_color(const char *s, pixman_color_t *color, const char *path, int lineno)
 {
+    if (strlen(s) != 8) {
+        LOG_ERR("%s:%d: %s: invalid RGBA color (not 8 digits)",
+                path, lineno, s);
+        return false;
+    }
+
     unsigned long value;
     if (!str_to_ulong(s, 16, &value)) {
         LOG_ERRNO("%s:%d: invalid color: %s", path, lineno, s);
         return false;
     }
 
-    uint32_t rgb = value & 0xffffff;
-    uint16_t alpha = value >> 24; alpha |= alpha << 8;
+    uint32_t rgb = value >> 8;
+    uint16_t alpha = value & 0xff; alpha |= alpha << 8;
 
-    *color = color_hex_to_pixman_with_alpha(rgb, alpha == 0 ? 0xffff : alpha);
+    *color = color_hex_to_pixman_with_alpha(rgb, alpha);
     return true;
 }
 
