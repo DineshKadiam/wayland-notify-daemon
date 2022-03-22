@@ -144,6 +144,13 @@ case they override the values specified in the default section.
 	Text color to use for the text body, in RGBA format. Default:
 	_ffffffff_.
 
+*progress-bar-height*
+	Height, in pixels, of progress bars (rendered when a notification
+	has an _int:value_ hint). Default: _20_.
+
+*progress-bar-color*
+	Color, in RGBA format, of progress bars. Default: _ffffffff_.
+
 *max-timeout*
 	Time limit, in seconds, before notifications are automatically
 	dismissed. Applications can provide their own timeout when they
