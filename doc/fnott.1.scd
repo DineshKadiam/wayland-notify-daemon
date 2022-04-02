@@ -16,7 +16,7 @@ fnott - keyboard driven notification daemon for Wayland
 *-p*,*--print-pid*=_FILE_|_FD_
 	Print PID to this file, or FD, when successfully started. The file
 	(or FD) is closed immediately after writing the PID. When a _FILE_
-	as been specified, the file is unlinked exit.
+	has been specified, the file is unlinked on exit.
 
 *-l*,*--log-colorize*=[{*never*,*always*,*auto*}]
 	Enables or disables colorization of log output on stderr.
@@ -33,7 +33,7 @@ fnott - keyboard driven notification daemon for Wayland
 wlroots-based Wayland compositors, implementing (parts of) the Desktop
 Notification Specification.
 
-*fnott* is the daemon part and should be launced when you log in to
+*fnott* is the daemon part and should be launched when you log in to
 your desktop. You should be able to configure your Wayland compositor
 to autolaunch it for you.
 
