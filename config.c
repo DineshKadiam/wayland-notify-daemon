@@ -974,12 +974,12 @@ config_load(struct config *conf, const char *path)
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
-                    .format = c32dup(U"%a"),
+                    .format = c32dup(U"<i>%a</i>"),
                 },
                 .summary = {
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
-                    .format = c32dup(U"%s\\n"),
+                    .format = c32dup(U"<b>%s</b>\\n"),
                 },
                 .body = {
                     .font = strdup(default_font_name),
@@ -1010,12 +1010,12 @@ config_load(struct config *conf, const char *path)
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                    .format = c32dup(U"%a"),
+                    .format = c32dup(U"<i>%a</i>"),
                 },
                 .summary = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                    .format = c32dup(U"%s\\n"),
+                    .format = c32dup(U"<b>%s</b>\\n"),
                 },
                 .body = {
                     .font = strdup(default_font_name),
@@ -1046,12 +1046,12 @@ config_load(struct config *conf, const char *path)
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                    .format = c32dup(U"%a"),
+                    .format = c32dup(U"<i>%a</i>"),
                 },
                 .summary = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                    .format = c32dup(U"%s\\n"),
+                    .format = c32dup(U"<b>%s</b>\\n"),
                 },
                 .body = {
                     .font = strdup(default_font_name),
