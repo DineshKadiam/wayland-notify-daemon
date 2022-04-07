@@ -166,10 +166,11 @@ open_config(void)
 
     /* Finally, try fnott/fnott.ini in all XDG_CONFIG_DIRS */
     const char *xdg_config_dirs = getenv("XDG_CONFIG_DIRS");
-    xdg_config_dirs_copy = xdg_config_dirs != NULL
-        ? strdup(xdg_config_dirs) : NULL;
+    xdg_config_dirs_copy = xdg_config_dirs != NULL && xdg_config_dirs[0] != '\0'
+        ? strdup(xdg_config_dirs)
+        : strdup("/etc/xdg");
 
-    if (xdg_config_dirs_copy != NULL && xdg_config_dirs_copy[0] != '\0') {
+    if (xdg_config_dirs_copy != NULL) {
         for (char *save = NULL,
                  *xdg_dir = strtok_r(xdg_config_dirs_copy, ":", &save);
              xdg_dir != NULL;
