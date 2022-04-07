@@ -1528,21 +1528,17 @@ notif_show(struct notif *notif, int y)
     }
 #endif
 
-#if 0
-    tll_foreach(notif->actions, it) {
-        notif_layout(notif, &notif->fonts.action, &urgency->action.color, subpixel, it->item.label, indent, pad_horizontal, height, conf->max_height - pad_veritcal, &_w, &_h, &glyphs);
-        width = max(width, _w);
-        height += _h;
+    if (notif->pix != NULL) {
+        height = max(height, pad_vertical + notif->image_height + pad_vertical);
+        width = max(width, pad_horizontal + notif->image_width + pad_horizontal);
     }
-#endif
 
-    if (notif->pix != NULL)
-        height = max(height, pad_vertical + notif->image_height);
     if (notif->progress >= 0) {
         const int bar_y = height + notif->fonts.body.regular->height;
         if (bar_y + pbar_height <= conf->max_height - pad_vertical) {
             pbar_y = bar_y;
             height += notif->fonts.body.regular->height + pbar_height;
+            width = max(width, 3 * pad_horizontal);
         }
     }
     height += pad_vertical;
