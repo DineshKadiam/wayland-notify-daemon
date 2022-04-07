@@ -130,7 +130,7 @@ case they override the values specified in the default section.
 
 *title-format*
 	Template string for the title portion of the notification (see
-	*FORMAT STRINGS*). Default: _<i>%a</i>_.
+	*FORMAT STRINGS*). Default: _<i>%a%A</i>_.
 
 *summary-font*
 	Font to use for the summary, in fontconfig format (see *FONT
@@ -230,6 +230,7 @@ from the notification:
 - *%a*  application name
 - *%s*  notification summary
 - *%b*  notification body text
+- *%A*  action indicator ('\*' if actions are present, empty string otherwise)
 - *%%*  a literal '%'
 - *\\n*  a literal newline
 

@@ -1367,6 +1367,14 @@ expand_format_string(const struct notif *notif, const char32_t *fmt)
                 append_len = c32len(append_str);
                 break;
 
+            case U'A':
+                if (tll_length(notif->actions) > 0) {
+                    scratch[0] = U'*';
+                    append_str = scratch;
+                    append_len = 1;
+                }
+                break;
+
             case U'%':
                 append_str = src;
                 append_len = 1;

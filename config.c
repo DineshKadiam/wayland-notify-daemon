@@ -974,7 +974,7 @@ config_load(struct config *conf, const char *path)
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
-                    .format = c32dup(U"<i>%a</i>"),
+                    .format = c32dup(U"<i>%a%A</i>"),
                 },
                 .summary = {
                     .font = strdup(default_font_name),
@@ -1010,7 +1010,7 @@ config_load(struct config *conf, const char *path)
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                    .format = c32dup(U"<i>%a</i>"),
+                    .format = c32dup(U"<i>%a%A</i>"),
                 },
                 .summary = {
                     .font = strdup(default_font_name),
@@ -1046,7 +1046,7 @@ config_load(struct config *conf, const char *path)
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
-                    .format = c32dup(U"<i>%a</i>"),
+                    .format = c32dup(U"<i>%a%A</i>"),
                 },
                 .summary = {
                     .font = strdup(default_font_name),
