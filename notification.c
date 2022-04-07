@@ -1317,6 +1317,9 @@ notif_layout(struct notif *notif, struct font_set *fonts,
 static char32_t *
 expand_format_string(const struct notif *notif, const char32_t *fmt)
 {
+    if (fmt == NULL)
+        return NULL;
+
     const size_t fmt_len = c32len(fmt);
     size_t ret_len = fmt_len;
 
