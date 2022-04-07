@@ -40,6 +40,7 @@
 
 * Scale not being applied to the notification’s size when first
   instantiated (https://codeberg.org/dnkl/fnott/issues/54).
+* Fallback to `/etc/xdg` if `XDG_CONFIG_DIRS` is unset.
 
 
 ### Security
