@@ -128,6 +128,10 @@ case they override the values specified in the default section.
 	Text color to use for the application title, in RGBA
 	format. Default: _ffffffff_.
 
+*title-format*
+	Template string for the title portion of the notification (see
+	*FORMAT STRINGS*). Default: _<i>%a</i>_.
+
 *summary-font*
 	Font to use for the summary, in fontconfig format (see *FONT
 	FORMAT*). Default: _sans serif_.
@@ -136,6 +140,10 @@ case they override the values specified in the default section.
 	Text color to use for the summary, in RGBA format. Default:
 	_ffffffff_.
 
+*summary-format*
+	Template string for the summary portion of the notification (see
+	*FORMAT STRINGS*). Default: _<b>%s\\n</b>_.
+
 *body-font*
 	Font to use for the text body, in fontconfig format (see *FONT
 	FORMAT*). Default: _sans serif_.
@@ -143,6 +151,10 @@ case they override the values specified in the default section.
 *body-color*
 	Text color to use for the text body, in RGBA format. Default:
 	_ffffffff_.
+
+*body-format*
+	Template string for the body portion of the notification (see
+	*FORMAT STRINGS*). Default: _%b_.
 
 *progress-bar-height*
 	Height, in pixels, of progress bars (rendered when a notification
@@ -205,6 +217,28 @@ list of font name and font options.
 _Examples_:
 - Dina:weight=bold:slant=italic
 - Courier New:size=12
+
+# FORMAT STRINGS
+
+The *title-format*, *summary-format* and *body-format* options allow
+you to configure what to display for the corresponding portion of the
+notification.
+
+They are strings with placeholders that are expanded with attributes
+from the notification:
+
+- *%a*  application name
+- *%s*  notification summary
+- *%b*  notification body text
+- *%%*  a literal '%'
+- *\\n*  a literal newline
+
+Also supported are the following markup tags:
+
+- *<b>*  bold
+- *<i>*  italic
+- *<u>*  underline
+
 
 # SEE ALSO
 
