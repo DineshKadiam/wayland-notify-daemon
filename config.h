@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <pixman.h>
 
+#include "char32.h"
+
 struct urgency_config {
     pixman_color_t bg;
 
@@ -20,16 +22,19 @@ struct urgency_config {
     struct {
         char *font;
         pixman_color_t color;
+        char32_t *format;
     } app;
 
     struct {
         char *font;
         pixman_color_t color;
+        char32_t *format;
     } summary;
 
     struct {
         char *font;
         pixman_color_t color;
+        char32_t *format;
     } body;
 
     struct {

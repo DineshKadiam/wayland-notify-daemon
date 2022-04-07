@@ -369,6 +369,21 @@ parse_section_urgency(const char *key, const char *value,
         *c = color;
     }
 
+    else if (strcmp(key, "title-format") == 0) {
+        free(conf->app.format);
+        conf->app.format = ambstoc32(value);
+    }
+
+    else if (strcmp(key, "summary-format") == 0) {
+        free(conf->summary.format);
+        conf->summary.format = ambstoc32(value);
+    }
+
+    else if (strcmp(key, "body-format") == 0) {
+        free(conf-> body.format);
+        conf->body.format = ambstoc32(value);
+    }
+
     else if (strcmp(key, "progress-bar-color") == 0) {
         pixman_color_t color;
         if (!str_to_color(value, &color, path, lineno))
@@ -681,6 +696,33 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
     }
 
+    else if (strcmp(key, "title-format") == 0) {
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+
+            free(urgency->app.format);
+            urgency->app.format = ambstoc32(value);
+        }
+    }
+
+    else if (strcmp(key, "summary-format") == 0) {
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+
+            free(urgency->summary.format);
+            urgency->summary.format = ambstoc32(value);
+        }
+    }
+
+    else if (strcmp(key, "body-format") == 0) {
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+
+            free(urgency->body.format);
+            urgency->body.format = ambstoc32(value);
+        }
+    }
+
     else if (strcmp(key, "progress-bar-color") == 0) {
         pixman_color_t color;
         if (!str_to_color(value, &color, path, lineno))
@@ -932,14 +974,17 @@ config_load(struct config *conf, const char *path)
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
+                    .format = c32dup(U"%a"),
                 },
                 .summary = {
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
+                    .format = c32dup(U"%s\\n"),
                 },
                 .body = {
                     .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
+                    .format = c32dup(U"%b"),
                 },
                 .action = {
                     .font = strdup(default_font_name),
@@ -965,14 +1010,17 @@ config_load(struct config *conf, const char *path)
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .format = c32dup(U"%a"),
                 },
                 .summary = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .format = c32dup(U"%s\\n"),
                 },
                 .body = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .format = c32dup(U"%b"),
                 },
                 .action = {
                     .font = strdup(default_font_name),
@@ -998,14 +1046,17 @@ config_load(struct config *conf, const char *path)
                 .app = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .format = c32dup(U"%a"),
                 },
                 .summary = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .format = c32dup(U"%s\\n"),
                 },
                 .body = {
                     .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .format = c32dup(U"%b"),
                 },
                 .action = {
                     .font = strdup(default_font_name),
@@ -1084,8 +1135,11 @@ config_destroy(struct config conf)
     for (int i = 0; i < 3; i++) {
         struct urgency_config *uconf = &conf.by_urgency[i];
         free(uconf->app.font);
+        free(uconf->app.format);
         free(uconf->summary.font);
+        free(uconf->summary.format);
         free(uconf->body.font);
+        free(uconf->body.format);
         free(uconf->action.font);
         free(uconf->sound_file);
     }

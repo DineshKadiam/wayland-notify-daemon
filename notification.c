@@ -1314,6 +1314,113 @@ notif_layout(struct notif *notif, struct font_set *fonts,
     *height += fonts->regular->height;
 }
 
+static char32_t *
+expand_format_string(const struct notif *notif, const char32_t *fmt)
+{
+    const size_t fmt_len = c32len(fmt);
+    size_t ret_len = fmt_len;
+
+    char32_t *ret = malloc(ret_len * sizeof(ret[0]));
+    if (ret == NULL)
+        return NULL;
+
+    enum { ESCAPE_NONE, ESCAPE_PERCENT, ESCAPE_BACKSLASH} escape = ESCAPE_NONE;
+    char32_t scratch[16];
+    size_t ret_idx = 0;
+
+    for (const char32_t *src = fmt; src < &fmt[fmt_len]; src++) {
+        const char32_t *append_str = NULL;
+        size_t append_len = 0;
+
+        switch (escape) {
+        case ESCAPE_NONE:
+            switch (*src) {
+            case U'%':
+                escape = ESCAPE_PERCENT;
+                continue;
+
+            case U'\\':
+                escape = ESCAPE_BACKSLASH;
+                continue;
+
+            default:
+                append_str = src;
+                append_len = 1;
+                break;
+            }
+            break;
+
+        case ESCAPE_PERCENT:
+            switch (*src) {
+            case U'a':
+                append_str = notif->app;
+                append_len = c32len(append_str);
+                break;
+
+            case U's':
+                append_str = notif->summary;
+                append_len = c32len(append_str);
+                break;
+
+            case U'b':
+                append_str = notif->body;
+                append_len = c32len(append_str);
+                break;
+
+            case U'%':
+                append_str = src;
+                append_len = 1;
+                break;
+            }
+            escape = ESCAPE_NONE;
+            break;
+
+        case ESCAPE_BACKSLASH:
+            switch (*src) {
+            case U'n':
+                scratch[0] = U'\n';
+                append_str = scratch;
+                append_len = 1;
+                break;
+            }
+            escape = ESCAPE_NONE;
+            break;
+        }
+
+        if (append_str == NULL)
+            continue;
+
+        while (ret_idx + append_len  + 1> ret_len) {
+            size_t new_ret_len = ret_len * 2;
+            char32_t *new_ret = realloc(ret, new_ret_len * sizeof(new_ret[0]));
+
+            if (new_ret == NULL) {
+                free(ret);
+                return NULL;
+            }
+
+            ret = new_ret;
+            ret_len = new_ret_len;
+        }
+
+        assert(ret_idx + append_len <= ret_len);
+        memcpy(&ret[ret_idx], append_str, append_len * sizeof(ret[0]));
+        ret_idx += append_len;
+    }
+
+    if (ret_idx == 0) {
+        LOG_DBG("expand: %ls -> NULL", (const wchar_t *)fmt);
+        free(ret);
+        return NULL;
+    }
+
+    assert(ret_idx + 1 <= ret_len);
+    ret[ret_idx] = U'\0';
+
+    LOG_DBG("expand: %ls -> %ls", (const wchar_t *)fmt, (const wchar_t *)ret);
+    return ret;
+}
+
 static int
 notif_show(struct notif *notif, int y)
 {
@@ -1342,6 +1449,42 @@ notif_show(struct notif *notif, int y)
     if (notif->pix != NULL)
         indent += notif->image_width + pad_horizontal;
 
+    char32_t *title = expand_format_string(notif, urgency->app.format);
+    char32_t *summary = expand_format_string(notif, urgency->summary.format);
+    char32_t *body = expand_format_string(notif, urgency->body.format);
+
+    if (title != NULL && title[0] != U'\0') {
+        notif_layout(
+            notif, &notif->fonts.app, &urgency->app.color, subpixel,
+            title, indent, pad_horizontal, height,
+            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
+        width = max(width, _w);
+        height += _h;
+    }
+
+    if (summary != NULL && summary[0] != U'\0') {
+        notif_layout(
+            notif, &notif->fonts.summary, &urgency->summary.color, subpixel,
+            summary, indent, pad_horizontal, height,
+            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
+        width = max(width, _w);
+        height += _h;
+    }
+
+    if (body != NULL && body[0] != U'\0') {
+        notif_layout(
+            notif, &notif->fonts.body, &urgency->body.color, subpixel,
+            body, indent, pad_horizontal, height,
+            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
+        width = max(width, _w);
+        height += _h;
+    }
+
+    free(title);
+    free(summary);
+    free(body);
+
+#if 0
     /* App name */
     if (notif->app != NULL && notif->app[0] != U'\0') {
         notif_layout(
@@ -1383,6 +1526,7 @@ notif_show(struct notif *notif, int y)
         width = max(width, _w);
         height += _h;
     }
+#endif
 
 #if 0
     tll_foreach(notif->actions, it) {

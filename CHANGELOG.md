@@ -16,6 +16,10 @@
 
 * Support for a “progress” hints, `notify-send -h int:value:20 ...`,
   (https://codeberg.org/dnkl/fnott/issues/51).
+* `title-format`, `summary-format` and `body-format` options, allowing
+  you to customize the rendered strings. In this release, the `%a`,
+  `%s`, `%b` and `%%` formatters, as well as `\n`, are
+  recognized. (https://codeberg.org/dnkl/fnott/issues/39).
 
 
 ### Changed
