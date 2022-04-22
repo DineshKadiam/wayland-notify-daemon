@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -22,150 +23,224 @@
 #include "svg.h"
 #include "xdg.h"
 
+enum icon_type { ICON_NONE, ICON_PNG, ICON_SVG };
+
 typedef tll(char *) theme_names_t;
 
 pixman_image_t *
-icon_load(const char *name, int icon_size, icon_theme_list_t themes)
+icon_load(const char *name, int icon_size, const icon_theme_list_t *themes)
 {
-    if (name == NULL)
-        return NULL;
+    pixman_image_t *pix = NULL;
 
     if (name[0] == '/') {
-        LOG_DBG("loading %s directly", name);
-
-        pixman_image_t *pix = svg_load(name, icon_size);
-        if (pix != NULL)
+        if ((pix = svg_load(name, icon_size)) != NULL) {
+            LOG_DBG("%s: absolute path SVG", name);
             return pix;
-
-        return png_load(name);
-    }
-
-    LOG_DBG("looking for %s (wanted size: %d)", name, icon_size);
-
-    tll_foreach(themes, theme_it) {
-        const struct icon_theme *theme = &theme_it->item;
-        int min_diff = 10000;
-
-#if defined(_DEBUG)
-        LOG_DBG("looking in theme %s (%zu dirs)",
-                theme->name, tll_length(theme->dirs));
-        tll_foreach(theme->dirs, it)
-            LOG_DBG("  %s", it->item.path);
-#endif
-
-        /* Assume sorted */
-        for (size_t i = 0; i < 4; i++) {
-            tll_foreach(theme->dirs, it) {
-                const int size = it->item.size * it->item.scale;
-                const int min_size = it->item.min_size * it->item.scale;
-                const int max_size = it->item.max_size * it->item.scale;
-                const bool scalable = it->item.scalable;
-
-                const size_t len = strlen(theme->path) + 1 +
-                    strlen(it->item.path) + 1 +
-                    strlen(name) + strlen(".png") + 1;
-
-                /* Check if a png/svg file exists at all */
-                char *full_path = malloc(len);
-                if (full_path == NULL)
-                    return NULL;
-
-                sprintf(full_path, "%s/%s/%s.png", theme->path, it->item.path, name);
-                if (access(full_path, O_RDONLY) == -1) {
-                    /* Also check for svg variant */
-                    full_path[len - 4] = 's';
-                    full_path[len - 3] = 'v';
-                    full_path[len - 2] = 'g';
-                    if (access(full_path, O_RDONLY) == -1) {
-                        free(full_path);
-                        continue;
-                    }
-                }
-
-                const int diff = scalable ? 0 : abs(size - icon_size);
-                if (i == 0 && diff != 0) {
-                    /* Looking for *exactly* our wanted size */
-                    if (diff < min_diff)
-                        min_diff = diff;
-                    free(full_path);
-                    continue;
-                } else if (i == 1 && diff != min_diff) {
-                    /* Try the one which matches most closely */
-                    free(full_path);
-                    continue;
-                } else if (i == 2 && (icon_size < min_size ||
-                                      icon_size > max_size))
-                {
-                    /* Find one whose scalable range we're in */
-                    free(full_path);
-                    continue;
-                } else {
-                    /* Use anyone available */
-                }
-
-                pixman_image_t *pix = svg_load(full_path, icon_size);
-                if (pix != NULL) {
-                    LOG_DBG("%s: SVG", full_path);
-                    free(full_path);
-                    return pix;
-                }
-
-                pix = png_load(full_path);
-                if (pix != NULL) {
-                    if (scalable)
-                        LOG_DBG("%s: %s: scalable", name, full_path);
-                    else if (i == 0)
-                        LOG_DBG("%s: %s: exact match", name, full_path);
-                    else if (i == 1)
-                        LOG_DBG("%s: %s: diff = %d", name, full_path, diff);
-                    else if (i == 2)
-                        LOG_DBG("%s: %s: range %d-%d",
-                                name, full_path, min_size, max_size);
-                    else
-                        LOG_DBG("%s: %s: nothing else matched", name, full_path);
-
-                    free(full_path);
-                    return pix;
-                }
-
-                free(full_path);
-            }
+        }
+        if ((pix = png_load(name)) != NULL) {
+            LOG_DBG("%s: abslute path PNG", name);
+            return pix;
         }
     }
 
-    xdg_data_dirs_t dirs = xdg_data_dirs();
-    tll_foreach(dirs, it) {
-        char path[strlen(it->item) + 1 +
-                  strlen("pixmaps") + 1 +
-                  strlen(name) + strlen(".png") + 1];
+    const size_t file_name_len = strlen(name) + 4;
+    char file_name[file_name_len + 1];
+    strcpy(file_name, name);
+    strcat(file_name, ".xxx");
 
-        sprintf(path, "%s/pixmaps/%s.svg", it->item, name);
-        pixman_image_t *pix = svg_load(path, icon_size);
-        if (pix != NULL) {
-            LOG_DBG("%s: %s: pixman (SVG)", name, path);
-            xdg_data_dirs_destroy(dirs);
-            return pix;
+    struct {
+        int diff;
+        const struct xdg_data_dir *xdg_dir;
+        const struct icon_theme *theme;
+        const struct icon_dir *icon_dir;
+        enum icon_type type;
+    } min_diff = {.diff = INT_MAX};
+
+    /* For details, see
+     * https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#icon_lookup */
+
+    xdg_data_dirs_t xdg_dirs = xdg_data_dirs();
+
+    tll_foreach(*themes, theme_it) {
+        const struct icon_theme *theme = &theme_it->item;
+
+        /* Fallback icon to use if there aren’t any exact matches */
+        /* Assume sorted */
+        tll_foreach(theme->dirs, icon_dir_it) {
+            const struct icon_dir *icon_dir = &icon_dir_it->item;
+
+            char theme_relative_path[
+                5 + 1 + /* “icons” */
+                strlen(theme->name) + 1 +
+                strlen(icon_dir->path) + 1];
+
+            sprintf(theme_relative_path, "icons/%s/%s",
+                    theme->name, icon_dir->path);
+
+            tll_foreach(xdg_dirs, xdg_dir_it) {
+                const struct xdg_data_dir *xdg_dir = &xdg_dir_it->item;
+
+                const int scale = icon_dir->scale;
+                const int size = icon_dir->size * scale;
+                const int min_size = icon_dir->min_size * scale;
+                const int max_size = icon_dir->max_size * scale;
+                const int threshold = icon_dir->threshold * scale;
+                const enum icon_dir_type type = icon_dir->type;
+
+                bool is_exact_match = false;;
+                int diff = INT_MAX;
+
+                /* See if this directory is usable for the requested icon size */
+                switch (type) {
+                case ICON_DIR_FIXED:
+                    is_exact_match = size == icon_size;
+                    diff = abs(size - icon_size);
+                    break;
+
+                case ICON_DIR_THRESHOLD:
+                    is_exact_match =
+                        (size - threshold) <= icon_size &&
+                        (size + threshold) >= icon_size;
+                    diff = icon_size < (size - threshold)
+                        ? (size - threshold) - icon_size
+                        : icon_size - (size + threshold);
+                    break;
+
+                case ICON_DIR_SCALABLE:
+                    is_exact_match =
+                        min_size <= icon_size &&
+                        max_size >= icon_size;
+                    diff = icon_size < min_size
+                        ? min_size - icon_size
+                        : icon_size - max_size;
+                    break;
+                }
+
+                int dir_fd = openat(
+                    xdg_dir->fd, theme_relative_path, O_RDONLY | O_DIRECTORY);
+                if (dir_fd < 0)
+                    continue;
+
+                if (!is_exact_match && min_diff.diff <= diff)
+                    continue;
+
+                const size_t len = file_name_len;
+                char *path = file_name;
+                path[len - 4] = '.';
+                path[len - 3] = 'p';
+                path[len - 2] = 'n';
+                path[len - 1] = 'g';
+
+                if (faccessat(dir_fd, path, R_OK, 0) < 0) {
+                    path[len - 3] = 's';
+                    path[len - 2] = 'v';
+                    path[len - 1] = 'g';
+                    if (faccessat(dir_fd, path, R_OK, 0) < 0)
+                        continue;
+                }
+
+                if (!is_exact_match) {
+                    assert(diff < min_diff.diff);
+                    min_diff.diff = diff;
+                    min_diff.xdg_dir = xdg_dir;
+                    min_diff.theme = theme;
+                    min_diff.icon_dir = icon_dir;
+                    min_diff.type = path[len - 3] == 's'
+                        ? ICON_SVG : ICON_PNG;
+                    continue;
+                }
+
+                size_t path_len =
+                    strlen(xdg_dir->path) + 1 +
+                    5 + 1 + /* “icons” */
+                    strlen(theme->name) + 1 +
+                    strlen(icon_dir->path) + 1 +
+                    len;
+                char full_path[path_len + 1];
+
+                sprintf(full_path, "%s/icons/%s/%s/%s",
+                        xdg_dir->path, theme->name, icon_dir->path, path);
+
+                if ((path[len - 3] == 's' &&
+                     (pix = svg_load(full_path, icon_size)) != NULL) ||
+                    (path[len - 3] == 'p' &&
+                     (pix = png_load(full_path)) != NULL))
+                {
+                    LOG_DBG("%s: %s", icon.name, full_path);
+                    goto done;
+                }
+
+                close(dir_fd);
+            }
+        }
+
+        /* Try loading fallbacks for those icons we didn’t find an
+         * exact match */
+        if (min_diff.type == ICON_NONE) {
+            assert(min_diff.xdg_dir == NULL);
+            continue;
+        }
+
+        size_t path_len =
+            strlen(min_diff.xdg_dir->path) + 1 +
+            5 + 1 + /* “icons” */
+            strlen(min_diff.theme->name) + 1 +
+            strlen(min_diff.icon_dir->path) + 1 +
+            strlen(name) + 4;
+
+        char full_path[path_len + 1];
+        sprintf(full_path, "%s/icons/%s/%s/%s.%s",
+                min_diff.xdg_dir->path,
+                min_diff.theme->name,
+                min_diff.icon_dir->path,
+                name,
+                min_diff.type == ICON_SVG ? "svg" : "png");
+
+        if ((min_diff.type == ICON_SVG &&
+             (pix = svg_load(full_path, icon_size)) != NULL) ||
+            (min_diff.type == ICON_PNG &&
+             (pix = png_load(full_path)) != NULL))
+        {
+            LOG_DBG("%s: %s (fallback)", icon.name, full_path);
+            goto done;
+        } else {
+            /* Reset diff data, before checking the parent theme(s) */
+            min_diff.diff = INT_MAX;
+            min_diff.xdg_dir = NULL;
+            min_diff.theme = NULL;
+            min_diff.icon_dir = NULL;
+            min_diff.type = ICON_NONE;
+        }
+    }
+
+    /* Finally, look in XDG_DATA_DIRS/pixmaps */
+    tll_foreach(xdg_dirs, it) {
+        const size_t len =
+            strlen(it->item.path) + 1 +
+            strlen("pixmaps") + 1 +
+            strlen(name) + strlen(".svg");
+        char path[len + 1];
+
+        /* Try SVG variant first */
+        sprintf(path, "%s/pixmaps/%s.svg", it->item.path, name);
+        if ((pix = svg_load(path, icon_size)) != NULL) {
+            LOG_DBG("%s: %s (pixmaps)", icon.name, path);
+            goto done;
         }
 
         /* No SVG, look for PNG instead */
-        sprintf(path, "%s/pixmaps/%s.png", it->item, name);
-        pix = png_load(path);
-        if (pix != NULL) {
-            LOG_DBG("%s: %s: pixmap", name, path);
-            xdg_data_dirs_destroy(dirs);
-            return pix;
+        path[len - 3] = 'p';
+        path[len - 2] = 'n';
+        path[len - 1] = 'g';
+        if ((pix = png_load(path)) != NULL) {
+            LOG_DBG("%s: %s (pixmaps)", icon.name, path);
+            goto done;
         }
     }
-    xdg_data_dirs_destroy(dirs);
 
-    LOG_DBG("%s: no matches", name);
-    return NULL;
-}
-
-static bool
-dir_is_usable(const char *path, const char *context, const char *type)
-{
-    return path != NULL && context != NULL;
+done:
+    xdg_data_dirs_destroy(xdg_dirs);
+    return pix;
 }
 
 static void
@@ -176,8 +251,9 @@ parse_theme(FILE *index, struct icon_theme *theme, theme_names_t *themes_to_load
     int min_size = -1;
     int max_size = -1;
     int scale = 1;
+    int threshold = 2;
     char *context = NULL;
-    char *type = NULL;
+    enum icon_dir_type type = ICON_DIR_THRESHOLD;
 
     while (true) {
         char *line = NULL;
@@ -206,27 +282,29 @@ parse_theme(FILE *index, struct icon_theme *theme, theme_names_t *themes_to_load
 
         if (line[0] == '[' && line[len - 1] == ']') {
 
-            if (dir_is_usable(section, context, type)) {
-                struct icon_dir dir = {
-                    .path = section,
-                    .size = size,
-                    .min_size = min_size >= 0 ? min_size : size,
-                    .max_size = max_size >= 0 ? max_size : size,
-                    .scale = scale,
-                    .scalable = strcasecmp(type, "scalable") == 0,
-                };
-                tll_push_back(theme->dirs, dir);
-            } else
-                free(section);
+            tll_foreach(theme->dirs, it) {
+                struct icon_dir *d = &it->item;
 
+                if (section == NULL || strcmp(d->path, section) != 0)
+                    continue;
+
+                d->size = size;
+                d->min_size = min_size >= 0 ? min_size : size;
+                d->max_size = max_size >= 0 ? max_size : size;
+                d->scale = scale;
+                d->threshold = threshold;
+                d->type = type;
+            }
+
+            free(section);
             free(context);
-            free(type);
 
             size = min_size = max_size = -1;
             scale = 1;
             section = NULL;
             context = NULL;
-            type = NULL;
+            type = ICON_DIR_THRESHOLD;
+            threshold = 2;
 
             section = malloc(len - 2 + 1);
             memcpy(section, &line[1], len - 2);
@@ -249,7 +327,18 @@ parse_theme(FILE *index, struct icon_theme *theme, theme_names_t *themes_to_load
             }
         }
 
-        if (strcasecmp(key, "size") == 0)
+        if (strcasecmp(key, "directories") == 0) {
+            char *save = NULL;
+            for (const char *d = strtok_r(value, ",", &save);
+                 d != NULL;
+                 d = strtok_r(NULL, ",", &save))
+            {
+                struct icon_dir dir = {.path = strdup(d)};
+                tll_push_back(theme->dirs, dir);
+            }
+        }
+
+        else if (strcasecmp(key, "size") == 0)
             sscanf(value, "%d", &size);
 
         else if (strcasecmp(key, "minsize") == 0)
@@ -264,65 +353,65 @@ parse_theme(FILE *index, struct icon_theme *theme, theme_names_t *themes_to_load
         else if (strcasecmp(key, "context") == 0)
             context = strdup(value);
 
-        else if (strcasecmp(key, "type") == 0)
-            type = strdup(value);
+        else if (strcasecmp(key, "threshold") == 0)
+            sscanf(value, "%d", &threshold);
+
+        else if (strcasecmp(key, "type") == 0) {
+            if (strcasecmp(value, "fixed") == 0)
+                type = ICON_DIR_FIXED;
+            else if (strcasecmp(value, "scalable") == 0)
+                type = ICON_DIR_SCALABLE;
+            else if (strcasecmp(value, "threshold") == 0)
+                type = ICON_DIR_THRESHOLD;
+            else {
+                LOG_WARN(
+                    "ignoring unrecognized icon theme directory type: %s",
+                    value);
+            }
+        }
 
         free(line);
     }
 
-    if (dir_is_usable(section, context, type)) {
-        struct icon_dir dir = {
-            .path = section,
-            .size = size,
-            .min_size = min_size >= 0 ? min_size : size,
-            .max_size = max_size >= 0 ? max_size : size,
-            .scale = scale
-        };
-        tll_push_back(theme->dirs, dir);
-    } else
-        free(section);
+    tll_foreach(theme->dirs, it) {
+        struct icon_dir *d = &it->item;
 
+        if (section == NULL || strcmp(d->path, section) != 0)
+            continue;
+
+        d->size = size;
+        d->min_size = min_size >= 0 ? min_size : size;
+        d->max_size = max_size >= 0 ? max_size : size;
+        d->scale = scale;
+        d->threshold = threshold;
+        d->type = type;
+    }
+
+    tll_foreach(theme->dirs, it) {
+        if (it->item.size == 0) {
+            free(it->item.path);
+            tll_remove(theme->dirs, it);
+        }
+    }
+
+    free(section);
     free(context);
-    free(type);
 }
 
 static bool
 load_theme_in(const char *dir, struct icon_theme *theme,
               theme_names_t *themes_to_load)
 {
-    int theme_dir_fd = -1;
-    int index_fd = -1;
-    FILE *index = NULL;
-    bool ret = false;
+    char path[PATH_MAX];
+    snprintf(path, sizeof(path), "%s/index.theme", dir);
 
-    theme_dir_fd = open(dir, O_RDONLY);
-    if (theme_dir_fd == -1) {
-        //LOG_WARN("%s: failed to open", dir);
-        goto out;
-    }
+    FILE *index = fopen(path, "r");
+    if (index == NULL)
+        return false;
 
-    index_fd = openat(theme_dir_fd, "index.theme", O_RDONLY);
-    if (index_fd == -1) {
-        LOG_DBG("%s/index.theme: failed to open", dir);
-        goto out;
-    }
-
-    index = fdopen(index_fd, "r");
-    assert(index != NULL);
-
-    theme->path = strdup(dir);
     parse_theme(index, theme, themes_to_load);
-
-    ret = true;
-
- out:
-    if (index != NULL)
-        fclose(index);
-    if (index_fd != -1)
-        close(index_fd);
-    if (theme_dir_fd != -1)
-        close(theme_dir_fd);
-    return ret;
+    fclose(index);
+    return true;
 }
 
 icon_theme_list_t
@@ -344,7 +433,7 @@ icon_load_theme(const char *name)
 
         /*
          * Check if we've already loaded this theme. Example:
-         * "Arc" inherits "Moka,Faba,elementary,Adwaita,gnome,hicolor
+         * "Arc" inherits "Moka,Faba,elementary,Adwaita,ghome,hicolor
          * "Moka" inherits "Faba"
          * "Faba" inherits "elementary,gnome,hicolor"
          */
@@ -362,10 +451,10 @@ icon_load_theme(const char *name)
         }
 
         tll_foreach(dirs, dir_it) {
-            char path[strlen(dir_it->item) + 1 +
+            char path[strlen(dir_it->item.path) + 1 +
                       strlen("icons") + 1 +
                       strlen(theme_name) + 1];
-            sprintf(path, "%s/icons/%s", dir_it->item, theme_name);
+            sprintf(path, "%s/icons/%s", dir_it->item.path, theme_name);
 
             struct icon_theme theme = {0};
             if (load_theme_in(path, &theme, &themes_to_load)) {
@@ -377,48 +466,6 @@ icon_load_theme(const char *name)
         free(theme_name);
     }
 
-    /* *Always* add 'hicolor' to the end of the list */
-    const char *theme_name = "hicolor";
-
-    bool theme_already_loaded = false;
-    tll_foreach(themes, it) {
-        if (strcasecmp(it->item.name, theme_name) == 0) {
-            theme_already_loaded = true;
-            break;
-        }
-    }
-
-    if (!theme_already_loaded) {
-        tll_foreach(dirs, dir_it) {
-            char path[strlen(dir_it->item) + 1 +
-                      strlen("icons") + 1 +
-                      strlen(theme_name) + 1];
-            sprintf(path, "%s/icons/%s", dir_it->item, theme_name);
-
-            struct icon_theme theme = {0};
-            if (load_theme_in(path, &theme, &themes_to_load)) {
-                theme.name = strdup(theme_name);
-                tll_push_back(themes, theme);
-            }
-        }
-    }
-
-#if defined(_DEBUG)
-    LOG_DBG("loaded %zu themes", tll_length(themes));
-    tll_foreach(themes, theme_it) {
-        const struct icon_theme *theme = &theme_it->item;
-        LOG_DBG("%s (%zu dirs)", theme->name, tll_length(theme->dirs));
-
-        tll_foreach(theme->dirs, dir_it) {
-            const struct icon_dir *dir __attribute__((unused))  = &dir_it->item;
-            LOG_DBG(
-                "  %s (scalable=%d, scale=%d, size=%d, min-size=%d, max-size=%d)",
-                dir->path, dir->scalable, dir->scale, dir->size,
-                dir->min_size, dir->max_size);
-        }
-    }
-#endif
-
     xdg_data_dirs_destroy(dirs);
     return themes;
 }
@@ -427,7 +474,6 @@ static void
 theme_destroy(struct icon_theme theme)
 {
     free(theme.name);
-    free(theme.path);
 
     tll_foreach(theme.dirs, it) {
         free(it->item.path);

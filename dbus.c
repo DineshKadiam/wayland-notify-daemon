@@ -162,10 +162,7 @@ notify(struct dbus *bus, DBusMessage *msg)
             icon_name = app_name_locase;
         }
 
-        pix = icon_load(
-            icon_name,
-            bus->conf->max_icon_size, *bus->icon_theme);
-
+        pix = icon_load(icon_name, bus->conf->max_icon_size, bus->icon_theme);
         free(app_name_locase);
     }
 
