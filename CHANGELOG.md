@@ -54,8 +54,11 @@
 * Scale not being applied to the notification’s size when first
   instantiated ([#54][54]).
 * Fallback to `/etc/xdg` if `XDG_CONFIG_DIRS` is unset.
+* Icon lookup is now better at following the XDG specification
+  ([#64][64]).
 
 [54]: https://codeberg.org/dnkl/fnott/issues/54
+[64]: https://codeberg.org/dnkl/fnott/issues/64
 
 
 ### Security
