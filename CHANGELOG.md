@@ -35,6 +35,12 @@
 
 ### Deprecated
 ### Removed
+
+* `$XDG_CONFIG_HOME/fnottrc` and `~/.config/fnottrc`. Use
+  `$XDG_CONFIG_HOME/fnott/fnott.ini` (defaulting to
+  `~/.config/fnott/fnott.ini`) instead ([#7][7]).
+
+
 ### Fixed
 
 * Scale not being applied to the notification’s size when first
@@ -50,6 +56,7 @@
 [52]: https://codeberg.org/dnkl/fnott/issues/52
 [47]: https://codeberg.org/dnkl/fnott/issues/47
 [54]: https://codeberg.org/dnkl/fnott/issues/54
+[7]: https://codeberg.org/dnkl/fnott/issues/7
 
 
 ## 1.2.1
