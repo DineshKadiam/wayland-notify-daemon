@@ -21,6 +21,9 @@
   `%s`, `%b` and `%%` formatters, as well as `\n`, are
   recognized. ([#39][39]).
 
+[51]: https://codeberg.org/dnkl/fnott/issues/51
+[39]: https://codeberg.org/dnkl/fnott/issues/39
+
 
 ### Changed
 
@@ -32,6 +35,9 @@
   means **all** color values **must** be specified with 8 digits
   ([#47][47]).
 
+[52]: https://codeberg.org/dnkl/fnott/issues/52
+[47]: https://codeberg.org/dnkl/fnott/issues/47
+
 
 ### Deprecated
 ### Removed
@@ -40,6 +46,8 @@
   `$XDG_CONFIG_HOME/fnott/fnott.ini` (defaulting to
   `~/.config/fnott/fnott.ini`) instead ([#7][7]).
 
+[7]: https://codeberg.org/dnkl/fnott/issues/7
+
 
 ### Fixed
 
@@ -47,16 +55,11 @@
   instantiated ([#54][54]).
 * Fallback to `/etc/xdg` if `XDG_CONFIG_DIRS` is unset.
 
+[54]: https://codeberg.org/dnkl/fnott/issues/54
+
 
 ### Security
 ### Contributors
-
-[51]: https://codeberg.org/dnkl/fnott/issues/51
-[39]: https://codeberg.org/dnkl/fnott/issues/39
-[52]: https://codeberg.org/dnkl/fnott/issues/52
-[47]: https://codeberg.org/dnkl/fnott/issues/47
-[54]: https://codeberg.org/dnkl/fnott/issues/54
-[7]: https://codeberg.org/dnkl/fnott/issues/7
 
 
 ## 1.2.1
@@ -66,6 +69,8 @@
 * Crash when receiving notification with inline image data
   ([#44][44]).
 
+[44]: https://codeberg.org/dnkl/fnott/issues/44
+
 
 ## 1.2.0
 
@@ -73,6 +78,8 @@
 
 * Configurable padding of notification text. New `fnottrc` options:
   `padding-vertical` and `padding-horizontal` ([#35][35]).
+
+[35]: https://codeberg.org/dnkl/fnott/issues/35
 
 
 ### Changed
@@ -91,17 +98,15 @@
 * Fnott no longer allocates the vertical padding space between summary
   and body text, if the body text is empty ([#41][41]).
 
+[25]: https://codeberg.org/dnkl/fnott/issues/25
+[36]: https://codeberg.org/dnkl/fnott/issues/36
+[41]: https://codeberg.org/dnkl/fnott/issues/41
+
 
 ### Contributors
 
 * fauxmight
 * Rishabh Das
-
-[44]: https://codeberg.org/dnkl/fnott/issues/44
-[35]: https://codeberg.org/dnkl/fnott/issues/35
-[25]: https://codeberg.org/dnkl/fnott/issues/25
-[36]: https://codeberg.org/dnkl/fnott/issues/36
-[41]: https://codeberg.org/dnkl/fnott/issues/41
 
 
 ## 1.1.2
@@ -121,6 +126,9 @@
 * `default-timeout` option, to adjust the timeout when applications
   ask us to pick the timeout ([#27][27]).
 * `max-timeout` option ([#29][29]).
+
+[27]: https://codeberg.org/dnkl/fnott/issues/27
+[29]: https://codeberg.org/dnkl/fnott/issues/29
 
 
 ### Changed
@@ -142,16 +150,14 @@
   attached to the wayland session.
 * Wrong colors in (semi-)transparent areas of SVG icons.
 
+[17]: https://codeberg.org/dnkl/fnott/issues/17
+
 
 ### Contributors
 
 * Julian Scheel
 * polykernel
 * Stanislav Ochotnický
-
-[27]: https://codeberg.org/dnkl/fnott/issues/27
-[29]: https://codeberg.org/dnkl/fnott/issues/29
-[17]: https://codeberg.org/dnkl/fnott/issues/17
 
 
 ## 1.1.0
@@ -172,6 +178,11 @@
   path to an audio file to play when a notification is received
   ([#12][12]).
 
+[4]: https://codeberg.org/dnkl/fnott/issues/4
+[10]: https://codeberg.org/dnkl/fnott/issues/10
+[13]: https://codeberg.org/dnkl/fnott/issues/13
+[12]: https://codeberg.org/dnkl/fnott/issues/12
+
 
 ### Changed
 
@@ -183,12 +194,16 @@
   emulated displays).
 * There is now an empty line between the ‘summary’ and ‘body’.
 
+[7]: https://codeberg.org/dnkl/fnott/issues/7
+
 
 ### Deprecated
 
 * `$XDG_CONFIG_HOME/fnottrc` and `~/.config/fnottrc`. Use
   `$XDG_CONFIG_HOME/fnott/fnott.ini` (defaulting to
   `~/.config/fnott/fnott.ini`) instead ([#7][7]).
+
+[7]: https://codeberg.org/dnkl/fnott/issues/7
 
 
 ### Removed
@@ -207,12 +222,6 @@
 - yyp (Alexey Yerin)
 - Julian Scheel
 
-[4]: https://codeberg.org/dnkl/fnott/issues/4
-[10]: https://codeberg.org/dnkl/fnott/issues/10
-[13]: https://codeberg.org/dnkl/fnott/issues/13
-[12]: https://codeberg.org/dnkl/fnott/issues/12
-[7]: https://codeberg.org/dnkl/fnott/issues/7
-
 
 ## 1.0.1
 
@@ -223,6 +232,8 @@
   notification provides its own timeout, the shortest one is used
   ([#2][2]).
 * FreeBSD port ([#1][1]).
+
+[1]: https://codeberg.org/dnkl/fnott/issues/1
 
 
 ### Fixed
@@ -236,8 +247,6 @@
 ### Contributors
 
 * jbeich
-
-[1]: https://codeberg.org/dnkl/fnott/issues/1
 
 
 ## 1.0.0
