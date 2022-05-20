@@ -662,6 +662,8 @@ dbus_init(const struct config *conf, struct fdm *fdm, struct wayland *wayl,
     return bus;
 
 err:
+    if (conn != NULL)
+        dbus_connection_unref(conn);
     if (bus != NULL)
         free(bus);
     return NULL;
@@ -674,6 +676,7 @@ dbus_destroy(struct dbus *bus)
         return;
 
     fdm_del_no_close(bus->fdm, bus->bus_fd);
+    dbus_connection_unref(bus->conn);
     free(bus);
 }
 
