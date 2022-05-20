@@ -121,8 +121,10 @@ icon_load(const char *name, int icon_size, const icon_theme_list_t *themes)
                 if (dir_fd < 0)
                     continue;
 
-                if (!is_exact_match && min_diff.diff <= diff)
+                if (!is_exact_match && min_diff.diff <= diff) {
+                    close(dir_fd);
                     continue;
+                }
 
                 const size_t len = file_name_len;
                 char *path = file_name;
@@ -135,8 +137,10 @@ icon_load(const char *name, int icon_size, const icon_theme_list_t *themes)
                     path[len - 3] = 's';
                     path[len - 2] = 'v';
                     path[len - 1] = 'g';
-                    if (faccessat(dir_fd, path, R_OK, 0) < 0)
+                    if (faccessat(dir_fd, path, R_OK, 0) < 0) {
+                        close(dir_fd);
                         continue;
+                    }
                 }
 
                 if (!is_exact_match) {
@@ -147,6 +151,7 @@ icon_load(const char *name, int icon_size, const icon_theme_list_t *themes)
                     min_diff.icon_dir = icon_dir;
                     min_diff.type = path[len - 3] == 's'
                         ? ICON_SVG : ICON_PNG;
+                    close(dir_fd);
                     continue;
                 }
 
@@ -167,6 +172,7 @@ icon_load(const char *name, int icon_size, const icon_theme_list_t *themes)
                      (pix = png_load(full_path)) != NULL))
                 {
                     LOG_DBG("%s: %s", icon.name, full_path);
+                    close(dir_fd);
                     goto done;
                 }
 
