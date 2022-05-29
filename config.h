@@ -5,6 +5,8 @@
 
 #include "char32.h"
 
+#include <wlr-layer-shell-unstable-v1.h>
+
 struct urgency_config {
     pixman_color_t bg;
 
@@ -70,6 +72,8 @@ struct config {
         STACK_BOTTOM_UP,
         STACK_TOP_DOWN,
     } stacking_order;
+
+    enum zwlr_layer_shell_v1_layer layer;
 
     enum {
         ANCHOR_TOP_LEFT,

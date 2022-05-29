@@ -20,9 +20,13 @@
   you to customize the rendered strings. In this release, the `%a`,
   `%s`, `%b` and `%%` formatters, as well as `\n`, are
   recognized. ([#39][39]).
+* Added configuration option `layer` to specify the layer on which notifications
+  are displayed. Values include `background`, `top`, `bottom`, and `overlay`
+  ([#71][71]).
 
 [51]: https://codeberg.org/dnkl/fnott/issues/51
 [39]: https://codeberg.org/dnkl/fnott/issues/39
+[71]: https://codeberg.org/dnkl/fnott/issues/71
 
 
 ### Changed

@@ -428,6 +428,28 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
     }
 
+
+    else if (strcmp(key, "layer") == 0) {
+        if (strcasecmp(value, "background") == 0)
+            conf->layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
+        else if (strcasecmp(value, "top") == 0)
+            conf->layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP;
+        else if (strcasecmp(value, "bottom") == 0)
+            conf->layer = ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM;
+        else if (strcasecmp(value, "overlay") == 0)
+            conf->layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY;
+        else {
+            LOG_ERR(
+                "%s:%u: %s: invalid layer value, must be one of "
+                "\"background\", "
+                "\"bottom\", "
+                "\"top\" or "
+                "\"overlay\"",
+                path, lineno, value);
+            return false;
+        }
+    }
+
     else if (strcmp(key, "anchor") == 0) {
         if (strcasecmp(value, "top-left") == 0)
             conf->anchor = ANCHOR_TOP_LEFT;
@@ -848,6 +870,7 @@ config_load(struct config *conf, const char *path)
         .max_icon_size = 48,
         .stacking_order = STACK_BOTTOM_UP,
         .anchor = ANCHOR_TOP_RIGHT,
+        .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
         .margins = {
             .vertical = 10,
             .horizontal = 10,

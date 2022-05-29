@@ -71,6 +71,10 @@ in this order:
 	Where notifications are positioned: *top-left*, *top-right*,
 	*bottom-left* or *bottom-right*. Default: _top-right_.
 
+*layer*
+	Layer on which notifications will appear: *background*, *bottom*,
+	*top* or *overlay*. Default: _top_.
+
 *edge-margin-vertical*
 	Vertical margin, in pixels, between the screen edge (top or
 	bottom, depending on anchor pointer) and notifications. Default:

@@ -923,10 +923,12 @@ notif_instantiate_surface(struct notif *notif, int width, int height)
         return false;
     }
 
+    const struct config *conf = mgr->conf;
+
     struct zwlr_layer_surface_v1 *layer_surface =
         zwlr_layer_shell_v1_get_layer_surface(
             wayl_layer_shell(wayl), surface, mon != NULL ? mon->output : NULL,
-            ZWLR_LAYER_SHELL_V1_LAYER_TOP, "notifications");
+            conf->layer, "notifications");
 
     if (layer_surface == NULL) {
         LOG_ERR("failed to create layer shell surface");
@@ -934,7 +936,6 @@ notif_instantiate_surface(struct notif *notif, int width, int height)
         return false;
     }
 
-    const struct config *conf = mgr->conf;
     enum zwlr_layer_surface_v1_anchor anchor
         = (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT
            ? ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
