@@ -319,6 +319,16 @@ parse_section_urgency(const char *key, const char *value,
         conf->default_timeout_secs = default_timeout_secs;
     }
 
+    else if (strcmp(key, "idle-timeout") == 0) {
+        unsigned long idle_timeout_secs;
+        if (!str_to_ulong(value, 10, &idle_timeout_secs)) {
+            LOG_ERR("%s:%d: invalid idle-timeout (expected an integer): %s", path,
+                    lineno, value);
+            return false;
+        }
+        conf->idle_timeout_secs = idle_timeout_secs;
+    }
+
     else if (strcmp(key, "sound-file") == 0) {
         free(conf->sound_file);
         conf->sound_file = strlen(value) > 0 ? strdup(value) : NULL;
@@ -693,6 +703,19 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
     }
 
+    else if (strcmp(key, "idle-timeout") == 0) {
+        unsigned long idle_timeout_secs;
+        if (!str_to_ulong(value, 10, &idle_timeout_secs)) {
+            LOG_ERR("%s:%d: invalid idle-timeout (expected an integer): %s", path,
+                    lineno, value);
+            return false;
+        }
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+            urgency->idle_timeout_secs = idle_timeout_secs;
+        }
+    }
+
     else if (strcmp(key, "sound-file") == 0) {
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
@@ -913,6 +936,7 @@ config_load(struct config *conf, const char *path)
                 },
                 .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
+                .idle_timeout_secs = 0,
             },
             {
                 .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
@@ -949,6 +973,7 @@ config_load(struct config *conf, const char *path)
                 },
                 .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
+                .idle_timeout_secs = 0,
             },
             {
                 .bg = {0x6c6c, 0x3333, 0x3333, 0xffff},
@@ -985,6 +1010,7 @@ config_load(struct config *conf, const char *path)
                 },
                 .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
+                .idle_timeout_secs = 0,
             },
         },
         .selection_helper = strdup("dmenu"),

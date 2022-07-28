@@ -13,6 +13,13 @@
 
 ## Unreleased
 ### Added
+
+* Added `idle-timeout` option to specify the amount of time you need
+  to be idle before notifications are prevented from timing out
+  ([#16][16]).
+
+[16]: https://codeberg.org/dnkl/fnott/issues/16
+
 ### Changed
 ### Deprecated
 ### Removed

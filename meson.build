@@ -73,6 +73,7 @@ wl_proto_headers = []
 wl_proto_src = []
 foreach prot : [
   'external/wlr-layer-shell-unstable-v1.xml',
+  'external/idle.xml',
   wayland_protocols_datadir + '/stable/xdg-shell/xdg-shell.xml',
   wayland_protocols_datadir + '/unstable/xdg-output/xdg-output-unstable-v1.xml',
   ]

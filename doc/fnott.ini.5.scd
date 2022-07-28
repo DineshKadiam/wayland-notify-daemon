@@ -183,6 +183,11 @@ case they override the values specified in the default section.
 	provide a timeout, the notification is never automatically
 	dismissed (unless *max-timeout* has been set). Default: _0_.
 
+*idle-timeout*
+	Time, in seconds, that you must be idle to prevent any
+	notification from being dismissed. A value of 0 disables
+	the timeout. Default: _0_.
+
 *sound-file*
 	Absolute path to audio file to play when a notification is
 	received. If unset, no sound is played. Default: _unset_.

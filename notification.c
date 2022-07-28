@@ -574,6 +574,12 @@ notif_reload_timeout(struct notif *notif)
         notif->timeout_fd = -1;
     }
 
+    if (wayl_is_idle_for_urgency(notif->mgr->wayl, notif->urgency)) {
+        LOG_DBG("removed timer for notification with id %d, because urgency level %d is idle",
+                notif->id, notif->urgency);
+        return true;
+    }
+
     if (timeout_ms == 0) {
         /* No timeout */
         return true;
@@ -1713,6 +1719,13 @@ notif_mgr_refresh(struct notif_mgr *mgr)
             y += notif_show(it->item, y) + mgr->conf->margins.between;
         break;
     }
+}
+
+void
+notif_mgr_notifs_reload_timeout(const struct notif_mgr *mgr)
+{
+    tll_foreach(mgr->notifs, it)
+        notif_reload_timeout(it->item);
 }
 
 ssize_t

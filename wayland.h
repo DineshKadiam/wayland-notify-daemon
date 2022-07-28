@@ -77,6 +77,8 @@ void wayl_destroy(struct wayland *wayl);
 struct wl_compositor *wayl_compositor(const struct wayland *wayl);
 struct zwlr_layer_shell_v1 *wayl_layer_shell(const struct wayland *wayl);
 
+bool wayl_is_idle_for_urgency(const struct wayland *wayl, const enum urgency urgency);
+
 struct buffer *wayl_get_buffer(const struct wayland *wayl, int width, int height);
 const struct monitor *wayl_preferred_monitor(const struct wayland *wayl);
 const struct monitor *wayl_monitor_get(

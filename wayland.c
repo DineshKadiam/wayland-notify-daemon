@@ -10,6 +10,7 @@
 #include <linux/input-event-codes.h>
 #include <wayland-client.h>
 #include <wayland-cursor.h>
+#include <idle.h>
 #include <xdg-output-unstable-v1.h>
 #include <wlr-layer-shell-unstable-v1.h>
 
@@ -20,11 +21,21 @@
 #include "log.h"
 #include "notification.h"
 
+struct idle_timer {
+    struct notif_mgr *notif_mgr;
+    struct org_kde_kwin_idle_timeout *kde_idle_timeout;
+    enum urgency urgency;
+    struct seat *seat;
+};
+
 struct seat {
     struct wayland *wayl;
     struct wl_seat *wl_seat;
     uint32_t wl_name;
     char *name;
+    /* One for each urgency level */
+    struct idle_timer idle_timer[3];
+    bool is_idle[3];
 
     struct wl_pointer *wl_pointer;
     struct {
@@ -48,6 +59,7 @@ struct seat {
 struct wayland {
     const struct config *conf;
     struct fdm *fdm;
+    struct org_kde_kwin_idle *kde_idle_manager;
     struct notif_mgr *notif_mgr;
     struct wl_display *display;
     struct wl_registry *registry;
@@ -55,7 +67,6 @@ struct wayland {
     struct zxdg_output_manager_v1 *xdg_output_manager;
     struct wl_shm *shm;
     struct zwlr_layer_shell_v1 *layer_shell;
-
 
     bool have_argb8888;
 
@@ -70,6 +81,9 @@ seat_destroy(struct seat *seat)
     if (seat == NULL)
         return;
 
+    for (int i = 0; i < 3; i++)
+        if (seat->idle_timer[i].kde_idle_timeout != NULL)
+            org_kde_kwin_idle_timeout_release(seat->idle_timer[i].kde_idle_timeout);
     if (seat->pointer.theme != NULL)
         wl_cursor_theme_destroy(seat->pointer.theme);
     if (seat->pointer.surface != NULL)
@@ -492,6 +506,33 @@ seat_name(void *data, struct wl_seat *wl_seat, const char *name)
     seat->name = strdup(name);
 }
 
+static void
+kde_idled(void *data, struct org_kde_kwin_idle_timeout *timeout)
+{
+    struct idle_timer *timer = data;
+    assert(timer->kde_idle_timeout == timeout);
+
+    LOG_DBG("idle notify for urgency level %d", timer->urgency);
+    timer->seat->is_idle[timer->urgency] = true;
+    notif_mgr_notifs_reload_timeout(timer->notif_mgr);
+}
+
+static void
+kde_resumed(void *data, struct org_kde_kwin_idle_timeout *timeout)
+{
+    struct idle_timer *timer = data;
+    assert(timer->kde_idle_timeout == timeout);
+
+    LOG_DBG("resume notify for urgency level %d", timer->urgency);
+    timer->seat->is_idle[timer->urgency] = false;
+    notif_mgr_notifs_reload_timeout(timer->notif_mgr);
+}
+
+static const struct org_kde_kwin_idle_timeout_listener kde_idle_listener = {
+    .idle = kde_idled,
+    .resumed = kde_resumed,
+};
+
 static const struct wl_shm_listener shm_listener = {
     .format = &shm_format,
 };
@@ -526,6 +567,41 @@ verify_iface_version(const char *iface, uint32_t version, uint32_t wanted)
     LOG_ERR("%s: need interface version %u, but compositor only implements %u",
             iface, wanted, version);
     return false;
+}
+
+static void
+seat_register_idle(struct seat *seat)
+{
+    struct wayland *wayl = seat->wayl;
+    const struct config *conf = wayl->conf;
+
+    for (int i = 0; i < 3; i++) {
+        const struct urgency_config *urg_conf = &conf->by_urgency[i];
+        if (urg_conf->idle_timeout_secs > 0 &&
+                seat->idle_timer[i].kde_idle_timeout == NULL) {
+            seat->idle_timer[i] = (struct idle_timer){
+                .kde_idle_timeout = org_kde_kwin_idle_get_idle_timeout(
+                    wayl->kde_idle_manager, seat->wl_seat,
+                    urg_conf->idle_timeout_secs * 1000),
+                .notif_mgr = wayl->notif_mgr,
+                .urgency = i,
+                .seat = seat,
+            };
+            LOG_DBG("registering a new idle timer for urgency level %d: %ds",
+                    i, urg_conf->idle_timeout_secs);
+            org_kde_kwin_idle_timeout_add_listener(
+                seat->idle_timer[i].kde_idle_timeout, &kde_idle_listener,
+                        &seat->idle_timer[i]);
+        }
+    }
+}
+
+static void
+wayl_register_idle_for_all_seats(struct wayland *wayl)
+{
+    assert(wayl->kde_idle_manager != NULL);
+    tll_foreach(wayl->seats, it)
+        seat_register_idle(&it->item);
 }
 
 static void
@@ -618,6 +694,16 @@ handle_global(void *data, struct wl_registry *registry,
 
         struct seat *seat = &tll_back(wayl->seats);
         wl_seat_add_listener(wl_seat, &seat_listener, seat);
+        seat_register_idle(seat);
+    }
+
+    else if (strcmp(interface, org_kde_kwin_idle_interface.name) == 0) {
+        const uint32_t required = 1;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
+        wayl->kde_idle_manager = wl_registry_bind(wayl->registry, name, &org_kde_kwin_idle_interface, required);
+        wayl_register_idle_for_all_seats(wayl);
     }
 }
 
@@ -743,6 +829,13 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
         goto err;
     }
 
+    if (wayl->kde_idle_manager == NULL &&
+            (conf->by_urgency[0].idle_timeout_secs > 0 ||
+            conf->by_urgency[1].idle_timeout_secs > 0 ||
+            conf->by_urgency[2].idle_timeout_secs > 0)) {
+        LOG_WARN("compositor does not support idle protocol, ignoring 'idle-timeout' setting");
+    }
+
     wl_display_roundtrip(wayl->display);
 
     if (!wayl->have_argb8888) {
@@ -801,6 +894,8 @@ wayl_destroy(struct wayland *wayl)
         seat_destroy(&it->item);
     tll_free(wayl->seats);
 
+    if (wayl->kde_idle_manager != NULL)
+        org_kde_kwin_idle_destroy(wayl->kde_idle_manager);
     if (wayl->layer_shell != NULL)
         zwlr_layer_shell_v1_destroy(wayl->layer_shell);
     if (wayl->xdg_output_manager != NULL)
@@ -817,6 +912,19 @@ wayl_destroy(struct wayland *wayl)
     }
 
     free(wayl);
+}
+
+bool
+wayl_is_idle_for_urgency(const struct wayland *wayl, const enum urgency urgency)
+{
+    bool idle = true;
+    assert(urgency >= 0 && urgency < 3);
+    tll_foreach(wayl->seats, it) {
+        struct seat *seat = &it->item;
+        idle &= seat->is_idle[urgency];
+    }
+
+    return idle;
 }
 
 struct wl_compositor *

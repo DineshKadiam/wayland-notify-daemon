@@ -22,6 +22,7 @@ void notif_mgr_configure(
     struct notif_mgr *mgr, struct wayland *wayl, struct dbus *bus);
 
 void notif_mgr_refresh(struct notif_mgr *mgr);
+void notif_mgr_notifs_reload_timeout(const struct notif_mgr *mgr);
 
 ssize_t notif_mgr_get_ids(const struct notif_mgr *mgr, uint32_t *ids, size_t max);
 

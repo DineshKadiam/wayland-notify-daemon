@@ -73,6 +73,10 @@ notifications, or `fnottctl dismiss <id>` to dismiss a specific
 notification (use `fnottctl list` to list currently active
 notifications).
 
+Additionally if you compositor implements the KDE idle protocol
+fnott will not dismiss any notification if you are idle by the
+amount of time configured in `fnott.ini`
+
 You can also click on a notification to dismiss it.
 
 Note: you probably want to bind at least `fnottctl dismiss` to a
