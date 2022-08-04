@@ -41,10 +41,12 @@ in this order:
 	Minimum notification width, in pixels. Default: _0_.
 
 *max-width*
-	Maximum notification width, in pixels. Default: _400_.
+	Maximum notification width, in pixels. 0 means unlimited. Default:
+	_400_.
 
 *max-height*
-	Maximum notification height, in pixels. Default: _200_.
+	Maximum notification height, in pixels. 0 means
+	unlimited. Default: _200_.
 
 *icon-theme*
 	Icon theme to use when a notification has requested an

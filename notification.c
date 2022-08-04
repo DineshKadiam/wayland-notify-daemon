@@ -1265,7 +1265,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
             struct fcft_font *font = run->font;
             const int dist = distance[idx];
 
-            if ((x > left_pad &&
+            if ((x > left_pad && conf->max_width > 0 &&
                  x + glyph->advance.x + dist + right_pad > conf->max_width) ||
                 wc == U'\n')
             {
@@ -1281,7 +1281,7 @@ notif_layout(struct notif *notif, struct font_set *fonts,
                 }
             }
 
-            if (y + fonts->regular->height > max_y)
+            if (max_y >= 0 && y + fonts->regular->height > max_y)
                 break;
 
             if (glyph->cols <= 0)
@@ -1469,7 +1469,8 @@ notif_show(struct notif *notif, int y)
         notif_layout(
             notif, &notif->fonts.app, &urgency->app.color, subpixel,
             title, indent, pad_horizontal, height,
-            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
+            conf->max_height > 0 ? conf->max_height - pad_vertical : -1,
+            &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
@@ -1478,7 +1479,8 @@ notif_show(struct notif *notif, int y)
         notif_layout(
             notif, &notif->fonts.summary, &urgency->summary.color, subpixel,
             summary, indent, pad_horizontal, height,
-            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
+            conf->max_height > 0 ? conf->max_height - pad_vertical : -1,
+            &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
@@ -1487,7 +1489,8 @@ notif_show(struct notif *notif, int y)
         notif_layout(
             notif, &notif->fonts.body, &urgency->body.color, subpixel,
             body, indent, pad_horizontal, height,
-            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
+            conf->max_height > 0 ? conf->max_height - pad_vertical : -1,
+            &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
@@ -1502,7 +1505,8 @@ notif_show(struct notif *notif, int y)
         notif_layout(
             notif, &notif->fonts.app, &urgency->app.color, subpixel,
             notif->app, indent, pad_horizontal, height,
-            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
+            conf->max_height > 0 ? conf->max_height - pad_vertical : -1,
+            &_w, &_h, &glyphs);
 
         if (tll_length(notif->actions) > 0) {
             /* TODO: better 'action' indicator */
@@ -1510,7 +1514,9 @@ notif_show(struct notif *notif, int y)
             notif_layout(
                 notif, &notif->fonts.app, &urgency->app.color,
                 subpixel, U"*", _w - pad_horizontal, pad_horizontal,
-                height, conf->max_height - pad_vertical, &_a, &_b, &glyphs);
+                height,
+                conf->max_height > 0 ? conf->max_height - pad_vertical : -1,
+                &_a, &_b, &glyphs);
         }
         width = max(width, _w);
         height += _h;
@@ -1521,7 +1527,8 @@ notif_show(struct notif *notif, int y)
         notif_layout(
             notif, &notif->fonts.summary, &urgency->summary.color, subpixel,
             notif->summary, indent, pad_horizontal, height,
-            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
+            conf->max_height > 0 ? conf->max_height - pad_vertical : -1,
+            &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
@@ -1534,7 +1541,8 @@ notif_show(struct notif *notif, int y)
         notif_layout(
             notif, &notif->fonts.body, &urgency->body.color, subpixel,
             notif->body, indent, pad_horizontal, height,
-            conf->max_height - pad_vertical, &_w, &_h, &glyphs);
+            conf->max_height > 0 ? conf->max_height - pad_vertical : -1,
+            &_w, &_h, &glyphs);
         width = max(width, _w);
         height += _h;
     }
@@ -1547,7 +1555,9 @@ notif_show(struct notif *notif, int y)
 
     if (notif->progress >= 0) {
         const int bar_y = height + notif->fonts.body.regular->height;
-        if (bar_y + pbar_height <= conf->max_height - pad_vertical) {
+        if (conf->max_height == 0 ||
+            bar_y + pbar_height <= conf->max_height - pad_vertical)
+        {
             pbar_y = bar_y;
             height += notif->fonts.body.regular->height + pbar_height;
             width = max(width, 3 * pad_horizontal);
@@ -1555,7 +1565,8 @@ notif_show(struct notif *notif, int y)
     }
     height += pad_vertical;
 
-    height = min(height, conf->max_height);
+    if (conf->max_height > 0)
+        height = min(height, conf->max_height);
 
     bool top_anchored
         = conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT;

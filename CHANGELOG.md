@@ -60,9 +60,13 @@
 * Fallback to `/etc/xdg` if `XDG_CONFIG_DIRS` is unset.
 * Icon lookup is now better at following the XDG specification
   ([#64][64]).
+* Setting `max-width` and/or `max-height` to 0 no longer causes fnott
+  to crash. Instead, a zero max-width/height means there is no limit
+  ([#66][66]).
 
 [54]: https://codeberg.org/dnkl/fnott/issues/54
 [64]: https://codeberg.org/dnkl/fnott/issues/64
+[66]: https://codeberg.org/dnkl/fnott/issues/66
 
 
 ### Security
