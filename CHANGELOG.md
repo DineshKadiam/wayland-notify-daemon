@@ -1,6 +1,6 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.3.0](#1-3-0)
 * [1.2.1](#1-2-1)
 * [1.2.0](#1-2-0)
 * [1.1.2](#1-1-2)
@@ -10,7 +10,7 @@
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.3.0
 
 ### Added
 
@@ -43,7 +43,6 @@
 [47]: https://codeberg.org/dnkl/fnott/issues/47
 
 
-### Deprecated
 ### Removed
 
 * `$XDG_CONFIG_HOME/fnottrc` and `~/.config/fnottrc`. Use
@@ -69,8 +68,13 @@
 [66]: https://codeberg.org/dnkl/fnott/issues/66
 
 
-### Security
 ### Contributors
+
+* bagnaram
+* Humm
+* Leonardo Hernández Hernández
+* Mark Stosberg
+* merkix
 
 
 ## 1.2.1
