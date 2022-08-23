@@ -18,7 +18,7 @@ packages:
   - py3-pip
 
 sources:
-  - https://codeberg.org/dnkl/fnott
+  - https://git.sr.ht/~dnkl/fnott
 
 # triggers:
 #   - action: email

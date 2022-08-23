@@ -15,7 +15,7 @@ packages:
   - wlroots
 
 sources:
-  - https://codeberg.org/dnkl/fnott
+  - https://git.sr.ht/~dnkl/fnott
 
 tasks:
   - fcft: |
