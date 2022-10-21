@@ -69,15 +69,21 @@ wscanner = dependency('wayland-scanner', native: true)
 wscanner_prog = find_program(
   wscanner.get_variable('wayland_scanner'), native: true)
 
-wl_proto_headers = []
-wl_proto_src = []
-foreach prot : [
+wl_xmls = [
   'external/wlr-layer-shell-unstable-v1.xml',
   'external/idle.xml',
   wayland_protocols_datadir + '/stable/xdg-shell/xdg-shell.xml',
   wayland_protocols_datadir + '/unstable/xdg-output/xdg-output-unstable-v1.xml',
-  ]
+]
 
+if wayland_protocols.version().version_compare('>=1.27')
+  wl_xmls += [wayland_protocols_datadir + '/staging/ext-idle-notify/ext-idle-notify-v1.xml']
+  add_project_arguments('-DFNOTT_HAVE_IDLE_NOTIFY', language: 'c')
+endif
+
+wl_proto_headers = []
+wl_proto_src = []
+foreach prot : wl_xmls
   wl_proto_headers += custom_target(
     prot.underscorify() + '-client-header',
     output: '@BASENAME@.h',

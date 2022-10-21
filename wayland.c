@@ -14,6 +14,10 @@
 #include <xdg-output-unstable-v1.h>
 #include <wlr-layer-shell-unstable-v1.h>
 
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+ #include <ext-idle-notify-v1.h>
+#endif
+
 #include <tllist.h>
 
 #define LOG_MODULE "wayland"
@@ -24,6 +28,9 @@
 struct idle_timer {
     struct notif_mgr *notif_mgr;
     struct org_kde_kwin_idle_timeout *kde_idle_timeout;
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+    struct ext_idle_notification_v1 *idle_notification;
+#endif
     enum urgency urgency;
     struct seat *seat;
 };
@@ -60,6 +67,9 @@ struct wayland {
     const struct config *conf;
     struct fdm *fdm;
     struct org_kde_kwin_idle *kde_idle_manager;
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+    struct ext_idle_notifier_v1 *idle_notifier;
+#endif
     struct notif_mgr *notif_mgr;
     struct wl_display *display;
     struct wl_registry *registry;
@@ -81,9 +91,14 @@ seat_destroy(struct seat *seat)
     if (seat == NULL)
         return;
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++) {
         if (seat->idle_timer[i].kde_idle_timeout != NULL)
             org_kde_kwin_idle_timeout_release(seat->idle_timer[i].kde_idle_timeout);
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+        if (seat->idle_timer[i].idle_notification != NULL)
+            ext_idle_notification_v1_destroy(seat->idle_timer[i].idle_notification);
+#endif
+    }
     if (seat->pointer.theme != NULL)
         wl_cursor_theme_destroy(seat->pointer.theme);
     if (seat->pointer.surface != NULL)
@@ -507,14 +522,50 @@ seat_name(void *data, struct wl_seat *wl_seat, const char *name)
 }
 
 static void
+idle_idled(struct idle_timer *timer)
+{
+    LOG_DBG("idle notify for urgency level %d", timer->urgency);
+    timer->seat->is_idle[timer->urgency] = true;
+    notif_mgr_notifs_reload_timeout(timer->notif_mgr);
+}
+
+static void
+idle_resumed(struct idle_timer *timer)
+{
+    LOG_DBG("resume notify for urgency level %d", timer->urgency);
+    timer->seat->is_idle[timer->urgency] = false;
+    notif_mgr_notifs_reload_timeout(timer->notif_mgr);
+}
+
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+static void
+idle_notify_idled(void *data, struct ext_idle_notification_v1 *notification)
+{
+    struct idle_timer *timer = data;
+    assert(timer->idle_notification == notification);
+    idle_idled(timer);
+}
+
+static void
+idle_notify_resumed(void *data, struct ext_idle_notification_v1 *notification)
+{
+    struct idle_timer *timer = data;
+    assert(timer->idle_notification == notification);
+    idle_resumed(timer);
+}
+
+static const struct ext_idle_notification_v1_listener idle_notify_listener = {
+    .idled = &idle_notify_idled,
+    .resumed = &idle_notify_resumed,
+};
+#endif
+
+static void
 kde_idled(void *data, struct org_kde_kwin_idle_timeout *timeout)
 {
     struct idle_timer *timer = data;
     assert(timer->kde_idle_timeout == timeout);
-
-    LOG_DBG("idle notify for urgency level %d", timer->urgency);
-    timer->seat->is_idle[timer->urgency] = true;
-    notif_mgr_notifs_reload_timeout(timer->notif_mgr);
+    idle_idled(timer);
 }
 
 static void
@@ -522,10 +573,7 @@ kde_resumed(void *data, struct org_kde_kwin_idle_timeout *timeout)
 {
     struct idle_timer *timer = data;
     assert(timer->kde_idle_timeout == timeout);
-
-    LOG_DBG("resume notify for urgency level %d", timer->urgency);
-    timer->seat->is_idle[timer->urgency] = false;
-    notif_mgr_notifs_reload_timeout(timer->notif_mgr);
+    idle_resumed(timer);
 }
 
 static const struct org_kde_kwin_idle_timeout_listener kde_idle_listener = {
@@ -575,24 +623,57 @@ seat_register_idle(struct seat *seat)
     struct wayland *wayl = seat->wayl;
     const struct config *conf = wayl->conf;
 
+    if (
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+        wayl->idle_notifier == NULL &&
+#endif
+        wayl->kde_idle_manager == NULL)
+    {
+        /* No idle notification interfaces available (yet) */
+        return;
+    }
+
     for (int i = 0; i < 3; i++) {
         const struct urgency_config *urg_conf = &conf->by_urgency[i];
-        if (urg_conf->idle_timeout_secs > 0 &&
-                seat->idle_timer[i].kde_idle_timeout == NULL)
-        {
-            seat->idle_timer[i] = (struct idle_timer){
-                .kde_idle_timeout = org_kde_kwin_idle_get_idle_timeout(
-                    wayl->kde_idle_manager, seat->wl_seat,
-                    urg_conf->idle_timeout_secs * 1000),
-                .notif_mgr = wayl->notif_mgr,
-                .urgency = i,
-                .seat = seat,
-            };
-            LOG_DBG("registering a new idle timer for urgency level %d: %ds",
-                    i, urg_conf->idle_timeout_secs);
+        if (urg_conf->idle_timeout_secs <= 0)
+            continue;
+
+        struct idle_timer *timer = &seat->idle_timer[i];
+
+        LOG_DBG("registering a new idle timer for urgency level %d: %ds",
+                i, urg_conf->idle_timeout_secs);
+
+        timer->notif_mgr = wayl->notif_mgr;
+        timer->urgency = i;
+        timer->seat = seat;
+
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+        if (wayl->idle_notifier != NULL) {
+            /* We prefer the newer ext-idle-notify interface */
+            if (timer->kde_idle_timeout != NULL) {
+                org_kde_kwin_idle_timeout_release(timer->kde_idle_timeout);
+                timer->kde_idle_timeout = NULL;
+            }
+
+            assert(timer->kde_idle_timeout == NULL);
+            timer->idle_notification = ext_idle_notifier_v1_get_idle_notification(
+                wayl->idle_notifier, urg_conf->idle_timeout_secs * 1000, seat->wl_seat);
+
+            ext_idle_notification_v1_add_listener(
+                timer->idle_notification, &idle_notify_listener, timer);
+        } else
+#endif
+        if (wayl->kde_idle_manager != NULL) {
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+            assert(timer->idle_notification == NULL);
+#endif
+
+            timer->kde_idle_timeout = org_kde_kwin_idle_get_idle_timeout(
+                wayl->kde_idle_manager, seat->wl_seat,
+                urg_conf->idle_timeout_secs * 1000);
+
             org_kde_kwin_idle_timeout_add_listener(
-                seat->idle_timer[i].kde_idle_timeout, &kde_idle_listener,
-                &seat->idle_timer[i]);
+                timer->kde_idle_timeout, &kde_idle_listener, timer);
         }
     }
 }
@@ -600,7 +681,11 @@ seat_register_idle(struct seat *seat)
 static void
 wayl_register_idle_for_all_seats(struct wayland *wayl)
 {
-    assert(wayl->kde_idle_manager != NULL);
+    assert(
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+        wayl->idle_notifier != NULL ||
+#endif
+        wayl->kde_idle_manager != NULL);
     tll_foreach(wayl->seats, it)
         seat_register_idle(&it->item);
 }
@@ -706,6 +791,17 @@ handle_global(void *data, struct wl_registry *registry,
         wayl->kde_idle_manager = wl_registry_bind(wayl->registry, name, &org_kde_kwin_idle_interface, required);
         wayl_register_idle_for_all_seats(wayl);
     }
+
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+    else if (strcmp(interface, ext_idle_notifier_v1_interface.name) == 0) {
+        const uint32_t required = 1;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
+        wayl->idle_notifier = wl_registry_bind(wayl->registry, name, &ext_idle_notifier_v1_interface, required);
+        wayl_register_idle_for_all_seats(wayl);
+    }
+#endif
 }
 
 static void
@@ -830,10 +926,15 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
         goto err;
     }
 
-    if (wayl->kde_idle_manager == NULL &&
-            (conf->by_urgency[0].idle_timeout_secs > 0 ||
-            conf->by_urgency[1].idle_timeout_secs > 0 ||
-            conf->by_urgency[2].idle_timeout_secs > 0)) {
+    if ((
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+            wayl->idle_notifier == NULL &&
+#endif
+            wayl->kde_idle_manager == NULL) &&
+        (conf->by_urgency[0].idle_timeout_secs > 0 ||
+         conf->by_urgency[1].idle_timeout_secs > 0 ||
+         conf->by_urgency[2].idle_timeout_secs > 0))
+    {
         LOG_WARN("compositor does not support idle protocol, ignoring 'idle-timeout' setting");
     }
 
@@ -895,6 +996,10 @@ wayl_destroy(struct wayland *wayl)
         seat_destroy(&it->item);
     tll_free(wayl->seats);
 
+#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+    if (wayl->idle_notifier != NULL)
+        ext_idle_notifier_v1_destroy(wayl->idle_notifier);
+#endif
     if (wayl->kde_idle_manager != NULL)
         org_kde_kwin_idle_destroy(wayl->kde_idle_manager);
     if (wayl->layer_shell != NULL)
