@@ -27,8 +27,8 @@ It implements (parts of) the [Desktop Notifications Specification](https://speci
 More documentation is available in the installed man pages:
 
  * [man fnott](./doc/fnott.1.scd) documents the server
- * [man fnottctl](./doc/fnott.ini.5.scd) documents the client
- * [man fnott.ini](./doc/fnottctl.1.scd) documents the configuration
+ * [man fnottctl](./doc/fnottctl.1.scd) documents the client
+ * [man fnott.ini](./doc/fnott.ini.5.scd) documents the configuration
 
 ## Requirements
 
