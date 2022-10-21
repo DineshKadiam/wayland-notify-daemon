@@ -578,7 +578,8 @@ seat_register_idle(struct seat *seat)
     for (int i = 0; i < 3; i++) {
         const struct urgency_config *urg_conf = &conf->by_urgency[i];
         if (urg_conf->idle_timeout_secs > 0 &&
-                seat->idle_timer[i].kde_idle_timeout == NULL) {
+                seat->idle_timer[i].kde_idle_timeout == NULL)
+        {
             seat->idle_timer[i] = (struct idle_timer){
                 .kde_idle_timeout = org_kde_kwin_idle_get_idle_timeout(
                     wayl->kde_idle_manager, seat->wl_seat,
@@ -591,7 +592,7 @@ seat_register_idle(struct seat *seat)
                     i, urg_conf->idle_timeout_secs);
             org_kde_kwin_idle_timeout_add_listener(
                 seat->idle_timer[i].kde_idle_timeout, &kde_idle_listener,
-                        &seat->idle_timer[i]);
+                &seat->idle_timer[i]);
         }
     }
 }
