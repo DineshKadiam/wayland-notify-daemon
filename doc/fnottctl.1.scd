@@ -32,8 +32,9 @@ To see, and select between, actions associated with the notification,
 use *fnottctl actions*. This requires a dmenu-like utility to have
 been configured in *fnott.ini*(5).
 
-You optionally specify a notification ID, to dismiss (or show actions
-for) a specific notification instead of the highest priority one.
+You can optionally specify a notification ID, to dismiss (or show
+actions for) a specific notification instead of the highest priority
+one.
 
 For _dismiss_, there is also the special ID _all_ which will, not
 unsurprisingly, dismiss *all* notifications.
