@@ -53,6 +53,7 @@ struct urgency_config {
     int default_timeout_secs;
     int idle_timeout_secs;
     char *sound_file;  /* Path to user-configured sound to play on notification */
+    char *icon;
 };
 
 struct config_spawn_template {

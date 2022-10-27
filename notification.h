@@ -8,6 +8,7 @@
 
 #include "config.h"
 #include "fdm.h"
+#include "icon.h"
 #include "tllist.h"
 
 /* forward declarations, to avoid circular includes */
@@ -15,7 +16,8 @@ struct wayland;
 struct dbus;
 
 struct notif_mgr;
-struct notif_mgr *notif_mgr_new(struct config *conf, struct fdm *fdm);
+struct notif_mgr *notif_mgr_new(struct config *conf, struct fdm *fdm,
+                                const icon_theme_list_t *icon_theme);
 void notif_mgr_destroy(struct notif_mgr *mgr);
 
 void notif_mgr_configure(

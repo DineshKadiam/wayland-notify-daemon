@@ -192,6 +192,17 @@ case they override the values specified in the default section.
 	Absolute path to audio file to play when a notification is
 	received. If unset, no sound is played. Default: _unset_.
 
+*icon*
+	Icon to use when none is provided by the notifications
+	themselves. Can be either an absolute path, or a name (without
+	extension).
+	
+	In the latter case, it will be searched for in the selected icon
+	theme, using the fallback rules defined by the XDG icon theme
+	specification.
+	
+	Default: _unset_.
+
 # SECTION: low
 
 This section allows you to override the options listed under

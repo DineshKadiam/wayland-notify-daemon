@@ -334,6 +334,11 @@ parse_section_urgency(const char *key, const char *value,
         conf->sound_file = strlen(value) > 0 ? strdup(value) : NULL;
     }
 
+    else if (strcmp(key, "icon") == 0) {
+        free(conf->icon);
+        conf->icon = strlen(value) > 0 ? strdup(value) : NULL;
+    }
+
     else {
         LOG_ERR("%s:%u: invalid key: %s", path, lineno, key);
         return false;
@@ -724,6 +729,14 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
     }
 
+    else if (strcmp(key, "icon") == 0) {
+        for (int i = 0; i < 3; i++) {
+            struct urgency_config *urgency = &conf->by_urgency[i];
+            free(urgency->icon);
+            urgency->icon = strlen(value) > 0 ? strdup(value) : NULL;
+        }
+    }
+
     else {
         LOG_ERR("%s:%u: invalid key: %s", path, lineno, key);
         return false;
@@ -937,6 +950,7 @@ config_load(struct config *conf, const char *path)
                 .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
                 .idle_timeout_secs = 0,
+                .icon = NULL,
             },
             {
                 .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
@@ -974,6 +988,7 @@ config_load(struct config *conf, const char *path)
                 .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
                 .idle_timeout_secs = 0,
+                .icon = NULL,
             },
             {
                 .bg = {0x6c6c, 0x3333, 0x3333, 0xffff},
@@ -1011,6 +1026,7 @@ config_load(struct config *conf, const char *path)
                 .max_timeout_secs = 0,
                 .default_timeout_secs = 0,
                 .idle_timeout_secs = 0,
+                .icon = NULL,
             },
         },
         .selection_helper = strdup("dmenu"),
@@ -1085,5 +1101,6 @@ config_destroy(struct config conf)
         free(uconf->body.format);
         free(uconf->action.font);
         free(uconf->sound_file);
+        free(uconf->icon);
     }
 }

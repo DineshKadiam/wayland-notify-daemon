@@ -24,6 +24,7 @@
 #include "log.h"
 #include "char32.h"
 #include "dbus.h"
+#include "icon.h"
 #include "spawn.h"
 #include "wayland.h"
 
@@ -94,6 +95,7 @@ struct notif {
     pixman_image_t *pix;
     int image_width;
     int image_height;
+    bool image_is_custom;
     int scale;
     enum fcft_subpixel subpixel;
 
@@ -112,6 +114,7 @@ struct notif_mgr {
     struct fdm *fdm;
     struct wayland *wayl;
     struct dbus *bus;
+    const icon_theme_list_t *icon_theme;
     regex_t html_entity_re;
 
     tll(struct notif *) notifs;
@@ -120,7 +123,8 @@ struct notif_mgr {
 static size_t next_id = 1;
 
 struct notif_mgr *
-notif_mgr_new(struct config *conf, struct fdm *fdm)
+notif_mgr_new(struct config *conf, struct fdm *fdm,
+              const icon_theme_list_t *icon_theme)
 {
     struct notif_mgr *mgr = malloc(sizeof(*mgr));
     *mgr = (struct notif_mgr) {
@@ -128,6 +132,7 @@ notif_mgr_new(struct config *conf, struct fdm *fdm)
         .fdm = fdm,
         .wayl = NULL,   /* notif_mgr_configure() */
         .bus = NULL,    /* notif_mgr_configure() */
+        .icon_theme = icon_theme,
         .notifs = tll_init(),
     };
 
@@ -179,6 +184,7 @@ notif_mgr_configure(struct notif_mgr *mgr, struct wayland *wayl, struct dbus *bu
     mgr->bus = bus;
 }
 
+static bool notif_reload_default_icon(struct notif *notif);
 static bool notif_reload_fonts(struct notif *notif);
 static bool notif_reload_timeout(struct notif *notif);
 static int notif_show(struct notif *notif, int y);
@@ -339,6 +345,7 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .timeout_fd = -1,
     };
 
+    notif_reload_default_icon(notif);
     notif_reload_fonts(notif);
     notif_reload_timeout(notif);
 
@@ -515,6 +522,72 @@ notif_reload_fonts(struct notif *notif)
     notif->fonts.body = body;
     notif->fonts.action = action;
 
+    return true;
+}
+
+static void
+notif_reset_image(struct notif *notif)
+{
+    if (notif->pix == NULL)
+        return;
+
+    free(pixman_image_get_data(notif->pix));
+    pixman_image_unref(notif->pix);
+    notif->pix = NULL;
+    notif->image_is_custom = false;
+}
+
+static void
+notif_set_image_internal(struct notif *notif, pixman_image_t *pix, bool custom)
+{
+    const int max_size = notif->mgr->conf->max_icon_size;
+
+    notif_reset_image(notif);
+
+    notif->image_is_custom = custom;
+    notif->pix = pix;
+    notif->image_width = pixman_image_get_width(pix);
+    notif->image_height = pixman_image_get_height(pix);
+
+    if (notif->image_width <= max_size && notif->image_height <= max_size)
+        return;
+
+    double scale_w = notif->image_width / max_size;
+    double scale_h = notif->image_height / max_size;
+    double scale = scale_w > scale_h ? scale_w : scale_h;
+
+    notif->image_width /= scale;
+    notif->image_height /= scale;
+
+    LOG_DBG("image re-scaled: %dx%d -> %dx%d",
+            pixman_image_get_width(pix), pixman_image_get_height(pix),
+            notif->image_width, notif->image_height);
+
+    struct pixman_transform t;
+    pixman_transform_init_scale(
+        &t, pixman_double_to_fixed(scale), pixman_double_to_fixed(scale));
+    pixman_image_set_transform(pix, &t);
+}
+
+static bool
+notif_reload_default_icon(struct notif *notif)
+{
+    if (notif->image_is_custom)
+        return true;
+
+    const struct config *conf = notif->mgr->conf;
+    const char *icon = conf->by_urgency[notif->urgency].icon;
+
+    if (icon == NULL) {
+        notif_reset_image(notif);
+        return true;
+    }
+
+    pixman_image_t *pix = icon_load(
+        icon, conf->max_icon_size, notif->mgr->icon_theme);
+
+    assert(pix != NULL);
+    notif_set_image_internal(notif, pix, false);
     return true;
 }
 
@@ -771,6 +844,7 @@ notif_set_urgency(struct notif *notif, enum urgency urgency)
     notif->urgency = urgency;
     notif_reload_timeout(notif);
     notif_reload_fonts(notif);
+    notif_reload_default_icon(notif);
 
     if (tll_length(notif->mgr->notifs) <= 1)
         return;
@@ -804,36 +878,7 @@ notif_set_progress(struct notif *notif, int8_t progress)
 void
 notif_set_image(struct notif *notif, pixman_image_t *pix)
 {
-    const int max_size = notif->mgr->conf->max_icon_size;
-
-    if (notif->pix != NULL) {
-        free(pixman_image_get_data(notif->pix));
-        pixman_image_unref(notif->pix);
-        notif->pix = NULL;
-    }
-
-    notif->pix = pix;
-    notif->image_width = pixman_image_get_width(pix);
-    notif->image_height = pixman_image_get_height(pix);
-
-    if (notif->image_width <= max_size && notif->image_height <= max_size)
-        return;
-
-    double scale_w = notif->image_width / max_size;
-    double scale_h = notif->image_height / max_size;
-    double scale = scale_w > scale_h ? scale_w : scale_h;
-
-    notif->image_width /= scale;
-    notif->image_height /= scale;
-
-    LOG_DBG("image re-scaled: %dx%d -> %dx%d",
-            pixman_image_get_width(pix), pixman_image_get_height(pix),
-            notif->image_width, notif->image_height);
-
-    struct pixman_transform t;
-    pixman_transform_init_scale(
-        &t, pixman_double_to_fixed(scale), pixman_double_to_fixed(scale));
-    pixman_image_set_transform(pix, &t);
+    notif_set_image_internal(notif, pix, true);
 }
 
 void
