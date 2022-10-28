@@ -24,6 +24,11 @@
 
 
 ### Changed
+
+* Default value of `max-width` and `max-height` is now `0`
+  (unlimited).
+
+
 ### Deprecated
 ### Removed
 ### Fixed

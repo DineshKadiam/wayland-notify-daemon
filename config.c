@@ -900,8 +900,8 @@ config_load(struct config *conf, const char *path)
     *conf = (struct config){
         .output = NULL,
         .min_width = 0,
-        .max_width = 400,
-        .max_height = 200,
+        .max_width = 0,
+        .max_height = 0,
         .icon_theme_name = strdup("hicolor"),
         .max_icon_size = 48,
         .stacking_order = STACK_BOTTOM_UP,
