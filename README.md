@@ -10,8 +10,13 @@ It implements (parts of) the [Desktop Notifications Specification](https://speci
 [![Packaging status](https://repology.org/badge/vertical-allrepos/fnott.svg)](https://repology.org/project/fnott/versions)
 
 
+Supports styling and progress hints:
 ![screenshot](screenshot.png "Hello World screenshot")
-![screenshot-2](screenshot-2.png "Screenshot of multiple notifications")
+
+Notifications are automatically sized (with the possibility of
+limiting their max width and height):
+![screenshot-2](screenshot-2.png
+"Screenshot of multiple notifications")
 
 ## Supported features
 
