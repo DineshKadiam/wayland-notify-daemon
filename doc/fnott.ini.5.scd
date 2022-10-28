@@ -41,8 +41,9 @@ in this order:
 	Minimum notification width, in pixels. Default: _0_.
 
 *max-width*
-	Maximum notification width, in pixels. 0 means unlimited. Default:
-	_0_.
+	Maximum notification width, in pixels. 0 means unlimited. Note
+	that fnott will automatically word-wrap the notification text if
+	set to a non-zero value. Default: _0_.
 
 *max-height*
 	Maximum notification height, in pixels. 0 means
