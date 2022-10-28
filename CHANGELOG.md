@@ -34,6 +34,12 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* file:// URIs, in icon paths ([#84][84])
+
+[84]: https://codeberg.org/dnkl/fnott/issues/84
+
+
 ### Security
 ### Contributors
 

@@ -13,8 +13,9 @@
 #define LOG_MODULE "dbus"
 #define LOG_ENABLE_DBG 0
 #include "log.h"
-#include "notification.h"
 #include "icon.h"
+#include "notification.h"
+#include "uri.h"
 #include "version.h"
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
@@ -149,21 +150,36 @@ notify(struct dbus *bus, DBusMessage *msg)
     LOG_DBG("app: %s, icon: %s, summary: %s, body: %s", app_name, app_icon, summary, body);
 
     {
-        char *app_name_locase = NULL;
+        char *app_name_allocated = NULL;
         const char *icon_name = NULL;
+        const size_t app_icon_len = strlen(app_icon);
 
-        if (strlen(app_icon) > 0)
-            icon_name = app_icon;
-        else {
-            app_name_locase = malloc(strlen(app_name) + 1);
+        if (app_icon_len > 0) {
+            char *scheme = NULL, *host = NULL, *path = NULL;
+
+            if (uri_parse(app_icon, app_icon_len, &scheme, NULL, NULL, &host,
+                          NULL,  &path, NULL, NULL) &&
+                strcmp(scheme, "file") == 0 &&
+                hostname_is_localhost(host))
+            {
+                icon_name = app_name_allocated = path;
+                path = NULL;
+            } else
+                icon_name = app_icon;
+
+            free(scheme);
+            free(host);
+            free(path);
+        } else {
+            app_name_allocated = malloc(strlen(app_name) + 1);
             for (size_t i = 0; i < strlen(app_name); i++)
-                app_name_locase[i] = tolower(app_name[i]);
-            app_name_locase[strlen(app_name)] = '\0';
-            icon_name = app_name_locase;
+                app_name_allocated[i] = tolower(app_name[i]);
+            app_name_allocated[strlen(app_name)] = '\0';
+            icon_name = app_name_allocated;
         }
 
         pix = icon_load(icon_name, bus->conf->max_icon_size, bus->icon_theme);
-        free(app_name_locase);
+        free(app_name_allocated);
     }
 
     DBusMessageIter args_iter;
@@ -265,6 +281,15 @@ notify(struct dbus *bus, DBusMessage *msg)
 
             LOG_DBG("image-path: %s", image_path);
 
+            char *scheme = NULL, *host = NULL, *path = NULL;
+            if (uri_parse(image_path, strlen(image_path), &scheme, NULL, NULL,
+                          &host, NULL, &path, NULL, NULL) &&
+                strcmp(scheme, "file") == 0 &&
+                hostname_is_localhost(host))
+            {
+                image_path = path;
+            }
+
             if (pix != NULL) {
                 free(pixman_image_get_data(pix));
                 pixman_image_unref(pix);
@@ -272,6 +297,10 @@ notify(struct dbus *bus, DBusMessage *msg)
             }
 
             pix = icon_load(image_path, bus->conf->max_icon_size, bus->icon_theme);
+
+            free(scheme);
+            free(host);
+            free(path);
         }
 
         else if (strcmp(name, "image-data") == 0 ||

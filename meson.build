@@ -128,6 +128,7 @@ executable(
   'svg.c', 'svg.h',
   'stride.h',
   'tokenize.c', 'tokenize.h',
+  'uri.c', 'uri.h',
   'wayland.c', 'wayland.h',
   'xdg.c', 'xdg.h',
   wl_proto_src + wl_proto_headers, version,
