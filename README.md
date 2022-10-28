@@ -11,6 +11,7 @@ It implements (parts of) the [Desktop Notifications Specification](https://speci
 
 
 ![screenshot](screenshot.png "Hello World screenshot")
+![screenshot-2](screenshot-2.png "Screenshot of multiple notifications")
 
 ## Supported features
 
