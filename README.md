@@ -10,7 +10,6 @@ It implements (parts of) the [Desktop Notifications Specification](https://speci
 [![Packaging status](https://repology.org/badge/vertical-allrepos/fnott.svg)](https://repology.org/project/fnott/versions)
 
 
-
 Supports styling and progress hints:
 
 ![screenshot](screenshot.png "Hello World screenshot")
