@@ -254,6 +254,26 @@ notify(struct dbus *bus, DBusMessage *msg)
             progress_percent = min(100, max(0, progress));
         }
 
+        else if (strcmp(name, "image-path") == 0 ||
+                 strcmp(name, "image_path") == 0)
+        {
+            if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_STRING)
+                goto err;
+
+            const char *image_path;
+            dbus_message_iter_get_basic(&value_iter, &image_path);
+
+            LOG_DBG("image-path: %s", image_path);
+
+            if (pix != NULL) {
+                free(pixman_image_get_data(pix));
+                pixman_image_unref(pix);
+                pix = NULL;
+            }
+
+            pix = icon_load(image_path, bus->conf->max_icon_size, bus->icon_theme);
+        }
+
         else if (strcmp(name, "image-data") == 0 ||
                  strcmp(name, "image_data") == 0 ||
                  strcmp(name, "icon_data") == 0)

@@ -18,9 +18,11 @@
   idle before notifications are prevented from timing out ([#16][16]).
 * `icon` option, to specify icon to use when none is provided by the
   notification itself ([#82][82]).
+* Support for `image-path` hints ([#84][84]).
 
 [16]: https://codeberg.org/dnkl/fnott/issues/16
 [82]: https://codeberg.org/dnkl/fnott/issues/82
+[84]: https://codeberg.org/dnkl/fnott/issues/84
 
 
 ### Changed
