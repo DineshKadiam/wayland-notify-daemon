@@ -325,14 +325,18 @@ notif_mgr_get_notif_for_surface(struct notif_mgr *mgr,
 struct notif *
 notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
 {
+    int notif_id;
+
     if (replaces_id != 0) {
         struct notif *old_notif = notif_mgr_get_notif(mgr, replaces_id);
         if (old_notif != NULL)
             return old_notif;
-    }
+
+        notif_id = replaces_id;
+    } else
+        notif_id = next_id++;
 
     struct notif *notif = malloc(sizeof(*notif));
-    int notif_id = next_id++;
     *notif = (struct notif) {
         .mgr = mgr,
         .id = notif_id,

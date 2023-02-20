@@ -36,6 +36,8 @@
 ### Fixed
 
 * file:// URIs, in icon paths ([#84][84])
+* _Replace ID_ being ignored if there were no prior notification with
+  that ID.
 
 [84]: https://codeberg.org/dnkl/fnott/issues/84
 
