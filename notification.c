@@ -958,7 +958,7 @@ frame_callback(void *data, struct wl_callback *wl_callback, uint32_t callback_da
 }
 
 static bool
-notif_instantiate_surface(struct notif *notif, int width, int height)
+notif_instantiate_surface(struct notif *notif, int *width, int *height)
 {
     assert(notif->surface == NULL);
     assert(notif->layer_surface == NULL);
@@ -991,6 +991,10 @@ notif_instantiate_surface(struct notif *notif, int width, int height)
         return false;
     }
 
+    /* Width/height must be divisible with the scale */
+    *width = (*width + scale - 1) / scale * scale;
+    *height = (*height + scale - 1) / scale * scale;
+
     enum zwlr_layer_surface_v1_anchor anchor
         = (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT
            ? ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
@@ -1000,7 +1004,7 @@ notif_instantiate_surface(struct notif *notif, int width, int height)
            : ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
 
     zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
-    zwlr_layer_surface_v1_set_size(layer_surface, width / scale, height / scale);
+    zwlr_layer_surface_v1_set_size(layer_surface, *width / scale, *height / scale);
 
     wl_surface_add_listener(surface, &surface_listener, notif);
 
@@ -1630,7 +1634,7 @@ notif_show(struct notif *notif, int y)
 
     /* Resize and position */
     if (notif->surface == NULL) {
-        if (!notif_instantiate_surface(notif, width, height))
+        if (!notif_instantiate_surface(notif, &width, &height))
             return 0;
         scale = notif->scale;
     } else {
