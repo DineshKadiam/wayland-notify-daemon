@@ -1,4 +1,5 @@
 #include "notification.h"
+#include "config.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -85,6 +86,7 @@ struct notif {
 
     struct {
         float dpi;
+        bool dpi_aware;
         enum urgency urgency;
         struct font_set app;
         struct font_set summary;
@@ -220,7 +222,10 @@ surface_enter(void *data, struct wl_surface *wl_surface,
         return;
     }
 
-    notif->scale = new_scale;
+    /* Need to reload fonts, if not DPI aware */
+    notif_reload_fonts(notif);
+
+    assert(notif->scale == new_scale);
     notif->subpixel = new_subpixel;
     notif_show(notif, notif->y);
 }
@@ -277,6 +282,9 @@ layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
     if (notif->pending != NULL && notif->frame_callback == NULL) {
         commit_buffer(notif, notif->pending);
         notif->pending = NULL;
+    } else {
+        /* ack *must* be followed by a commit */
+        notif_show(notif, notif->y);
     }
 }
 
@@ -446,6 +454,15 @@ get_dpi(const struct notif *notif)
         return wayl_dpi_guess(notif->mgr->wayl);
 }
 
+static int
+get_scale(const struct notif *notif)
+{
+    if (notif->mon != NULL)
+        return notif->mon->scale;
+    else
+        return wayl_guess_scale(notif->mgr->wayl);
+}
+
 static void
 font_set_destroy(struct font_set *set)
 {
@@ -458,20 +475,34 @@ font_set_destroy(struct font_set *set)
 }
 
 static bool
-reload_one_font_set(const struct notif *notif, const char *font_name,
-                    struct font_set *set, float dpi)
+reload_one_font_set(const struct config_font *font,
+                    struct font_set *set,
+                    bool dpi_aware, int scale, float dpi)
 {
-    char attrs0[256], attrs1[256], attrs2[256], attrs3[256];
-    snprintf(attrs0, sizeof(attrs0), "dpi=%.2f", dpi);
-    snprintf(attrs1, sizeof(attrs1), "dpi=%.2f:weight=bold", dpi);
-    snprintf(attrs2, sizeof(attrs2), "dpi=%.2f:slant=italic", dpi);
-    snprintf(attrs3, sizeof(attrs3), "dpi=%.2f:weight=bold:slant=italic", dpi);
 
-    const char *names[1] = {font_name};
+    scale = dpi_aware ? 1 : scale;
+    dpi = dpi_aware ? dpi : 96.;
+
+    char size[64];
+    if (font->px_size > 0) {
+        snprintf(size, sizeof(size), "pixelsize=%d",
+                 font->px_size * scale);
+    } else {
+        snprintf(size, sizeof(size), "size=%.2f",
+                 font->pt_size * (double)scale);
+    }
+
+    char attrs0[256], attrs1[256], attrs2[256], attrs3[256];
+    snprintf(attrs0, sizeof(attrs0), "dpi=%.2f:%s", dpi, size);
+    snprintf(attrs1, sizeof(attrs1), "dpi=%.2f:weight=bold:%s", dpi, size);
+    snprintf(attrs2, sizeof(attrs2), "dpi=%.2f:slant=italic:%s", dpi, size);
+    snprintf(attrs3, sizeof(attrs3), "dpi=%.2f:weight=bold:slant=italic:%s", dpi, size);
+
+    const char *names[1] = {font->pattern};
 
     struct fcft_font *regular = fcft_from_name(1, names, attrs0);
     if (regular == NULL) {
-        LOG_ERR("%s: failed to load font", font_name);
+        LOG_ERR("%s: failed to load font", font->pattern);
         return false;
     }
 
@@ -487,44 +518,95 @@ reload_one_font_set(const struct notif *notif, const char *font_name,
 }
 
 static bool
+be_dpi_aware(const struct config *conf, const struct wayland *wayl)
+{
+    switch (conf->dpi_aware) {
+    case DPI_AWARE_NO:
+        return false;
+
+    case DPI_AWARE_YES:
+        return true;
+
+    case DPI_AWARE_AUTO:
+        return wayl_all_monitors_have_scale_one(wayl);
+    }
+
+    assert(false);
+    return false;
+}
+
+static bool
 notif_reload_fonts(struct notif *notif)
 {
-    float dpi = get_dpi(notif);
+    const float old_dpi = notif->fonts.dpi;
+    const float new_dpi = get_dpi(notif);
 
+    const int old_scale = notif->scale;
+    const int new_scale = get_scale(notif);
+
+    const enum urgency old_urgency = notif->fonts.urgency;
+    const enum urgency new_urgency = notif->urgency;
+
+    const bool was_dpi_aware = notif->fonts.dpi_aware;
+    const bool is_dpi_aware = be_dpi_aware(notif->mgr->conf, notif->mgr->wayl);
+
+    notif->scale = new_scale;
+    notif->fonts.dpi = new_dpi;
+    notif->fonts.dpi_aware = is_dpi_aware;
+    notif->fonts.urgency = notif->urgency;
+
+    /* Skip font reload if none of the parameters affecting font
+     * rendering has changed */
     if (notif->fonts.app.regular != NULL &&
-        notif->fonts.dpi == dpi &&
-        notif->fonts.urgency == notif->urgency)
+        was_dpi_aware == is_dpi_aware &&
+        (is_dpi_aware
+         ? old_dpi == new_dpi
+         : old_scale == new_scale) &&
+        old_urgency == new_urgency)
     {
-        return true;
+        LOG_DBG("skipping font reloading (DPI-aware: %d/%d, DPI: %.2f/%.2f, "
+                "scale: %d/%d, urgency: %d/%d)",
+                was_dpi_aware, is_dpi_aware,
+                old_dpi, new_dpi,
+                old_scale, new_scale,
+                old_urgency, new_urgency);
+        return false;
     }
 
     const struct urgency_config *urgency
         = &notif->mgr->conf->by_urgency[notif->urgency];
 
     struct font_set app;
-    struct font_set summary;
-    struct font_set body;
-    struct font_set action;
-
-    if (!reload_one_font_set(notif, urgency->app.font, &app, dpi) ||
-        !reload_one_font_set(notif, urgency->summary.font, &summary, dpi) ||
-        !reload_one_font_set(notif, urgency->body.font, &body, dpi) ||
-        !reload_one_font_set(notif, urgency->action.font, &action, dpi))
+    if (reload_one_font_set(
+            &urgency->app.font, &app, is_dpi_aware, new_scale, new_dpi))
     {
-        return false;
+        font_set_destroy(&notif->fonts.app);
+        notif->fonts.app = app;
     }
 
-    font_set_destroy(&notif->fonts.app);
-    font_set_destroy(&notif->fonts.summary);
-    font_set_destroy(&notif->fonts.body);
-    font_set_destroy(&notif->fonts.action);
+    struct font_set summary;
+    if (reload_one_font_set(
+            &urgency->summary.font, &summary, is_dpi_aware, new_scale, new_dpi))
+    {
+        font_set_destroy(&notif->fonts.summary);
+        notif->fonts.summary = summary;
+    }
 
-    notif->fonts.dpi = dpi;
-    notif->fonts.urgency = notif->urgency;
-    notif->fonts.app = app;
-    notif->fonts.summary = summary;
-    notif->fonts.body = body;
-    notif->fonts.action = action;
+    struct font_set body;
+    if (reload_one_font_set(
+            &urgency->body.font, &body, is_dpi_aware, new_scale, new_dpi))
+    {
+        font_set_destroy(&notif->fonts.body);
+        notif->fonts.body = body;
+    }
+
+    struct font_set action;
+    if (reload_one_font_set(
+            &urgency->action.font, &action, is_dpi_aware, new_scale, new_dpi))
+    {
+        font_set_destroy(&notif->fonts.action);
+        notif->fonts.action = action;
+    }
 
     return true;
 }
@@ -1639,6 +1721,9 @@ notif_show(struct notif *notif, int y)
         scale = notif->scale;
     } else {
         scale = notif->scale;
+
+        width = (width + scale - 1) / scale * scale;
+        height = (height + scale - 1) / scale * scale;
         zwlr_layer_surface_v1_set_size(notif->layer_surface, width / scale, height / scale);
     }
 
@@ -1911,19 +1996,23 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
     bool refresh_needed = false;
 
     tll_foreach(mgr->notifs, it) {
-        if (it->item->surface == NULL)
-            refresh_needed = true;
-        else if (it->item->mon != NULL && it->item->mon != mon)
-            continue;
+        struct notif *notif = it->item;
 
-        if (it->item->scale != mon->scale || it->item->fonts.dpi != mon->dpi) {
-            it->item->scale = mon->scale;
-            notif_reload_fonts(it->item);
+        if (notif->surface == NULL)
+            refresh_needed = true;
+
+        const int old_notif_scale = notif->scale;
+        if (notif_reload_fonts(notif))
+            refresh_needed = true;
+        else if (old_notif_scale != notif->scale) {
+            /* for set_buffer_scale() */
             refresh_needed = true;
         }
 
-        if (it->item->subpixel != (enum fcft_subpixel)mon->subpixel) {
-            it->item->subpixel = (enum fcft_subpixel)mon->subpixel;
+        if (notif->mon != NULL && notif->mon == mon &&
+            notif->subpixel != (enum fcft_subpixel)mon->subpixel)
+        {
+            notif->subpixel = (enum fcft_subpixel)mon->subpixel;
             refresh_needed = true;
         }
     }

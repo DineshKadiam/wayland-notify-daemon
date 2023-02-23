@@ -59,6 +59,7 @@ wayland_protocols = dependency('wayland-protocols')
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 dbus = dependency('dbus-1')
+fontconfig = dependency('fontconfig')
 
 tllist = dependency('tllist', version: '>=1.0.1', fallback: 'tllist')
 fcft = dependency('fcft', version: ['>=3.0.0', '<4.0.0'], fallback: 'fcft')
@@ -132,7 +133,7 @@ executable(
   'wayland.c', 'wayland.h',
   'xdg.c', 'xdg.h',
   wl_proto_src + wl_proto_headers, version,
-  dependencies: [threads, libepoll, pixman, png, wayland_client, wayland_cursor, dbus,
+  dependencies: [threads, libepoll, pixman, png, wayland_client, wayland_cursor, dbus, fontconfig,
                 tllist, fcft, nanosvg],
   install: true)
 

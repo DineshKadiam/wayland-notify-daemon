@@ -7,12 +7,17 @@
 
 #include <wlr-layer-shell-unstable-v1.h>
 
+struct config_font {
+    char *pattern;
+    float pt_size;
+    int px_size;
+};
+
 struct urgency_config {
     pixman_color_t bg;
 
     struct {
         pixman_color_t color;
-        char *font;
         int size;
     } border;
 
@@ -22,25 +27,25 @@ struct urgency_config {
     } padding;
 
     struct {
-        char *font;
+        struct config_font font;
         pixman_color_t color;
         char32_t *format;
     } app;
 
     struct {
-        char *font;
+        struct config_font font;
         pixman_color_t color;
         char32_t *format;
     } summary;
 
     struct {
-        char *font;
+        struct config_font font;
         pixman_color_t color;
         char32_t *format;
     } body;
 
     struct {
-        char *font;
+        struct config_font font;
         pixman_color_t color;
     } action;
 
@@ -66,6 +71,8 @@ struct config {
     int min_width;
     int max_width;
     int max_height;
+
+    enum {DPI_AWARE_AUTO, DPI_AWARE_YES, DPI_AWARE_NO} dpi_aware;
 
     char *icon_theme_name;
     int max_icon_size;

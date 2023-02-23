@@ -11,6 +11,7 @@
 #include <pwd.h>
 #include <fcntl.h>
 
+#include <fontconfig/fontconfig.h>
 #include <tllist.h>
 
 #define LOG_MODULE "config"
@@ -102,6 +103,29 @@ done:
 }
 
 static bool
+str_to_bool(const char *s, bool *res)
+{
+    static const char *const yes[] = {"on", "true", "yes", "1"};
+    static const char *const  no[] = {"off", "false", "no", "0"};
+
+    for (size_t i = 0; i < sizeof(yes) / sizeof(yes[0]); i++) {
+        if (strcasecmp(s, yes[i]) == 0) {
+            *res = true;
+            return true;
+        }
+    }
+
+    for (size_t i = 0; i < sizeof(no) / sizeof(no[0]); i++) {
+        if (strcasecmp(s, no[i]) == 0) {
+            *res = false;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool
 str_to_ulong(const char *s, int base, unsigned long *res)
 {
     if (s == NULL)
@@ -175,6 +199,35 @@ str_to_spawn_template(struct config *conf,
 }
 
 static bool
+config_font_parse(const char *pattern, struct config_font *font)
+{
+    FcPattern *pat = FcNameParse((const FcChar8 *)pattern);
+    if (pat == NULL)
+        return false;
+
+    double pt_size = -1.0;
+    FcPatternGetDouble(pat, FC_SIZE, 0, &pt_size);
+    FcPatternRemove(pat, FC_SIZE, 0);
+
+    int px_size = -1;
+    FcPatternGetInteger(pat, FC_PIXEL_SIZE, 0, &px_size);
+    FcPatternRemove(pat, FC_PIXEL_SIZE, 0);
+
+    if (pt_size == -1. && px_size == -1)
+        pt_size = 8.0;
+
+    char *stripped_pattern = (char *)FcNameUnparse(pat);
+    FcPatternDestroy(pat);
+
+    *font = (struct config_font){
+        .pattern = stripped_pattern,
+        .pt_size = pt_size,
+        .px_size = px_size
+    };
+    return true;
+}
+
+static bool
 parse_section_urgency(const char *key, const char *value,
                       struct urgency_config *conf,
                       const char *path, unsigned lineno)
@@ -233,15 +286,15 @@ parse_section_urgency(const char *key, const char *value,
              strcmp(key, "body-font") == 0 ||
              strcmp(key, "action-font") == 0)
     {
-        char **font =
+        struct config_font *font =
             strcmp(key, "title-font") == 0 ? &conf->app.font :
             strcmp(key, "summary-font") == 0 ? &conf->summary.font :
             strcmp(key, "body-font") == 0 ? &conf->body.font :
             strcmp(key, "action-font") == 0 ? &conf->action.font : NULL;
 
         assert(font != NULL);
-        free(*font);
-        *font = strdup(value);
+        free(font->pattern);
+        config_font_parse(value, font);
     }
 
     else if (strcmp(key, "title-color") == 0 ||
@@ -411,6 +464,20 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
 
         conf->max_height = h;
+    }
+
+    else if (strcmp(key, "dpi-aware") == 0) {
+        if (strcasecmp(value, "auto") == 0)
+            conf->dpi_aware = DPI_AWARE_AUTO;
+        else {
+            bool enabled;
+            if (str_to_bool(value, &enabled))
+                conf->dpi_aware = enabled ? DPI_AWARE_YES : DPI_AWARE_NO;
+            else {
+                LOG_ERR("%s:%d: %s: invalid boolean value", path, lineno, value);
+                return false;
+            }
+        }
     }
 
     else if (strcmp(key, "icon-theme") == 0) {
@@ -593,15 +660,15 @@ parse_section_main(const char *key, const char *value, struct config *conf,
     {
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
-            char **font =
+            struct config_font *font =
                 strcmp(key, "title-font") == 0 ? &urgency->app.font :
                 strcmp(key, "summary-font") == 0 ? &urgency->summary.font :
                 strcmp(key, "body-font") == 0 ? &urgency->body.font :
                 strcmp(key, "action-font") == 0 ? &urgency->action.font : NULL;
 
             assert(font != NULL);
-            free(*font);
-            *font = strdup(value);
+            free(font->pattern);
+            config_font_parse(value, font);
         }
     }
 
@@ -902,6 +969,7 @@ config_load(struct config *conf, const char *path)
         .min_width = 0,
         .max_width = 0,
         .max_height = 0,
+        .dpi_aware = DPI_AWARE_AUTO,
         .icon_theme_name = strdup("hicolor"),
         .max_icon_size = 48,
         .stacking_order = STACK_BOTTOM_UP,
@@ -925,22 +993,18 @@ config_load(struct config *conf, const char *path)
                     .horizontal = 20,
                 },
                 .app = {
-                    .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                     .format = c32dup(U"<i>%a%A</i>"),
                 },
                 .summary = {
-                    .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                     .format = c32dup(U"<b>%s</b>\\n"),
                 },
                 .body = {
-                    .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                     .format = c32dup(U"%b"),
                 },
                 .action = {
-                    .font = strdup(default_font_name),
                     .color = {0x8888, 0x8888, 0x8888, 0xffff},
                 },
                 .progress = {
@@ -963,22 +1027,18 @@ config_load(struct config *conf, const char *path)
                     .horizontal = 20,
                 },
                 .app = {
-                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                     .format = c32dup(U"<i>%a%A</i>"),
                 },
                 .summary = {
-                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                     .format = c32dup(U"<b>%s</b>\\n"),
                 },
                 .body = {
-                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                     .format = c32dup(U"%b"),
                 },
                 .action = {
-                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .progress = {
@@ -1001,22 +1061,18 @@ config_load(struct config *conf, const char *path)
                     .horizontal = 20,
                 },
                 .app = {
-                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                     .format = c32dup(U"<i>%a%A</i>"),
                 },
                 .summary = {
-                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                     .format = c32dup(U"<b>%s</b>\\n"),
                 },
                 .body = {
-                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                     .format = c32dup(U"%b"),
                 },
                 .action = {
-                    .font = strdup(default_font_name),
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
                 },
                 .progress = {
@@ -1031,6 +1087,13 @@ config_load(struct config *conf, const char *path)
         },
         .selection_helper = strdup("dmenu"),
     };
+
+    for (size_t i = 0; i < sizeof(conf->by_urgency) / sizeof(conf->by_urgency[0]); i++) {
+        config_font_parse(default_font_name, &conf->by_urgency[i].app.font);
+        config_font_parse(default_font_name, &conf->by_urgency[i].summary.font);
+        config_font_parse(default_font_name, &conf->by_urgency[i].body.font);
+        config_font_parse(default_font_name, &conf->by_urgency[i].action.font);
+    }
 
     conf->play_sound.raw_cmd = strdup("aplay ${filename}");
     tokenize_cmdline(conf->play_sound.raw_cmd, &conf->play_sound.argv);
@@ -1093,13 +1156,13 @@ config_destroy(struct config conf)
 
     for (int i = 0; i < 3; i++) {
         struct urgency_config *uconf = &conf.by_urgency[i];
-        free(uconf->app.font);
+        free(uconf->app.font.pattern);
         free(uconf->app.format);
-        free(uconf->summary.font);
+        free(uconf->summary.font.pattern);
         free(uconf->summary.format);
-        free(uconf->body.font);
+        free(uconf->body.font.pattern);
         free(uconf->body.format);
-        free(uconf->action.font);
+        free(uconf->action.font.pattern);
         free(uconf->sound_file);
         free(uconf->icon);
     }

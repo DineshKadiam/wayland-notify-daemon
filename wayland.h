@@ -87,6 +87,8 @@ int wayl_guess_scale(const struct wayland *wayl);
 float wayl_dpi_guess(const struct wayland *wayl);
 enum fcft_subpixel wayl_guess_subpixel(const struct wayland *wayl);
 
+bool wayl_all_monitors_have_scale_one(const struct wayland *wayl);
+
 int wayl_poll_fd(const struct wayland *wayl);
 void wayl_flush(struct wayland *wayl);
 void wayl_roundtrip(struct wayland *wayl);

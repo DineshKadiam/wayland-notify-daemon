@@ -1097,6 +1097,17 @@ wayl_guess_scale(const struct wayland *wayl)
     return 1;
 }
 
+bool
+wayl_all_monitors_have_scale_one(const struct wayland *wayl)
+{
+    tll_foreach(wayl->monitors, it) {
+        if (it->item.scale > 1)
+            return false;
+    }
+
+    return true;
+}
+
 enum fcft_subpixel
 wayl_guess_subpixel(const struct wayland *wayl)
 {

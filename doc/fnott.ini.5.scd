@@ -128,6 +128,40 @@ case they override the values specified in the default section.
 	Horizontal padding, in pixels, between the notification edge (left
 	or right) and notification text. Default: _20_.
 
+*dpi-aware*
+	*auto*, *yes*, or *no*.
+	
+	When set to *yes*, fonts are sized using the monitor's DPI, making
+	a font of a given size have the same physical size, regardless of
+	monitor.
+	
+	In this mode, the monitor's scaling factor is ignored; doubling
+	the scaling factor will *not* double the font size.
+	
+	When set to *no*, the monitor's DPI is ignored. The font is
+	instead sized using the monitor's scaling factor; doubling the
+	scaling factor *does* double the font size.
+	
+	Finally, if set to *auto*, fonts will be sized using the monitor's
+	DPI if _all_ monitors have a scaling factor of 1. If at least one
+	monitor as a scaling factor larger than 1 (regardless of whether
+	the fnott window is mapped on that monitor or not), fonts will be
+	scaled using the scaling factor.
+	
+	Note that this option typically does not work with bitmap fonts,
+	which only contains a pre-defined set of sizes, and cannot be
+	dynamically scaled. Whichever size (of the available ones) that
+	best matches the DPI or scaling factor, will be used.
+	
+	Also note that if the font size has been specified in pixels
+	(*:pixelsize=*_N_, instead of *:size=*_N_), DPI scaling
+	(*dpi-aware=yes*) will have no effect (the specified pixel size
+	will be used as is). But, if the monitor's scaling factor is used
+	to size the font (*dpi-aware=no*), the font's pixel size will be
+	multiplied with the scaling factor.
+	
+	Default: _auto_
+
 *title-font*
 	Font to use for the application title, in fontconfig format (see
 	*FONT FORMAT*). Default: _sans serif_.
