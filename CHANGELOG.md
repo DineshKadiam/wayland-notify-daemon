@@ -31,6 +31,11 @@
 
 * Default value of `max-width` and `max-height` is now `0`
   (unlimited).
+* When determining initial font size, do FontConfig config
+  substitution if the user-provided font pattern has no {pixel}size
+  option ([#1287][foot-1287]).
+
+[foot-1287]: https://codeberg.org/dnkl/foot/issues/1287
 
 
 ### Deprecated
