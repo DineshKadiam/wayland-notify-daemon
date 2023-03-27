@@ -83,6 +83,8 @@ struct notif {
     int8_t progress;
     int timeout_ms;  /* Timeout provided by the notification itself */
     int timeout_fd;
+    enum {DISMISS_IMMEDIATELY, DISMISS_DEFER, DISMISS_DELAYED} deferred_dismissal;
+    enum {EXPIRE_IMMEDIATELY, EXPIRE_DEFER, EXPIRE_DELAYED} deferred_expiral;
 
     struct {
         float dpi;
@@ -355,6 +357,8 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
         .actions = tll_init(),
         .timeout_ms = -1,  /* -1, up to us, 0 - never expire */
         .timeout_fd = -1,
+        .deferred_dismissal = DISMISS_IMMEDIATELY,
+        .deferred_expiral = EXPIRE_IMMEDIATELY,
     };
 
     notif_reload_default_icon(notif);
@@ -1900,7 +1904,22 @@ notif_mgr_expire_current(struct notif_mgr *mgr)
     if (tll_length(mgr->notifs) == 0)
         return false;
 
-    bool ret = notif_expire(tll_pop_front(mgr->notifs));
+    struct notif *notif = tll_pop_front(mgr->notifs);
+    switch (notif->deferred_expiral) {
+    case EXPIRE_IMMEDIATELY:
+        break;
+
+    case EXPIRE_DEFER:
+        notif->deferred_expiral = EXPIRE_DELAYED;
+        tll_push_front(mgr->notifs, notif);
+        return true;
+
+    case EXPIRE_DELAYED:
+        /* Already marked for expiration */
+        return true;
+    }
+
+    bool ret = notif_expire(notif);
     notif_mgr_refresh(mgr);
     return ret;
 }
@@ -1916,6 +1935,20 @@ notif_mgr_expire_id(struct notif_mgr *mgr, uint32_t id)
             continue;
 
         struct notif *notif = it->item;
+
+        switch (notif->deferred_expiral) {
+        case EXPIRE_IMMEDIATELY:
+            break;
+
+        case EXPIRE_DEFER:
+            notif->deferred_expiral = EXPIRE_DELAYED;
+            return true;
+
+        case EXPIRE_DELAYED:
+            /* Already marked for expiration */
+            return true;
+        }
+
         tll_remove(mgr->notifs, it);
 
         bool ret = notif_expire(notif);
@@ -1932,7 +1965,22 @@ notif_mgr_dismiss_current(struct notif_mgr *mgr)
     if (tll_length(mgr->notifs) == 0)
         return false;
 
-    bool ret = notif_dismiss(tll_pop_front(mgr->notifs));
+    struct notif *notif = tll_pop_front(mgr->notifs);
+    switch (notif->deferred_dismissal) {
+    case DISMISS_IMMEDIATELY:
+        break;
+
+    case DISMISS_DEFER:
+        notif->deferred_dismissal = DISMISS_DELAYED;
+        tll_push_front(mgr->notifs, notif);
+        return true;
+
+    case DISMISS_DELAYED:
+        /* Already marked for dismissal */
+        return true;
+    }
+
+    bool ret = notif_dismiss(notif);
     notif_mgr_refresh(mgr);
     return ret;
 }
@@ -1948,6 +1996,19 @@ notif_mgr_dismiss_id_internal(struct notif_mgr *mgr, uint32_t id, bool refresh)
             continue;
 
         struct notif *notif = it->item;
+        switch (notif->deferred_dismissal) {
+        case DISMISS_IMMEDIATELY:
+            break;
+
+        case DISMISS_DEFER:
+            notif->deferred_dismissal = DISMISS_DELAYED;
+            return true;
+
+        case DISMISS_DELAYED:
+            /* Already marked for dismissal */
+            return true;
+        }
+
         tll_remove(mgr->notifs, it);
 
         bool ret = notif_dismiss(notif);
@@ -1971,9 +2032,28 @@ notif_mgr_dismiss_all(struct notif_mgr *mgr)
     bool ret = true;
     tll_foreach(mgr->notifs, it) {
         struct notif *notif = it->item;
-        if (!notif_dismiss(notif))
-            ret = false;
-        tll_remove(mgr->notifs, it);
+        bool do_dismiss = true;
+
+        switch (notif->deferred_dismissal) {
+        case DISMISS_IMMEDIATELY:
+            break;
+
+        case DISMISS_DEFER:
+            notif->deferred_dismissal = DISMISS_DELAYED;
+            do_dismiss = false;
+            break;
+
+        case DISMISS_DELAYED:
+            /* Already marked for dismissal */
+            do_dismiss = false;
+            break;
+        }
+
+        if (do_dismiss) {
+            if (!notif_dismiss(notif))
+                ret = false;
+            tll_remove(mgr->notifs, it);
+        }
     }
 
     notif_mgr_refresh(mgr);
@@ -2129,6 +2209,7 @@ check_pollhup:
     LOG_DBG("child exited with status 0x%08x", status);
 
     const char *action_id = NULL;
+    struct notif *notif = notif_mgr_get_notif(mgr, notif_id);
 
     if (!WIFEXITED(status)) {
         LOG_ERR("child did not exit normally");
@@ -2143,7 +2224,6 @@ check_pollhup:
         goto done;
     }
 
-    struct notif *notif = notif_mgr_get_notif(mgr, notif_id);
     if (notif == NULL) {
         LOG_WARN("notification was dismissed before we could signal action: %.*s",
                  (int)chosen_len, chosen);
@@ -2163,6 +2243,19 @@ check_pollhup:
 done:
     completion_cb(notif_id, action_id, cb_data);
     free(chosen);
+
+    if (notif->deferred_expiral == EXPIRE_DELAYED) {
+        notif->deferred_expiral = EXPIRE_IMMEDIATELY;
+        notif_mgr_expire_id(mgr, notif->id);
+    } else {
+        notif->deferred_expiral = EXPIRE_IMMEDIATELY;
+
+        if (notif->deferred_dismissal == DISMISS_DELAYED) {
+            notif->deferred_dismissal = DISMISS_IMMEDIATELY;
+            notif_mgr_dismiss_id(mgr, notif->id);
+        } else
+            notif->deferred_dismissal = DISMISS_IMMEDIATELY;
+    }
     return true;
 }
 
@@ -2253,7 +2346,7 @@ notif_action_count(const struct notif *notif)
 
 void
 notif_select_action(
-    const struct notif *notif, notif_select_action_cb completion_cb, void *data)
+    struct notif *notif, notif_select_action_cb completion_cb, void *data)
 {
     char *copy = strdup(notif->mgr->conf->selection_helper);
     char **argv = NULL;
@@ -2276,6 +2369,9 @@ notif_select_action(
         LOG_ERRNO("failed to fork");
         goto err_before_fork;
     }
+
+    notif->deferred_dismissal = DISMISS_DEFER;
+    notif->deferred_expiral = EXPIRE_DEFER;
 
     if (pid == 0) {
         /*
@@ -2379,6 +2475,8 @@ err_before_fork:
     free(argv);
 
     completion_cb(notif->id, NULL, data);
+    notif->deferred_dismissal = DISMISS_IMMEDIATELY;
+    notif->deferred_expiral = EXPIRE_IMMEDIATELY;
     return;
 
 err_in_parent:
@@ -2387,5 +2485,7 @@ err_in_parent:
     fdm_del(notif->mgr->fdm, to_child[1]);
     fdm_del(notif->mgr->fdm, from_child[0]);
     completion_cb(notif->id, NULL, data);
+    notif->deferred_dismissal = DISMISS_IMMEDIATELY;
+    notif->deferred_expiral = EXPIRE_IMMEDIATELY;
     return;
 }

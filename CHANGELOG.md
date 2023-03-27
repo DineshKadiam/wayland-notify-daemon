@@ -46,8 +46,11 @@
 * _Replace ID_ being ignored if there were no prior notification with
   that ID.
 * Wayland protocol violation when output scaling was enabled.
+* Notification expiration (timeout) and dismissal are now deferred
+  while the action selection helper is running ([#90][90]).
 
 [84]: https://codeberg.org/dnkl/fnott/issues/84
+[90]: https://codeberg.org/dnkl/fnott/issues/90
 
 
 ### Security

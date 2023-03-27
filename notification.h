@@ -66,4 +66,4 @@ typedef void (*notif_select_action_cb)(
 
 size_t notif_action_count(const struct notif *notif);
 void notif_select_action(
-    const struct notif *notif, notif_select_action_cb completion_cb, void *data);
+    struct notif *notif, notif_select_action_cb completion_cb, void *data);
