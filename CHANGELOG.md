@@ -1,6 +1,6 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.4.0](#1-4-0)
 * [1.3.0](#1-3-0)
 * [1.2.1](#1-2-1)
 * [1.2.0](#1-2-0)
@@ -11,7 +11,8 @@
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.4.0
+
 ### Added
 
 * `idle-timeout` option to specify the amount of time you need to be
@@ -38,8 +39,6 @@
 [foot-1287]: https://codeberg.org/dnkl/foot/issues/1287
 
 
-### Deprecated
-### Removed
 ### Fixed
 
 * file:// URIs, in icon paths ([#84][84])
@@ -53,8 +52,9 @@
 [90]: https://codeberg.org/dnkl/fnott/issues/90
 
 
-### Security
 ### Contributors
+
+* Leonardo Hernández Hernández
 
 
 ## 1.3.0
