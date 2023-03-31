@@ -18,6 +18,12 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* Compilation errors with clang 15.x ([#96][96])
+
+[96]: https://codeberg.org/dnkl/fnott/issues/96
+
+
 ### Security
 ### Contributors
 
