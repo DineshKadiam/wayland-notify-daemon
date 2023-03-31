@@ -77,8 +77,14 @@ pipeline:
       - ninja -C bld/debug-x86 -v -k0
       - bld/debug-x86/fnott --version
 
-      # Release
+      # Release (gcc)
       - mkdir -p bld/release-x86
       - meson --buildtype=release . bld/release-x86
       - ninja -C bld/release-x86 -v -k0
       - bld/release-x86/fnott --version
+
+      # Release (clang)
+      - mkdir -p bld/release-x86-clang
+      - CC=clang meson --buildtype=release . bld/release-x86-clang
+      - ninja -C bld/release-x86-clang -v -k0
+      - bld/release-x86-clang/fnott --version
