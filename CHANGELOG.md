@@ -20,6 +20,8 @@
 ### Fixed
 
 * Compilation errors with clang 15.x ([#96][96])
+* Notifications initially positioned outside the screen not being
+  visible after being moved up in the notification stack.
 
 [96]: https://codeberg.org/dnkl/fnott/issues/96
 

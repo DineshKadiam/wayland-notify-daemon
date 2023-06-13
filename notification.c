@@ -1836,6 +1836,9 @@ notif_show(struct notif *notif, int y)
         if (notif->pending != NULL)
             notif->pending->busy = false;
         notif->pending = buf;
+
+        /* Commit size+margins, but not the new buffer */
+        wl_surface_commit(notif->surface);
     } else {
         assert(notif->pending == NULL);
         commit_buffer(notif, buf);
