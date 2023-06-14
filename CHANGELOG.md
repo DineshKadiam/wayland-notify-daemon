@@ -15,7 +15,16 @@
 
 ## Unreleased
 ### Added
+
+* `docs` meson option ([#111][111])
+
 ### Changed
+
+* Minimum required meson version is now 0.59 ([#111][111])
+* Move example config to `<sysconfdir>/xdg/fnott.ini` ([#111][111])
+
+[111]: https://codeberg.org/dnkl/fnott/pulls/111
+
 ### Deprecated
 ### Removed
 ### Fixed

@@ -1,7 +1,7 @@
 project('fnott', 'c',
         version: '1.4.1',
         license: 'MIT',
-        meson_version: '>=0.58.0',
+        meson_version: '>=0.59.0',
         default_options: [
           'c_std=c18',
           'warning_level=1',
@@ -145,11 +145,13 @@ executable(
   version,
   install: true)
 
-install_data(
-  'LICENSE', 'README.md',
-  install_dir: join_paths(get_option('datadir'), 'doc', 'fnott'))
 install_data('fnott.desktop', install_dir: join_paths(get_option('datadir'), 'applications'))
-install_data('fnott.ini', install_dir: join_paths(get_option('datadir'), 'fnott'))
+if get_option('docs').enabled()
+  install_data('fnott.ini', install_dir: join_paths(get_option('sysconfdir'), 'xdg', 'fnott'))
+  install_data(
+    'LICENSE', 'README.md',
+    install_dir: join_paths(get_option('datadir'), 'doc', 'fnott'))
+  subdir('doc')
+endif
 
 subdir('completions')
-subdir('doc')
