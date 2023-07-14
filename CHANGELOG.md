@@ -1,6 +1,6 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.4.1](#1-4-1)
 * [1.4.0](#1-4-0)
 * [1.3.0](#1-3-0)
 * [1.2.1](#1-2-1)
@@ -12,11 +12,8 @@
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
-### Added
-### Changed
-### Deprecated
-### Removed
+## 1.4.1
+
 ### Fixed
 
 * Compilation errors with clang 15.x ([#96][96])
@@ -24,10 +21,6 @@
   visible after being moved up in the notification stack.
 
 [96]: https://codeberg.org/dnkl/fnott/issues/96
-
-
-### Security
-### Contributors
 
 
 ## 1.4.0
