@@ -178,7 +178,7 @@ uri_parse(const char *uri, size_t len,
         char *p = decoded;
 
         size_t encoded_len = path_len;
-        size_t decoded_len = 0;
+        size_t decoded_len __attribute__((unused)) = 0;
 
         while (true) {
             /* Find next '%' */

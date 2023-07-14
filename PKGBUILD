@@ -10,6 +10,7 @@ depends=(
   'wayland' 'pixman' 'libpng' 'dbus'
   'fcft>=3.0.0' 'fcft<4.0.0')
 source=()
+changelog=CHANGELOG.md
 
 pkgver() {
   cd ../.git &> /dev/null && git describe --tags --long | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' ||
