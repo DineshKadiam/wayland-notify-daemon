@@ -73,6 +73,13 @@ edit to your liking.
 Start the daemon by running `fnott`. Note that it does **not**
 daemonize or background itself.
 
+Note: if your environment doesn't do it automatically (e.g. non-systemd),
+you need to start a `dbus` session yourself:
+
+```sh
+dbus-daemon --session --address=unix:path=$XDG_RUNTIME_DIR/bus
+```
+
 Test it with e.g. `notify-send "this is the summary" "this is the body"`.
 
 Use `fnottctl dismiss` to dismiss the highest priority notification
