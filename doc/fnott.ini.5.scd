@@ -7,7 +7,9 @@ fnott - configuration file
 
 *fnott* uses the standard _unix configuration format_, with section
 based key/value pairs. The default (global) section is unnamed
-(i.e. not prefixed with a _[section]_).
+(i.e. not prefixed with a _[section]_). However it can also be
+explicitly named _[main]_, say if it needs to be reopened after any
+of the other sections.
 
 fnott will search for a configuration file in the following locations,
 in this order:
