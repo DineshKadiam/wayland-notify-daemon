@@ -1,2 +1,2 @@
 option('docs', type: 'feature',
-	description: 'Build and install documentation (man pages, example fnott.ini, readme, license etc).')
+       description: 'Build and install documentation (man pages, example fnott.ini, readme, license etc).')
