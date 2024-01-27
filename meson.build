@@ -146,7 +146,9 @@ executable(
   install: true)
 
 install_data('fnott.desktop', install_dir: join_paths(get_option('datadir'), 'applications'))
-if get_option('docs').enabled()
+
+scdoc = dependency('scdoc', native: true, required: get_option('docs'))
+if scdoc.found()
   install_data('fnott.ini', install_dir: join_paths(get_option('sysconfdir'), 'xdg', 'fnott'))
   install_data(
     'LICENSE', 'README.md',

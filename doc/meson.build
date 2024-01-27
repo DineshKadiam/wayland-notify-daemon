@@ -1,4 +1,3 @@
-scdoc = dependency('scdoc', native: true, required: get_option('docs'))
 scdoc_prog = find_program(scdoc.get_variable('scdoc'), native: true)
 
 if scdoc.found()
