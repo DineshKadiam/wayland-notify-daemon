@@ -157,3 +157,9 @@ if scdoc.found()
 endif
 
 subdir('completions')
+
+summary(
+  {
+    'Documentation': scdoc.found(),
+  }
+)
