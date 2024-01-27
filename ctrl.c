@@ -169,6 +169,16 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         }
         break;
 
+    case CTRL_PAUSE:
+        LOG_DBG("client: FD=%d, pause", fd);
+        notif_mgr_pause(ctrl->notif_mgr);
+        break;
+
+    case CTRL_UNPAUSE:
+        LOG_DBG("client: FD=%d, unpause", fd);
+        notif_mgr_unpause(ctrl->notif_mgr);
+        break;
+
     case CTRL_DISMISS_BY_ID:
         LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, client->recv.cmd.id);
         reply.result = notif_mgr_dismiss_id(ctrl->notif_mgr, client->recv.cmd.id)

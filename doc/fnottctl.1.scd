@@ -7,6 +7,8 @@ fnottctl - utility to interact with *fnott*(1)
 *fnottctl* *dismiss* [_id_]++
 *fnottctl* *actions* [_id_]++
 *fnottctl* *list*++
+*fnottctl* *pause*++
+*fnottctl* *unpause*++
 *fnottctl* *quit*++
 *fnottctl* *--version*
 

@@ -23,6 +23,10 @@ void notif_mgr_destroy(struct notif_mgr *mgr);
 void notif_mgr_configure(
     struct notif_mgr *mgr, struct wayland *wayl, struct dbus *bus);
 
+bool notif_mgr_is_paused(struct notif_mgr *mgr);
+void notif_mgr_pause(struct notif_mgr *mgr);
+void notif_mgr_unpause(struct notif_mgr *mgr);
+
 void notif_mgr_refresh(struct notif_mgr *mgr);
 void notif_mgr_notifs_reload_timeout(const struct notif_mgr *mgr);
 

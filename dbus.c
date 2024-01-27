@@ -102,329 +102,338 @@ notify(struct dbus *bus, DBusMessage *msg)
     dbus_error_init(&dbus_error);
 
     DBusMessage *reply = NULL;
+
     pixman_image_t *pix = NULL;
+
+    struct notif *notif = NULL;
+
+    bool ret = false;
 
     struct action {
         const char *id;
         const char *label;
     };
 
-    /* D-Bus arguments */
-    dbus_uint32_t replaces_id;
-    char *app_name, *app_icon, *summary, *body;
     tll(struct action) actions = tll_init();
-    enum urgency urgency = URGENCY_NORMAL;
-    int8_t progress_percent = -1;
 
-    if (!dbus_message_get_args(
-            msg, &dbus_error,
-            DBUS_TYPE_STRING, &app_name,
-            DBUS_TYPE_UINT32, &replaces_id,
-            DBUS_TYPE_STRING, &app_icon,
-            DBUS_TYPE_STRING, &summary,
-            DBUS_TYPE_STRING, &body,
-            DBUS_TYPE_INVALID))
-    {
-        return false;
-    }
+    dbus_uint32_t replaces_id = 0;
 
-    size_t len = strlen(app_name);
-    while (len > 0 && isspace(app_name[len - 1]))
-        app_name[--len] = '\0';
+    if (notif_mgr_is_paused(bus->notif_mgr)) {
+        LOG_DBG("paused, refusing to notify");
+    } else {
+        char *app_name, *app_icon, *summary, *body;
+        enum urgency urgency = URGENCY_NORMAL;
+        int8_t progress_percent = -1;
 
-    len = strlen(summary);
-    while (len > 0 && isspace(summary[len - 1]))
-        summary[--len] = '\0';
-
-    len = strlen(body);
-    while (len > 0 && isspace(body[len - 1]))
-        body[--len] = '\0';
-
-    if (dbus_error_is_set(&dbus_error)) {
-        LOG_ERR("Notify: failed to parse arguments: %s", dbus_error.message);
-        dbus_error_free(&dbus_error);
-        return false;
-    }
-
-    bool ret = false;
-    LOG_DBG("app: %s, icon: %s, summary: %s, body: %s", app_name, app_icon, summary, body);
-
-    {
-        char *app_name_allocated = NULL;
-        const char *icon_name = NULL;
-        const size_t app_icon_len = strlen(app_icon);
-
-        if (app_icon_len > 0) {
-            char *scheme = NULL, *host = NULL, *path = NULL;
-
-            if (uri_parse(app_icon, app_icon_len, &scheme, NULL, NULL, &host,
-                          NULL,  &path, NULL, NULL) &&
-                strcmp(scheme, "file") == 0 &&
-                hostname_is_localhost(host))
-            {
-                icon_name = app_name_allocated = path;
-                path = NULL;
-            } else
-                icon_name = app_icon;
-
-            free(scheme);
-            free(host);
-            free(path);
-        } else {
-            app_name_allocated = malloc(strlen(app_name) + 1);
-            for (size_t i = 0; i < strlen(app_name); i++)
-                app_name_allocated[i] = tolower(app_name[i]);
-            app_name_allocated[strlen(app_name)] = '\0';
-            icon_name = app_name_allocated;
-        }
-
-        pix = icon_load(icon_name, bus->conf->max_icon_size, bus->icon_theme);
-        free(app_name_allocated);
-    }
-
-    DBusMessageIter args_iter;
-    dbus_message_iter_init(msg, &args_iter);
-
-    dbus_message_iter_next(&args_iter);  /* app name */
-    dbus_message_iter_next(&args_iter);  /* replaces ID */
-    dbus_message_iter_next(&args_iter);  /* app icon */
-    dbus_message_iter_next(&args_iter);  /* summary */
-    dbus_message_iter_next(&args_iter);  /* body */
-
-    if (dbus_message_iter_get_arg_type(&args_iter) != DBUS_TYPE_ARRAY)
-        goto err;
-
-    DBusMessageIter actions_iter;
-    dbus_message_iter_recurse(&args_iter, &actions_iter);
-
-    while (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_INVALID) {
-        if (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_STRING)
-            goto err;
-
-        const char *id;
-        dbus_message_iter_get_basic(&actions_iter, &id);
-        dbus_message_iter_next(&actions_iter);
-
-        if (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_STRING)
-            goto err;
-
-        const char *label;
-        dbus_message_iter_get_basic(&actions_iter, &label);
-        dbus_message_iter_next(&actions_iter);
-
-        LOG_DBG("action: %s %s", id, label);
-        tll_push_back(actions, ((struct action){id, label}));
-    }
-
-    dbus_message_iter_next(&args_iter);
-    if (dbus_message_iter_get_arg_type(&args_iter) != DBUS_TYPE_ARRAY)
-        goto err;
-
-    DBusMessageIter hints_iter;
-    dbus_message_iter_recurse(&args_iter, &hints_iter);
-
-    while (dbus_message_iter_get_arg_type(&hints_iter) != DBUS_TYPE_INVALID) {
-        DBusMessageIter entry_iter;
-        if (dbus_message_iter_get_arg_type(&hints_iter) != DBUS_TYPE_DICT_ENTRY)
-            goto err;
-
-        dbus_message_iter_recurse(&hints_iter, &entry_iter);
-        dbus_message_iter_next(&hints_iter);
-
-        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_STRING)
-            goto err;
-
-        const char *name;
-        dbus_message_iter_get_basic(&entry_iter, &name);
-        dbus_message_iter_next(&entry_iter);
-
-        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_VARIANT)
-            goto err;
-
-        DBusMessageIter value_iter;
-        dbus_message_iter_recurse(&entry_iter, &value_iter);
-        dbus_message_iter_next(&entry_iter);
-
-        LOG_DBG("hint: %s", name);
-
-        if (strcmp(name, "urgency") == 0) {
-            if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_BYTE)
-                goto err;
-
-            /* low=0, normal=1, critical=2 */
-            uint8_t level;
-            dbus_message_iter_get_basic(&value_iter, &level);
-            LOG_DBG("hint: urgency=%hhu", level);
-
-            urgency = level;
-        }
-
-        else if (strcmp(name, "value") == 0) {
-            if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_INT32)
-                goto err;
-
-            dbus_int32_t progress;
-            dbus_message_iter_get_basic(&value_iter, &progress);
-            LOG_DBG("hint: progress=%d", progress);
-
-            progress_percent = min(100, max(0, progress));
-        }
-
-        else if (strcmp(name, "image-path") == 0 ||
-                 strcmp(name, "image_path") == 0)
+        if (!dbus_message_get_args(
+                msg, &dbus_error,
+                DBUS_TYPE_STRING, &app_name,
+                DBUS_TYPE_UINT32, &replaces_id,
+                DBUS_TYPE_STRING, &app_icon,
+                DBUS_TYPE_STRING, &summary,
+                DBUS_TYPE_STRING, &body,
+                DBUS_TYPE_INVALID))
         {
-            if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_STRING)
-                goto err;
+            return false;
+        }
 
-            const char *image_path;
-            dbus_message_iter_get_basic(&value_iter, &image_path);
+        size_t len = strlen(app_name);
+        while (len > 0 && isspace(app_name[len - 1]))
+            app_name[--len] = '\0';
 
-            LOG_DBG("image-path: %s", image_path);
+        len = strlen(summary);
+        while (len > 0 && isspace(summary[len - 1]))
+            summary[--len] = '\0';
 
-            char *scheme = NULL, *host = NULL, *path = NULL;
-            if (uri_parse(image_path, strlen(image_path), &scheme, NULL, NULL,
-                          &host, NULL, &path, NULL, NULL) &&
-                strcmp(scheme, "file") == 0 &&
-                hostname_is_localhost(host))
-            {
-                image_path = path;
+        len = strlen(body);
+        while (len > 0 && isspace(body[len - 1]))
+            body[--len] = '\0';
+
+        if (dbus_error_is_set(&dbus_error)) {
+            LOG_ERR("Notify: failed to parse arguments: %s", dbus_error.message);
+            dbus_error_free(&dbus_error);
+            return false;
+        }
+
+        LOG_DBG("app: %s, icon: %s, summary: %s, body: %s", app_name, app_icon, summary, body);
+
+        {
+            char *app_name_allocated = NULL;
+            const char *icon_name = NULL;
+            const size_t app_icon_len = strlen(app_icon);
+
+            if (app_icon_len > 0) {
+                char *scheme = NULL, *host = NULL, *path = NULL;
+
+                if (uri_parse(app_icon, app_icon_len, &scheme, NULL, NULL, &host,
+                            NULL,  &path, NULL, NULL) &&
+                    strcmp(scheme, "file") == 0 &&
+                    hostname_is_localhost(host))
+                {
+                    icon_name = app_name_allocated = path;
+                    path = NULL;
+                } else
+                    icon_name = app_icon;
+
+                free(scheme);
+                free(host);
+                free(path);
+            } else {
+                app_name_allocated = malloc(strlen(app_name) + 1);
+                for (size_t i = 0; i < strlen(app_name); i++)
+                    app_name_allocated[i] = tolower(app_name[i]);
+                app_name_allocated[strlen(app_name)] = '\0';
+                icon_name = app_name_allocated;
             }
 
-            if (pix != NULL) {
-                free(pixman_image_get_data(pix));
-                pixman_image_unref(pix);
-                pix = NULL;
-            }
-
-            pix = icon_load(image_path, bus->conf->max_icon_size, bus->icon_theme);
-
-            free(scheme);
-            free(host);
-            free(path);
+            pix = icon_load(icon_name, bus->conf->max_icon_size, bus->icon_theme);
+            free(app_name_allocated);
         }
 
-        else if (strcmp(name, "image-data") == 0 ||
-                 strcmp(name, "image_data") == 0 ||
-                 strcmp(name, "icon_data") == 0)
-        {
-            if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_STRUCT)
+        DBusMessageIter args_iter;
+        dbus_message_iter_init(msg, &args_iter);
+
+        dbus_message_iter_next(&args_iter);  /* app name */
+        dbus_message_iter_next(&args_iter);  /* replaces ID */
+        dbus_message_iter_next(&args_iter);  /* app icon */
+        dbus_message_iter_next(&args_iter);  /* summary */
+        dbus_message_iter_next(&args_iter);  /* body */
+
+        if (dbus_message_iter_get_arg_type(&args_iter) != DBUS_TYPE_ARRAY)
+            goto err;
+
+        DBusMessageIter actions_iter;
+        dbus_message_iter_recurse(&args_iter, &actions_iter);
+
+        while (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_INVALID) {
+            if (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_STRING)
                 goto err;
 
-            DBusMessageIter img_iter;
-            dbus_message_iter_recurse(&value_iter, &img_iter);
+            const char *id;
+            dbus_message_iter_get_basic(&actions_iter, &id);
+            dbus_message_iter_next(&actions_iter);
 
-#define iter_get(dest)                                                  \
-            do {                                                        \
-                if (dbus_message_iter_get_arg_type(&img_iter) != DBUS_TYPE_INT32) \
-                    goto err;                                           \
-                dbus_message_iter_get_basic(&img_iter, &dest);          \
-                dbus_message_iter_next(&img_iter);                      \
-            } while (0)
-
-            dbus_bool_t has_alpha;
-            dbus_int32_t width, height, stride, bpp, channels;
-
-            iter_get(width);
-            iter_get(height);
-            iter_get(stride);
-
-            if (dbus_message_iter_get_arg_type(&img_iter) != DBUS_TYPE_BOOLEAN)
-                goto err;
-            dbus_message_iter_get_basic(&img_iter, &has_alpha);
-            dbus_message_iter_next(&img_iter);
-
-            iter_get(bpp);
-            iter_get(channels);
-#undef iter_get
-
-            LOG_DBG("image: width=%u, height=%u, stride=%u, has-alpha=%d, bpp=%u, channels=%u",
-                    width, height, stride, has_alpha, bpp, channels);
-
-            if (dbus_message_iter_get_arg_type(&img_iter) != DBUS_TYPE_ARRAY)
+            if (dbus_message_iter_get_arg_type(&actions_iter) != DBUS_TYPE_STRING)
                 goto err;
 
-            if (width * channels * bpp / 8 > stride)
-                LOG_WARN("image width exceeds image stride");
+            const char *label;
+            dbus_message_iter_get_basic(&actions_iter, &label);
+            dbus_message_iter_next(&actions_iter);
 
-            size_t image_size = stride * height;
-            uint8_t *image_data = malloc(image_size);
+            LOG_DBG("action: %s %s", id, label);
+            tll_push_back(actions, ((struct action){id, label}));
+        }
 
-            DBusMessageIter data_iter;
-            dbus_message_iter_recurse(&img_iter, &data_iter);
-            for (size_t i = 0; i < image_size; i++)
-            {
-                int type = dbus_message_iter_get_arg_type(&data_iter);
+        dbus_message_iter_next(&args_iter);
+        if (dbus_message_iter_get_arg_type(&args_iter) != DBUS_TYPE_ARRAY)
+            goto err;
 
-                if (type == DBUS_TYPE_INVALID) {
-                    LOG_WARN("image data truncated");
-                    break;
-                }
+        DBusMessageIter hints_iter;
+        dbus_message_iter_recurse(&args_iter, &hints_iter);
 
-                if (type != DBUS_TYPE_BYTE)
+        while (dbus_message_iter_get_arg_type(&hints_iter) != DBUS_TYPE_INVALID) {
+            DBusMessageIter entry_iter;
+            if (dbus_message_iter_get_arg_type(&hints_iter) != DBUS_TYPE_DICT_ENTRY)
+                goto err;
+
+            dbus_message_iter_recurse(&hints_iter, &entry_iter);
+            dbus_message_iter_next(&hints_iter);
+
+            if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_STRING)
+                goto err;
+
+            const char *name;
+            dbus_message_iter_get_basic(&entry_iter, &name);
+            dbus_message_iter_next(&entry_iter);
+
+            if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_VARIANT)
+                goto err;
+
+            DBusMessageIter value_iter;
+            dbus_message_iter_recurse(&entry_iter, &value_iter);
+            dbus_message_iter_next(&entry_iter);
+
+            LOG_DBG("hint: %s", name);
+
+            if (strcmp(name, "urgency") == 0) {
+                if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_BYTE)
                     goto err;
 
-                dbus_message_iter_get_basic(&data_iter, &image_data[i]);
-                dbus_message_iter_next(&data_iter);
+                /* low=0, normal=1, critical=2 */
+                uint8_t level;
+                dbus_message_iter_get_basic(&value_iter, &level);
+                LOG_DBG("hint: urgency=%hhu", level);
+
+                urgency = level;
             }
 
-            if (dbus_message_iter_get_arg_type(&data_iter) != DBUS_TYPE_INVALID)
-                LOG_WARN("image data exceeds specified size");
+            else if (strcmp(name, "value") == 0) {
+                if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_INT32)
+                    goto err;
 
-            pixman_format_code_t format = 0;
-            if (bpp == 8 && channels == 4)
-                format = has_alpha ? PIXMAN_a8b8g8r8 : PIXMAN_x8b8g8r8;
-            else if (bpp == 8 && channels == 3) {
-                /* Untested */
-                format = PIXMAN_b8g8r8;
-            } else {
-                LOG_WARN("unimplemented image format: bpp=%u, channels=%u",
-                         bpp, channels);
-                free(image_data);
+                dbus_int32_t progress;
+                dbus_message_iter_get_basic(&value_iter, &progress);
+                LOG_DBG("hint: progress=%d", progress);
+
+                progress_percent = min(100, max(0, progress));
             }
 
-            if (format != 0) {
+            else if (strcmp(name, "image-path") == 0 ||
+                    strcmp(name, "image_path") == 0)
+            {
+                if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_STRING)
+                    goto err;
+
+                const char *image_path;
+                dbus_message_iter_get_basic(&value_iter, &image_path);
+
+                LOG_DBG("image-path: %s", image_path);
+
+                char *scheme = NULL, *host = NULL, *path = NULL;
+                if (uri_parse(image_path, strlen(image_path), &scheme, NULL, NULL,
+                            &host, NULL, &path, NULL, NULL) &&
+                    strcmp(scheme, "file") == 0 &&
+                    hostname_is_localhost(host))
+                {
+                    image_path = path;
+                }
+
                 if (pix != NULL) {
                     free(pixman_image_get_data(pix));
                     pixman_image_unref(pix);
                     pix = NULL;
                 }
 
-                pix = pixman_image_create_bits_no_clear(
-                    format, width, height, (uint32_t *)image_data, stride);
+                pix = icon_load(image_path, bus->conf->max_icon_size, bus->icon_theme);
+
+                free(scheme);
+                free(host);
+                free(path);
+            }
+
+            else if (strcmp(name, "image-data") == 0 ||
+                    strcmp(name, "image_data") == 0 ||
+                    strcmp(name, "icon_data") == 0)
+            {
+                if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_STRUCT)
+                    goto err;
+
+                DBusMessageIter img_iter;
+                dbus_message_iter_recurse(&value_iter, &img_iter);
+
+#define iter_get(dest)                                                  \
+                do {                                                        \
+                    if (dbus_message_iter_get_arg_type(&img_iter) != DBUS_TYPE_INT32) \
+                        goto err;                                           \
+                    dbus_message_iter_get_basic(&img_iter, &dest);          \
+                    dbus_message_iter_next(&img_iter);                      \
+                } while (0)
+
+                dbus_bool_t has_alpha;
+                dbus_int32_t width, height, stride, bpp, channels;
+
+                iter_get(width);
+                iter_get(height);
+                iter_get(stride);
+
+                if (dbus_message_iter_get_arg_type(&img_iter) != DBUS_TYPE_BOOLEAN)
+                    goto err;
+                dbus_message_iter_get_basic(&img_iter, &has_alpha);
+                dbus_message_iter_next(&img_iter);
+
+                iter_get(bpp);
+                iter_get(channels);
+#undef iter_get
+
+                LOG_DBG("image: width=%u, height=%u, stride=%u, has-alpha=%d, bpp=%u, channels=%u",
+                        width, height, stride, has_alpha, bpp, channels);
+
+                if (dbus_message_iter_get_arg_type(&img_iter) != DBUS_TYPE_ARRAY)
+                    goto err;
+
+                if (width * channels * bpp / 8 > stride)
+                    LOG_WARN("image width exceeds image stride");
+
+                size_t image_size = stride * height;
+                uint8_t *image_data = malloc(image_size);
+
+                DBusMessageIter data_iter;
+                dbus_message_iter_recurse(&img_iter, &data_iter);
+                for (size_t i = 0; i < image_size; i++)
+                {
+                    int type = dbus_message_iter_get_arg_type(&data_iter);
+
+                    if (type == DBUS_TYPE_INVALID) {
+                        LOG_WARN("image data truncated");
+                        break;
+                    }
+
+                    if (type != DBUS_TYPE_BYTE)
+                        goto err;
+
+                    dbus_message_iter_get_basic(&data_iter, &image_data[i]);
+                    dbus_message_iter_next(&data_iter);
+                }
+
+                if (dbus_message_iter_get_arg_type(&data_iter) != DBUS_TYPE_INVALID)
+                    LOG_WARN("image data exceeds specified size");
+
+                pixman_format_code_t format = 0;
+                if (bpp == 8 && channels == 4)
+                    format = has_alpha ? PIXMAN_a8b8g8r8 : PIXMAN_x8b8g8r8;
+                else if (bpp == 8 && channels == 3) {
+                    /* Untested */
+                    format = PIXMAN_b8g8r8;
+                } else {
+                    LOG_WARN("unimplemented image format: bpp=%u, channels=%u",
+                            bpp, channels);
+                    free(image_data);
+                }
+
+                if (format != 0) {
+                    if (pix != NULL) {
+                        free(pixman_image_get_data(pix));
+                        pixman_image_unref(pix);
+                        pix = NULL;
+                    }
+
+                    pix = pixman_image_create_bits_no_clear(
+                        format, width, height, (uint32_t *)image_data, stride);
+                }
             }
         }
+
+        dbus_message_iter_next(&args_iter);
+        if (dbus_message_iter_get_arg_type(&args_iter) != DBUS_TYPE_INT32)
+            goto err;
+
+        /* -1 - up to server (us), 0 - never expire */
+        dbus_int32_t timeout_ms;
+        dbus_message_iter_get_basic(&args_iter, &timeout_ms);
+        LOG_DBG("timeout = %dms", timeout_ms);
+
+        notif = notif_mgr_create_notif(bus->notif_mgr, replaces_id);
+        if (notif == NULL)
+            goto err;
+
+        notif_set_application(notif, app_name);
+        notif_set_summary(notif, summary);
+        notif_set_body(notif, body);
+        notif_set_urgency(notif, urgency);
+        notif_set_progress(notif, progress_percent);
+
+        if (timeout_ms >= 0)
+            notif_set_timeout(notif, timeout_ms);
+
+        if (pix != NULL)
+            notif_set_image(notif, pix);
+
+        tll_foreach(actions, it)
+            notif_add_action(notif, it->item.id, it->item.label);
+
+        notif_play_sound(notif);
+        notif_mgr_refresh(bus->notif_mgr);
     }
-
-    dbus_message_iter_next(&args_iter);
-    if (dbus_message_iter_get_arg_type(&args_iter) != DBUS_TYPE_INT32)
-        goto err;
-
-    /* -1 - up to server (us), 0 - never expire */
-    dbus_int32_t timeout_ms;
-    dbus_message_iter_get_basic(&args_iter, &timeout_ms);
-    LOG_DBG("timeout = %dms", timeout_ms);
-
-    struct notif *notif = notif_mgr_create_notif(bus->notif_mgr, replaces_id);
-    if (notif == NULL)
-        goto err;
-
-    notif_set_application(notif, app_name);
-    notif_set_summary(notif, summary);
-    notif_set_body(notif, body);
-    notif_set_urgency(notif, urgency);
-    notif_set_progress(notif, progress_percent);
-
-    if (timeout_ms >= 0)
-        notif_set_timeout(notif, timeout_ms);
-
-    if (pix != NULL)
-        notif_set_image(notif, pix);
-
-    tll_foreach(actions, it)
-        notif_add_action(notif, it->item.id, it->item.label);
-
-    notif_play_sound(notif);
-    notif_mgr_refresh(bus->notif_mgr);
 
     if ((reply = dbus_message_new_method_return(msg)) == NULL)
         goto err;
@@ -433,7 +442,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     dbus_message_iter_init_append(reply, &iter);
 
     if (!dbus_message_iter_append_basic(
-            &iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){notif_id(notif)}))
+            &iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){notif != NULL ? notif_id(notif) : replaces_id}))
         goto err;
 
     if (!dbus_connection_send(bus->conn, reply, NULL))

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 #include <ctype.h>
 #include <regex.h>
 #include <unistd.h>
@@ -122,6 +123,8 @@ struct notif_mgr {
     regex_t html_entity_re;
 
     tll(struct notif *) notifs;
+
+    bool paused;
 };
 
 static size_t next_id = 1;
@@ -138,6 +141,7 @@ notif_mgr_new(struct config *conf, struct fdm *fdm,
         .bus = NULL,    /* notif_mgr_configure() */
         .icon_theme = icon_theme,
         .notifs = tll_init(),
+        .paused = false,
     };
 
     int r = regcomp(
@@ -186,6 +190,26 @@ notif_mgr_configure(struct notif_mgr *mgr, struct wayland *wayl, struct dbus *bu
 
     mgr->wayl = wayl;
     mgr->bus = bus;
+}
+
+bool
+notif_mgr_is_paused(struct notif_mgr *mgr)
+{
+    return mgr->paused;
+}
+
+void
+notif_mgr_pause(struct notif_mgr *mgr)
+{
+    LOG_INFO("pausing");
+    mgr->paused = true;
+}
+
+void
+notif_mgr_unpause(struct notif_mgr *mgr)
+{
+    LOG_INFO("unpausing");
+    mgr->paused = false;
 }
 
 static bool notif_reload_default_icon(struct notif *notif);

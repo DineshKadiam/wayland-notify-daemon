@@ -88,6 +88,9 @@ notifications, or `fnottctl dismiss <id>` to dismiss a specific
 notification (use `fnottctl list` to list currently active
 notifications).
 
+Use `fnottctl pause` to disable notifications. `fnottctl unpause` will
+re-enable notifications.
+
 Additionally if you compositor implements either the KDE idle
 protocol, or the newer idle-notify protocol, fnott will not dismiss
 any notification if you are idle by the amount of time configured in

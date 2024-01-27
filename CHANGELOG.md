@@ -17,6 +17,10 @@
 ### Added
 
 * `docs` meson option ([#111][111])
+* `pause` and `unpause` commands to temporarily disable or re-enable
+  notifications ([#20][20]).
+
+[20]: https://codeberg.org/dnkl/fnott/issues/20
 
 ### Changed
 
