@@ -52,6 +52,7 @@ bool notif_mgr_del_notif(struct notif_mgr *mgr, uint32_t id);
 void notif_destroy(struct notif *notif);
 uint32_t notif_id(const struct notif *notif);
 const struct monitor *notif_monitor(const struct notif *notif);
+float notif_scale(const struct notif *notif);
 
 void notif_set_application(struct notif *notif, const char *text);
 void notif_set_summary(struct notif *notif, const char *text);

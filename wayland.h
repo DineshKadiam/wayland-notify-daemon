@@ -4,6 +4,9 @@
 #include <wayland-client.h>
 #include <fcft/fcft.h>
 
+#include <fractional-scale-v1.h>
+#include <viewporter.h>
+
 #include "config.h"
 #include "fdm.h"
 #include "notification.h"
@@ -76,6 +79,8 @@ void wayl_destroy(struct wayland *wayl);
 
 struct wl_compositor *wayl_compositor(const struct wayland *wayl);
 struct zwlr_layer_shell_v1 *wayl_layer_shell(const struct wayland *wayl);
+struct wp_fractional_scale_manager_v1 *wayl_fractional_scale_manager(const struct wayland *wayl);
+struct wp_viewporter *wayl_viewporter(const struct wayland *wayl);
 
 bool wayl_is_idle_for_urgency(const struct wayland *wayl, const enum urgency urgency);
 
@@ -83,7 +88,7 @@ struct buffer *wayl_get_buffer(const struct wayland *wayl, int width, int height
 const struct monitor *wayl_preferred_monitor(const struct wayland *wayl);
 const struct monitor *wayl_monitor_get(
     const struct wayland *wayl, struct wl_output *output);
-int wayl_guess_scale(const struct wayland *wayl);
+float wayl_guess_scale(const struct wayland *wayl);
 float wayl_dpi_guess(const struct wayland *wayl);
 enum fcft_subpixel wayl_guess_subpixel(const struct wayland *wayl);
 

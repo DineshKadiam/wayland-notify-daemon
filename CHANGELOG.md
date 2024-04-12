@@ -19,13 +19,18 @@
 * `docs` meson option ([#111][111])
 * `pause` and `unpause` commands to temporarily disable or re-enable
   notifications ([#20][20]).
+* Support for fractional scaling (`wp_fractional_scale_v1`).
+* Support for preferred buffer scale (`wl_compositor` >= 6).
+* Support for server side cursors (`wp_cursor_shape_v1`).
 
 [20]: https://codeberg.org/dnkl/fnott/issues/20
 
+
 ### Changed
 
-* Minimum required meson version is now 0.59 ([#111][111])
-* Move example config to `<sysconfdir>/xdg/fnott.ini` ([#111][111])
+* Fnott now requires wayland-protocols >= 1.32.
+* Minimum required meson version is now 0.59 ([#111][111]).
+* Move example config to `<sysconfdir>/xdg/fnott.ini` ([#111][111]).
 
 [111]: https://codeberg.org/dnkl/fnott/pulls/111
 

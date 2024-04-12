@@ -55,7 +55,7 @@ threads = dependency('threads')
 libepoll = dependency('epoll-shim', required: false)
 pixman = dependency('pixman-1')
 png = dependency('libpng')
-wayland_protocols = dependency('wayland-protocols')
+wayland_protocols = dependency('wayland-protocols', version: '>=1.32')
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 dbus = dependency('dbus-1')
@@ -75,12 +75,12 @@ wl_xmls = [
   'external/idle.xml',
   wayland_protocols_datadir + '/stable/xdg-shell/xdg-shell.xml',
   wayland_protocols_datadir + '/unstable/xdg-output/xdg-output-unstable-v1.xml',
+  wayland_protocols_datadir + '/staging/ext-idle-notify/ext-idle-notify-v1.xml',
+  wayland_protocols_datadir / 'stable/viewporter/viewporter.xml',
+  wayland_protocols_datadir / 'staging/fractional-scale/fractional-scale-v1.xml',
+  wayland_protocols_datadir / 'unstable/tablet/tablet-unstable-v2.xml',  # required by cursor-shape-v1
+  wayland_protocols_datadir / 'staging/cursor-shape/cursor-shape-v1.xml',
 ]
-
-if wayland_protocols.version().version_compare('>=1.27')
-  wl_xmls += [wayland_protocols_datadir + '/staging/ext-idle-notify/ext-idle-notify-v1.xml']
-  add_project_arguments('-DFNOTT_HAVE_IDLE_NOTIFY', language: 'c')
-endif
 
 wl_proto_headers = []
 wl_proto_src = []

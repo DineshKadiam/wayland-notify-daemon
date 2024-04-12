@@ -71,6 +71,8 @@ struct notif {
 
     struct wl_surface *surface;
     struct zwlr_layer_surface_v1 *layer_surface;
+    struct wp_fractional_scale_v1 *fractional_scale;
+    struct wp_viewport *viewport;
     bool is_configured;
 
     uint32_t id;
@@ -101,7 +103,9 @@ struct notif {
     int image_width;
     int image_height;
     bool image_is_custom;
-    int scale;
+    int preferred_buffer_scale;
+    float preferred_fractional_scale;
+    float scale;
     enum fcft_subpixel subpixel;
 
     struct buffer *pending;
@@ -227,33 +231,13 @@ surface_enter(void *data, struct wl_surface *wl_surface,
     if (notif->mon == mon)
         return;
 
-    const int old_scale = notif->scale;
-    const float old_dpi = notif->fonts.dpi;
-    const enum fcft_subpixel old_subpixel = notif->subpixel;
-
     notif->mon = mon;
-    notif_reload_fonts(notif);
-
-    int new_scale = mon != NULL
-        ? mon->scale : wayl_guess_scale(notif->mgr->wayl);
-
-    enum fcft_subpixel new_subpixel = mon != NULL
+    notif->subpixel = mon != NULL
         ? (enum fcft_subpixel)mon->subpixel
         : wayl_guess_subpixel(notif->mgr->wayl);
 
-    if (old_scale == new_scale &&
-        old_subpixel == new_subpixel &&
-        old_dpi == mon->dpi)
-    {
-        return;
-    }
-
-    /* Need to reload fonts, if not DPI aware */
-    notif_reload_fonts(notif);
-
-    assert(notif->scale == new_scale);
-    notif->subpixel = new_subpixel;
-    notif_show(notif, notif->y);
+    if (notif_reload_fonts(notif))
+        notif_show(notif, notif->y);
 }
 
 static void
@@ -264,9 +248,37 @@ surface_leave(void *data, struct wl_surface *wl_surface,
     notif->mon = NULL;
 }
 
+#if defined(WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION)
+static void
+surface_preferred_buffer_scale(void *data, struct wl_surface *surface,
+                               int32_t scale)
+{
+    struct notif *notif = data;
+
+    if (notif->preferred_buffer_scale == scale)
+        return;
+
+    LOG_DBG("wl_surface preferred scale: %d -> %d", notif->preferred_buffer_scale, scale);
+
+    notif->preferred_buffer_scale = scale;
+    if (notif_mgr_monitor_updated(notif->mgr, NULL))
+        notif_mgr_refresh(notif->mgr);
+}
+
+static void
+surface_preferred_buffer_transform(void *data, struct wl_surface *surface,
+                                   uint32_t transform)
+{
+}
+#endif
+
 static const struct wl_surface_listener surface_listener = {
     .enter = &surface_enter,
     .leave = &surface_leave,
+#if defined(WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION)
+    .preferred_buffer_scale = &surface_preferred_buffer_scale,
+    .preferred_buffer_transform = &surface_preferred_buffer_transform,
+#endif
 };
 
 static void frame_callback(
@@ -284,9 +296,30 @@ commit_buffer(struct notif *notif, struct buffer *buf)
     assert(notif->scale >= 1);
     assert(buf->busy);
 
-    wl_surface_set_buffer_scale(notif->surface, notif->scale);
-    wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
-    wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
+    if (notif->preferred_fractional_scale > 0) {
+        assert(notif->viewport != NULL);
+        assert(notif->fractional_scale != NULL);
+
+        LOG_DBG("scaling by a factor of %.2f using fractional scaling "
+                "(width=%d, height=%d)", notif->scale, buf->width, buf->height);
+
+        wl_surface_set_buffer_scale(notif->surface, 1);
+        wp_viewport_set_destination(
+            notif->viewport, roundf(buf->width / notif->scale), roundf(buf->height / notif->scale));
+    }
+
+    else {
+        LOG_DBG("scaling by a factor of %.2f using %s (width=%d, height=%d)",
+                notif->scale,
+                notif->preferred_buffer_scale > 0
+                    ? "wl_surface.preferred_buffer_scale"
+                    : "legacy mode",
+                buf->width, buf->height);
+
+        wl_surface_set_buffer_scale(notif->surface, notif->scale);
+        wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
+        wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
+    }
 
     assert(notif->frame_callback == NULL);
     notif->frame_callback = wl_surface_frame(notif->surface);
@@ -326,6 +359,30 @@ layer_surface_closed(void *data, struct zwlr_layer_surface_v1 *surface)
 static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
     .configure = &layer_surface_configure,
     .closed = &layer_surface_closed,
+};
+
+static void
+fractional_scale_preferred_scale(
+    void *data, struct wp_fractional_scale_v1 *wp_fractional_scale_v1,
+    uint32_t scale)
+{
+    struct notif *notif = data;
+
+    const float new_scale = (float)scale / 120.;
+
+    if (notif->preferred_fractional_scale == new_scale)
+        return;
+
+    LOG_DBG("fractional scale: %.2f -> %.2f",
+            notif->preferred_fractional_scale, new_scale);
+
+    notif->preferred_fractional_scale = new_scale;
+    if (notif_mgr_monitor_updated(notif->mgr, NULL))
+        notif_mgr_refresh(notif->mgr);
+}
+
+static const struct wp_fractional_scale_v1_listener fractional_scale_listener = {
+    .preferred_scale = &fractional_scale_preferred_scale,
 };
 
 struct notif *
@@ -424,9 +481,13 @@ notif_destroy_surfaces(struct notif *notif)
     if (notif->frame_callback != NULL)
         wl_callback_destroy(notif->frame_callback);
 
-    if (notif->layer_surface)
+    if (notif->fractional_scale != NULL)
+        wp_fractional_scale_v1_destroy(notif->fractional_scale);
+    if (notif->viewport != NULL)
+        wp_viewport_destroy(notif->viewport);
+    if (notif->layer_surface != NULL)
         zwlr_layer_surface_v1_destroy(notif->layer_surface);
-    if (notif->surface)
+    if (notif->surface != NULL)
         wl_surface_destroy(notif->surface);
 
     notif->is_configured = false;
@@ -482,10 +543,14 @@ get_dpi(const struct notif *notif)
         return wayl_dpi_guess(notif->mgr->wayl);
 }
 
-static int
+static float
 get_scale(const struct notif *notif)
 {
-    if (notif->mon != NULL)
+    if (notif->preferred_fractional_scale > 0.)
+        return notif->preferred_fractional_scale;
+    else if (notif->preferred_buffer_scale > 0)
+        return notif->preferred_buffer_scale;
+    else if (notif->mon != NULL)
         return notif->mon->scale;
     else
         return wayl_guess_scale(notif->mgr->wayl);
@@ -505,7 +570,7 @@ font_set_destroy(struct font_set *set)
 static bool
 reload_one_font_set(const struct config_font *font,
                     struct font_set *set,
-                    bool dpi_aware, int scale, float dpi)
+                    bool dpi_aware, float scale, float dpi)
 {
 
     scale = dpi_aware ? 1 : scale;
@@ -514,7 +579,7 @@ reload_one_font_set(const struct config_font *font,
     char size[64];
     if (font->px_size > 0) {
         snprintf(size, sizeof(size), "pixelsize=%d",
-                 font->px_size * scale);
+                 (int)roundf(font->px_size * scale));
     } else {
         snprintf(size, sizeof(size), "size=%.2f",
                  font->pt_size * (double)scale);
@@ -569,8 +634,8 @@ notif_reload_fonts(struct notif *notif)
     const float old_dpi = notif->fonts.dpi;
     const float new_dpi = get_dpi(notif);
 
-    const int old_scale = notif->scale;
-    const int new_scale = get_scale(notif);
+    const float old_scale = notif->scale;
+    const float new_scale = get_scale(notif);
 
     const enum urgency old_urgency = notif->fonts.urgency;
     const enum urgency new_urgency = notif->urgency;
@@ -593,7 +658,7 @@ notif_reload_fonts(struct notif *notif)
         old_urgency == new_urgency)
     {
         LOG_DBG("skipping font reloading (DPI-aware: %d/%d, DPI: %.2f/%.2f, "
-                "scale: %d/%d, urgency: %d/%d)",
+                "scale: %.2f/%.2f, urgency: %d/%d)",
                 was_dpi_aware, is_dpi_aware,
                 old_dpi, new_dpi,
                 old_scale, new_scale,
@@ -819,6 +884,12 @@ const struct monitor *
 notif_monitor(const struct notif *notif)
 {
     return notif->mon;
+}
+
+float
+notif_scale(const struct notif *notif)
+{
+    return notif->scale;
 }
 
 static char32_t *
@@ -1078,7 +1149,7 @@ notif_instantiate_surface(struct notif *notif, int *width, int *height)
     const struct monitor *mon = wayl_preferred_monitor(wayl);
 
     /* Will be updated, if necessary, once we’ve been mapped */
-    const int scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl);
+    const float scale = mon != NULL ? mon->scale : wayl_guess_scale(wayl);
 
     struct wl_surface *surface =
         wl_compositor_create_surface(wayl_compositor(wayl));
@@ -1102,8 +1173,9 @@ notif_instantiate_surface(struct notif *notif, int *width, int *height)
     }
 
     /* Width/height must be divisible with the scale */
-    *width = (*width + scale - 1) / scale * scale;
-    *height = (*height + scale - 1) / scale * scale;
+    *width = (int)roundf(roundf(*width / scale) * scale);
+    *height = (int)roundf(roundf(*height / scale) * scale);
+    LOG_ERR("width=%d, height=%d", *width, *height);
 
     enum zwlr_layer_surface_v1_anchor anchor
         = (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT
@@ -1114,7 +1186,8 @@ notif_instantiate_surface(struct notif *notif, int *width, int *height)
            : ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
 
     zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
-    zwlr_layer_surface_v1_set_size(layer_surface, *width / scale, *height / scale);
+    zwlr_layer_surface_v1_set_size(
+        layer_surface, roundf(*width / scale), roundf(*height / scale));
 
     wl_surface_add_listener(surface, &surface_listener, notif);
 
@@ -1122,6 +1195,22 @@ notif_instantiate_surface(struct notif *notif, int *width, int *height)
         layer_surface, &layer_surface_listener, notif);
     wl_surface_commit(surface);
 
+    struct wp_fractional_scale_manager_v1 *scale_manager =
+        wayl_fractional_scale_manager(wayl);
+    struct wp_viewporter *viewporter = wayl_viewporter(wayl);
+    struct wp_fractional_scale_v1 *fractional_scale = NULL;
+    struct wp_viewport *viewport = NULL;
+
+    if (scale_manager != NULL && viewporter != NULL) {
+        viewport = wp_viewporter_get_viewport(viewporter, surface);
+        fractional_scale = wp_fractional_scale_manager_v1_get_fractional_scale(
+            scale_manager, surface);
+        wp_fractional_scale_v1_add_listener(
+            fractional_scale, &fractional_scale_listener, notif);
+    }
+
+    notif->viewport = viewport;
+    notif->fractional_scale = fractional_scale;
     notif->surface = surface;
     notif->layer_surface = layer_surface;
     notif->mon = mon;
@@ -1740,7 +1829,7 @@ notif_show(struct notif *notif, int y)
     bool top_anchored
         = conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT;
 
-    int scale;
+    float scale;
 
     /* Resize and position */
     if (notif->surface == NULL) {
@@ -1750,24 +1839,25 @@ notif_show(struct notif *notif, int y)
     } else {
         scale = notif->scale;
 
-        width = (width + scale - 1) / scale * scale;
-        height = (height + scale - 1) / scale * scale;
-        zwlr_layer_surface_v1_set_size(notif->layer_surface, width / scale, height / scale);
+        width = (int)roundf(roundf(width / scale) * scale);
+        height = (int)roundf(roundf(height / scale) * scale);
+        zwlr_layer_surface_v1_set_size(
+            notif->layer_surface, roundf(width / scale), roundf(height / scale));
     }
 
-    LOG_DBG("show: y = %d, width = %d, height = %d (scale = %d)",
+    LOG_DBG("show: y = %d, width = %d, height = %d (scale = %.2f)",
             y, width, height, scale);
 
     zwlr_layer_surface_v1_set_margin(
         notif->layer_surface,
         (top_anchored
-         ? y
-         : conf->margins.vertical) / scale, /* top */
-        conf->margins.horizontal / scale,   /* right */
+            ? roundf(y / scale)
+            : roundf(conf->margins.vertical) / scale), /* top */
+        roundf(conf->margins.horizontal / scale),   /* right */
         (!top_anchored
-         ? y
-         : conf->margins.between) / scale,  /* bottom */
-        conf->margins.horizontal / scale);  /* left */
+            ? roundf(y / scale)
+            : roundf(conf->margins.between) / scale),  /* bottom */
+        roundf(conf->margins.horizontal / scale));  /* left */
 
     struct buffer *buf = wayl_get_buffer(wayl, width, height);
     const int brd_sz = urgency->border.size;;
@@ -2108,7 +2198,7 @@ notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
         if (notif->surface == NULL)
             refresh_needed = true;
 
-        const int old_notif_scale = notif->scale;
+        const float old_notif_scale = notif->scale;
         if (notif_reload_fonts(notif))
             refresh_needed = true;
         else if (old_notif_scale != notif->scale) {

@@ -7,16 +7,14 @@
 #include <assert.h>
 #include <sys/epoll.h>
 
+#include <cursor-shape-v1.h>
+#include <ext-idle-notify-v1.h>
+#include <idle.h>
 #include <linux/input-event-codes.h>
 #include <wayland-client.h>
 #include <wayland-cursor.h>
-#include <idle.h>
-#include <xdg-output-unstable-v1.h>
 #include <wlr-layer-shell-unstable-v1.h>
-
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
- #include <ext-idle-notify-v1.h>
-#endif
+#include <xdg-output-unstable-v1.h>
 
 #include <tllist.h>
 
@@ -25,12 +23,12 @@
 #include "log.h"
 #include "notification.h"
 
+#define min(x, y) ((x) < (y) ? (x) : (y))
+
 struct idle_timer {
     struct notif_mgr *notif_mgr;
     struct org_kde_kwin_idle_timeout *kde_idle_timeout;
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
     struct ext_idle_notification_v1 *idle_notification;
-#endif
     enum urgency urgency;
     struct seat *seat;
 };
@@ -53,13 +51,16 @@ struct seat {
         int y;
         struct wl_surface *on_surface;
 
-        /* Cursor image */
+        /* Server side */
+        struct wp_cursor_shape_device_v1 *shape_device;
+
+        /* Client side */
         struct wl_surface *surface;
         struct wl_cursor_theme *theme;
         struct wl_cursor *cursor;
 
         /* Cursor theme info */
-        int scale;
+        float scale;
     } pointer;
 };
 
@@ -67,9 +68,7 @@ struct wayland {
     const struct config *conf;
     struct fdm *fdm;
     struct org_kde_kwin_idle *kde_idle_manager;
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
     struct ext_idle_notifier_v1 *idle_notifier;
-#endif
     struct notif_mgr *notif_mgr;
     struct wl_display *display;
     struct wl_registry *registry;
@@ -77,6 +76,9 @@ struct wayland {
     struct zxdg_output_manager_v1 *xdg_output_manager;
     struct wl_shm *shm;
     struct zwlr_layer_shell_v1 *layer_shell;
+    struct wp_viewporter *viewporter;
+    struct wp_fractional_scale_manager_v1 *fractional_scale_manager;
+    struct wp_cursor_shape_manager_v1 *cursor_shape_manager;
 
     bool have_argb8888;
 
@@ -94,11 +96,12 @@ seat_destroy(struct seat *seat)
     for (int i = 0; i < 3; i++) {
         if (seat->idle_timer[i].kde_idle_timeout != NULL)
             org_kde_kwin_idle_timeout_release(seat->idle_timer[i].kde_idle_timeout);
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
         if (seat->idle_timer[i].idle_notification != NULL)
             ext_idle_notification_v1_destroy(seat->idle_timer[i].idle_notification);
-#endif
     }
+
+    if (seat->pointer.shape_device != NULL)
+        wp_cursor_shape_device_v1_destroy(seat->pointer.shape_device);
     if (seat->pointer.theme != NULL)
         wl_cursor_theme_destroy(seat->pointer.theme);
     if (seat->pointer.surface != NULL)
@@ -117,13 +120,23 @@ update_cursor_surface(struct seat *seat)
     if (seat->pointer.serial == 0)
         return;
 
+    if (seat->pointer.shape_device != NULL) {
+        LOG_DBG("using server-side cursor");
+        wp_cursor_shape_device_v1_set_shape(
+            seat->pointer.shape_device, seat->pointer.serial,
+            WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
+        return;
+    }
+
     if (seat->pointer.cursor == NULL)
         return;
 
     if (seat->wl_pointer == NULL)
         return;
 
-    int scale = seat->pointer.scale;
+    LOG_DBG("using client-side cursor");
+
+    float scale = seat->pointer.scale;
     wl_surface_set_buffer_scale(seat->pointer.surface, scale);
 
     struct wl_cursor_image *image = seat->pointer.cursor->images[0];
@@ -134,7 +147,7 @@ update_cursor_surface(struct seat *seat)
     wl_pointer_set_cursor(
         seat->wl_pointer, seat->pointer.serial,
         seat->pointer.surface,
-        image->hotspot_x / scale, image->hotspot_y / scale);
+        roundf(image->hotspot_x / scale), roundf(image->hotspot_y / scale));
 
     wl_surface_damage_buffer(
         seat->pointer.surface, 0, 0, INT32_MAX, INT32_MAX);
@@ -143,7 +156,7 @@ update_cursor_surface(struct seat *seat)
 }
 
 static bool
-reload_cursor_theme(struct seat *seat, int new_scale)
+reload_cursor_theme(struct seat *seat, float new_scale)
 {
     if (seat->pointer.theme != NULL && seat->pointer.scale == new_scale)
         return true;
@@ -152,6 +165,11 @@ reload_cursor_theme(struct seat *seat, int new_scale)
         wl_cursor_theme_destroy(seat->pointer.theme);
         seat->pointer.theme = NULL;
         seat->pointer.cursor = NULL;
+    }
+
+    if (seat->pointer.shape_device != NULL) {
+        /* Server side cursors */
+        return true;
     }
 
     /* Cursor */
@@ -168,7 +186,7 @@ reload_cursor_theme(struct seat *seat, int new_scale)
     }
 
     /* Note: theme is (re)loaded on scale and output changes */
-    LOG_INFO("cursor theme: %s, size: %u, scale: %d",
+    LOG_INFO("cursor theme: %s, size: %u, scale: %.2f",
              cursor_theme, cursor_size, new_scale);
 
     struct wayland *wayl = seat->wayl;
@@ -366,10 +384,7 @@ wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
         return;
     }
 
-    const struct monitor *mon = notif_monitor(notif);
-
-    assert(mon != NULL);
-    const int scale = mon->scale;
+    const float scale = notif_scale(notif);
 
     seat->pointer.serial = serial;
     seat->pointer.x = wl_fixed_to_int(surface_x) * scale;
@@ -496,9 +511,19 @@ seat_capabilities(void *data, struct wl_seat *wl_seat,
 
             seat->wl_pointer = wl_seat_get_pointer(wl_seat);
             wl_pointer_add_listener(seat->wl_pointer, &pointer_listener, seat);
+
+            if (seat->wayl->cursor_shape_manager != NULL) {
+                seat->pointer.shape_device = wp_cursor_shape_manager_v1_get_pointer(
+                    seat->wayl->cursor_shape_manager, seat->wl_pointer);
+            }
         }
     } else {
         if (seat->wl_pointer != NULL) {
+            if (seat->pointer.shape_device != NULL) {
+                wp_cursor_shape_device_v1_destroy(seat->pointer.shape_device);
+                seat->pointer.shape_device = NULL;
+            }
+
             wl_surface_destroy(seat->pointer.surface);
             wl_pointer_release(seat->wl_pointer);
 
@@ -537,7 +562,6 @@ idle_resumed(struct idle_timer *timer)
     notif_mgr_notifs_reload_timeout(timer->notif_mgr);
 }
 
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
 static void
 idle_notify_idled(void *data, struct ext_idle_notification_v1 *notification)
 {
@@ -558,7 +582,6 @@ static const struct ext_idle_notification_v1_listener idle_notify_listener = {
     .idled = &idle_notify_idled,
     .resumed = &idle_notify_resumed,
 };
-#endif
 
 static void
 kde_idled(void *data, struct org_kde_kwin_idle_timeout *timeout)
@@ -623,12 +646,7 @@ seat_register_idle(struct seat *seat)
     struct wayland *wayl = seat->wayl;
     const struct config *conf = wayl->conf;
 
-    if (
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
-        wayl->idle_notifier == NULL &&
-#endif
-        wayl->kde_idle_manager == NULL)
-    {
+    if (wayl->idle_notifier == NULL && wayl->kde_idle_manager == NULL) {
         /* No idle notification interfaces available (yet) */
         return;
     }
@@ -647,7 +665,6 @@ seat_register_idle(struct seat *seat)
         timer->urgency = i;
         timer->seat = seat;
 
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
         if (wayl->idle_notifier != NULL) {
             /* We prefer the newer ext-idle-notify interface */
             if (timer->kde_idle_timeout != NULL) {
@@ -662,11 +679,8 @@ seat_register_idle(struct seat *seat)
             ext_idle_notification_v1_add_listener(
                 timer->idle_notification, &idle_notify_listener, timer);
         } else
-#endif
         if (wayl->kde_idle_manager != NULL) {
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
             assert(timer->idle_notification == NULL);
-#endif
 
             timer->kde_idle_timeout = org_kde_kwin_idle_get_idle_timeout(
                 wayl->kde_idle_manager, seat->wl_seat,
@@ -681,13 +695,11 @@ seat_register_idle(struct seat *seat)
 static void
 wayl_register_idle_for_all_seats(struct wayland *wayl)
 {
-    assert(
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
-        wayl->idle_notifier != NULL ||
-#endif
-        wayl->kde_idle_manager != NULL);
+    assert(wayl->idle_notifier != NULL ||
+           wayl->kde_idle_manager != NULL);
+
     tll_foreach(wayl->seats, it)
-        seat_register_idle(&it->item);
+    seat_register_idle(&it->item);
 }
 
 static void
@@ -702,8 +714,13 @@ handle_global(void *data, struct wl_registry *registry,
         if (!verify_iface_version(interface, version, required))
             return;
 
+#if defined (WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION)
+        const uint32_t preferred = WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION;
+#else
+        const uint32_t preferred = required;
+#endif
         wayl->compositor = wl_registry_bind(
-            wayl->registry, name, &wl_compositor_interface, required);
+            wayl->registry, name, &wl_compositor_interface, min(version, preferred));
     }
 
     else if (strcmp(interface, wl_shm_interface.name) == 0) {
@@ -788,20 +805,49 @@ handle_global(void *data, struct wl_registry *registry,
         if (!verify_iface_version(interface, version, required))
             return;
 
-        wayl->kde_idle_manager = wl_registry_bind(wayl->registry, name, &org_kde_kwin_idle_interface, required);
+        wayl->kde_idle_manager = wl_registry_bind(
+            wayl->registry, name, &org_kde_kwin_idle_interface, required);
         wayl_register_idle_for_all_seats(wayl);
     }
 
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
     else if (strcmp(interface, ext_idle_notifier_v1_interface.name) == 0) {
         const uint32_t required = 1;
         if (!verify_iface_version(interface, version, required))
             return;
 
-        wayl->idle_notifier = wl_registry_bind(wayl->registry, name, &ext_idle_notifier_v1_interface, required);
+        wayl->idle_notifier = wl_registry_bind(
+            wayl->registry, name, &ext_idle_notifier_v1_interface, required);
         wayl_register_idle_for_all_seats(wayl);
     }
-#endif
+
+    else if (strcmp(interface, wp_viewporter_interface.name) == 0) {
+        const uint32_t required = 1;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
+        wayl->viewporter = wl_registry_bind(
+            wayl->registry, name, &wp_viewporter_interface, required);
+    }
+
+    else if (strcmp(interface, wp_fractional_scale_manager_v1_interface.name) == 0) {
+        const uint32_t required = 1;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
+        wayl->fractional_scale_manager = wl_registry_bind(
+            wayl->registry, name,
+            &wp_fractional_scale_manager_v1_interface, required);
+    }
+
+    else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0) {
+        const uint32_t required = 1;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
+        wayl->cursor_shape_manager = wl_registry_bind(
+            wayl->registry, name, &wp_cursor_shape_manager_v1_interface, required);
+    }
+
 }
 
 static void
@@ -926,11 +972,7 @@ wayl_init(const struct config *conf, struct fdm *fdm, struct notif_mgr *notif_mg
         goto err;
     }
 
-    if ((
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
-            wayl->idle_notifier == NULL &&
-#endif
-            wayl->kde_idle_manager == NULL) &&
+    if ((wayl->idle_notifier == NULL && wayl->kde_idle_manager == NULL) &&
         (conf->by_urgency[0].idle_timeout_secs > 0 ||
          conf->by_urgency[1].idle_timeout_secs > 0 ||
          conf->by_urgency[2].idle_timeout_secs > 0))
@@ -996,10 +1038,14 @@ wayl_destroy(struct wayland *wayl)
         seat_destroy(&it->item);
     tll_free(wayl->seats);
 
-#if defined(FNOTT_HAVE_IDLE_NOTIFY)
+    if (wayl->cursor_shape_manager != NULL)
+        wp_cursor_shape_manager_v1_destroy(wayl->cursor_shape_manager);
+    if (wayl->fractional_scale_manager != NULL)
+        wp_fractional_scale_manager_v1_destroy(wayl->fractional_scale_manager);
+    if (wayl->viewporter != NULL)
+        wp_viewporter_destroy(wayl->viewporter);
     if (wayl->idle_notifier != NULL)
         ext_idle_notifier_v1_destroy(wayl->idle_notifier);
-#endif
     if (wayl->kde_idle_manager != NULL)
         org_kde_kwin_idle_destroy(wayl->kde_idle_manager);
     if (wayl->layer_shell != NULL)
@@ -1045,6 +1091,18 @@ wayl_layer_shell(const struct wayland *wayl)
     return wayl->layer_shell;
 }
 
+struct wp_fractional_scale_manager_v1 *
+wayl_fractional_scale_manager(const struct wayland *wayl)
+{
+    return wayl->fractional_scale_manager;
+}
+
+struct wp_viewporter *
+wayl_viewporter(const struct wayland *wayl)
+{
+    return wayl->viewporter;
+}
+
 struct buffer *
 wayl_get_buffer(const struct wayland *wayl, int width, int height)
 {
@@ -1068,7 +1126,7 @@ wayl_monitor_get(const struct wayland *wayl, struct wl_output *output)
     return NULL;
 }
 
-int
+float
 wayl_guess_scale(const struct wayland *wayl)
 {
     if (wayl->monitor != NULL)
@@ -1078,10 +1136,10 @@ wayl_guess_scale(const struct wayland *wayl)
         return 1;
 
     bool all_have_same_scale = true;
-    int last_scale = -1;
+    float last_scale = -1.;
 
     tll_foreach(wayl->monitors, it) {
-        if (last_scale == -1)
+        if (last_scale == -1.)
             last_scale = it->item.scale;
         else if (last_scale != it->item.scale) {
             all_have_same_scale = false;
