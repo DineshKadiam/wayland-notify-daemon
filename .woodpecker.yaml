@@ -1,7 +1,7 @@
 # -*- yaml -*-
 
 steps:
-  -name: codespell
+  - name: codespell
     when:
       - event: [manual, pull_request]
       - event: [push, tag]
