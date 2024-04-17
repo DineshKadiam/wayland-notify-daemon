@@ -1175,7 +1175,6 @@ notif_instantiate_surface(struct notif *notif, int *width, int *height)
     /* Width/height must be divisible with the scale */
     *width = (int)roundf(roundf(*width / scale) * scale);
     *height = (int)roundf(roundf(*height / scale) * scale);
-    LOG_ERR("width=%d, height=%d", *width, *height);
 
     enum zwlr_layer_surface_v1_anchor anchor
         = (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT
