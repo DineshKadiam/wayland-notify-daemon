@@ -1,9 +1,9 @@
 steps:
   codespell:
     when:
-      branch:
-        - master
-        - releases/*
+      - event: [manual, pull_request]
+      - event: [push, tag]
+        branch: [master, releases/*]
     image: alpine:latest
     commands:
       - apk add python3
@@ -13,9 +13,9 @@ steps:
 
   subprojects:
     when:
-      branch:
-        - master
-        - releases/*
+      - event: [manual, pull_request]
+      - event: [push, tag]
+        branch: [master, releases/*]
     image: alpine:latest
     commands:
       - apk add git
@@ -26,9 +26,9 @@ steps:
 
   x64:
     when:
-      branch:
-        - master
-        - releases/*
+      - event: [manual, pull_request]
+      - event: [push, tag]
+        branch: [master, releases/*]
     group: build
     image: alpine:latest
     commands:
@@ -59,9 +59,9 @@ steps:
 
   x86:
     when:
-      branch:
-        - master
-        - releases/*
+      - event: [manual, pull_request]
+      - event: [push, tag]
+        branch: [master, releases/*]
     group: build
     image: i386/alpine:latest
     commands:
