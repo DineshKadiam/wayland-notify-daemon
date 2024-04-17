@@ -1261,7 +1261,7 @@ notify_rasterize_text_run(struct notif *notif, struct fcft_font *font,
         if (it->item.subpixel != subpixel)
             continue;
         if (it->item.ofs != ofs) {
-            /* TODO: we could still re-use the run, but need to deal
+            /* TODO: we could still reuse the run, but need to deal
              * with cluster offsets */
             continue;
         }
