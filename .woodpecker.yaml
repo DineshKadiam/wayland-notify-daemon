@@ -34,7 +34,7 @@ steps:
       - event: [manual, pull_request]
       - event: [push, tag]
         branch: [master, releases/*]
-    group: build
+    depends_on: [subprojects]
     image: alpine:latest
     commands:
       - apk update
@@ -67,7 +67,7 @@ steps:
       - event: [manual, pull_request]
       - event: [push, tag]
         branch: [master, releases/*]
-    group: build
+    depends_on: [subprojects]
     image: i386/alpine:latest
     commands:
       - apk update
