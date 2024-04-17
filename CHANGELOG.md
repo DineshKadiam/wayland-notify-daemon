@@ -1,6 +1,6 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.5.0](#1-5-0)
 * [1.4.1](#1-4-1)
 * [1.4.0](#1-4-0)
 * [1.3.0](#1-3-0)
@@ -13,7 +13,8 @@
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.5.0
+
 ### Added
 
 * `docs` meson option ([#111][111])
@@ -36,15 +37,17 @@
 
 [111]: https://codeberg.org/dnkl/fnott/pulls/111
 
-### Deprecated
 ### Removed
 
 * `dpi-aware=auto`
 
 
-### Fixed
-### Security
 ### Contributors
+
+* Lukas Wurzinger
+* Marcin Puc
+* polykernel
+* sewn
 
 
 ## 1.4.1
