@@ -611,24 +611,6 @@ reload_one_font_set(const struct config_font *font,
 }
 
 static bool
-be_dpi_aware(const struct config *conf, const struct wayland *wayl)
-{
-    switch (conf->dpi_aware) {
-    case DPI_AWARE_NO:
-        return false;
-
-    case DPI_AWARE_YES:
-        return true;
-
-    case DPI_AWARE_AUTO:
-        return wayl_all_monitors_have_scale_one(wayl);
-    }
-
-    assert(false);
-    return false;
-}
-
-static bool
 notif_reload_fonts(struct notif *notif)
 {
     const float old_dpi = notif->fonts.dpi;
@@ -641,7 +623,7 @@ notif_reload_fonts(struct notif *notif)
     const enum urgency new_urgency = notif->urgency;
 
     const bool was_dpi_aware = notif->fonts.dpi_aware;
-    const bool is_dpi_aware = be_dpi_aware(notif->mgr->conf, notif->mgr->wayl);
+    const bool is_dpi_aware = notif->mgr->conf->dpi_aware;
 
     notif->scale = new_scale;
     notif->fonts.dpi = new_dpi;

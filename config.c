@@ -495,17 +495,13 @@ parse_section_main(const char *key, const char *value, struct config *conf,
     }
 
     else if (strcmp(key, "dpi-aware") == 0) {
-        if (strcasecmp(value, "auto") == 0)
-            conf->dpi_aware = DPI_AWARE_AUTO;
-        else {
-            bool enabled;
-            if (str_to_bool(value, &enabled))
-                conf->dpi_aware = enabled ? DPI_AWARE_YES : DPI_AWARE_NO;
-            else {
-                LOG_ERR("%s:%d: %s: invalid boolean value", path, lineno, value);
-                return false;
-            }
+        bool enabled;
+        if (!str_to_bool(value, &enabled)) {
+            LOG_ERR("%s:%d: %s: invalid boolean value", path, lineno, value);
+            return false;
         }
+
+        conf->dpi_aware = enabled;
     }
 
     else if (strcmp(key, "icon-theme") == 0) {
@@ -997,7 +993,7 @@ config_load(struct config *conf, const char *path)
         .min_width = 0,
         .max_width = 0,
         .max_height = 0,
-        .dpi_aware = DPI_AWARE_AUTO,
+        .dpi_aware = false,
         .icon_theme_name = strdup("hicolor"),
         .max_icon_size = 48,
         .stacking_order = STACK_BOTTOM_UP,

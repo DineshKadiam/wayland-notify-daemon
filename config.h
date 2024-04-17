@@ -72,7 +72,7 @@ struct config {
     int max_width;
     int max_height;
 
-    enum {DPI_AWARE_AUTO, DPI_AWARE_YES, DPI_AWARE_NO} dpi_aware;
+    bool dpi_aware;
 
     char *icon_theme_name;
     int max_icon_size;

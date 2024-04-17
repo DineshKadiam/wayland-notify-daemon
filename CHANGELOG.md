@@ -31,11 +31,17 @@
 * Fnott now requires wayland-protocols >= 1.32.
 * Minimum required meson version is now 0.59 ([#111][111]).
 * Move example config to `<sysconfdir>/xdg/fnott.ini` ([#111][111]).
+* `dpi-aware` no longer accepts the value `auto`, and the default
+  value is now `no`.
 
 [111]: https://codeberg.org/dnkl/fnott/pulls/111
 
 ### Deprecated
 ### Removed
+
+* `dpi-aware=auto`
+
+
 ### Fixed
 ### Security
 ### Contributors
