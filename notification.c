@@ -2537,11 +2537,18 @@ notif_select_action(
         notif->mgr->conf->selection_helper_uses_null_separator;
 
     input = malloc(input_len + 1);
-    input[0] = '\0';
+    size_t idx = 0;
     tll_foreach(notif->actions, it) {
-        strcat(input, it->item.label);
-        strcat(input, use_null ? "\0" : "\n");
+        const size_t label_len = strlen(it->item.label);
+
+        memcpy(&input[idx], it->item.label, label_len);
+        idx += label_len;
+
+        input[idx] = use_null ? '\0' : '\n';
+        idx++;
     }
+
+    assert(idx == input_len);
 
     /* FDM callback data. Shared by both the write and read callback,
      * but *only* freed by the *read* handler. */
