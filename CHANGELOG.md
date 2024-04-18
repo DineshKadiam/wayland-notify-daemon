@@ -27,8 +27,12 @@
 ### Changed
 
 * `layer` is now per-urgency ([#112][112]).
+* PNGs and other bitmap (non-SVG) formats are now scaled with the
+  lanczos3 filter. This results in smoother and better looking
+  notification images ([#103][103]).
 
 [112]: https://codeberg.org/dnkl/fnott/issues/112
+[103]: https://codeberg.org/dnkl/fnott/issues/103
 
 
 ### Deprecated
