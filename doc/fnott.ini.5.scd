@@ -95,7 +95,13 @@ in this order:
 	
 	The utility should accept (action) entries to display on stdin
 	(newline separated), and write the selected entry on
-	stdout. Default: _dmenu_.
+	stdout.
+	
+	It is strongly recommended that you enable
+	*selection-helper-uses-null-separator* (see below), if your helper
+	of choice supports it.
+	
+	Default: _dmenu_.
 
 *selection-helper-uses-null-separator*
 	Boolean. When enabled, the action strings passed to the selection
