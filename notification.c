@@ -2278,8 +2278,11 @@ check_pollhup:
         return true;
 
     /* Strip trailing spaces/newlines */
-    while (async->output_len > 0 && isspace(async->output[--async->output_len]))
-        async->output[async->output_len] = '\0';
+    while (async->output_len > 0
+           && isspace(async->output[async->output_len - 1]))
+    {
+        async->output[--async->output_len] = '\0';
+    }
 
     /* Extract the data we need from the info struct, then free it */
     struct notif_mgr *mgr = async->mgr;

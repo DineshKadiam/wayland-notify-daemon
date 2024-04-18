@@ -20,6 +20,12 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* Selected action not being recognized correctly ([#114][114]).
+
+[114]: https://codeberg.org/dnkl/fnott/issues/114
+
+
 ### Security
 ### Contributors
 
