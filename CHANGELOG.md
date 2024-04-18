@@ -40,6 +40,7 @@
 ### Fixed
 
 * Selected action not being recognized correctly ([#114][114]).
+* PNG images being way too dark.
 
 [114]: https://codeberg.org/dnkl/fnott/issues/114
 
