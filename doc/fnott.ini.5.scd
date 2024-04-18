@@ -101,6 +101,18 @@ in this order:
 	(newline separated), and write the selected entry on
 	stdout. Default: _dmenu_.
 
+*selection-helper-uses-null-separator*
+	Boolean. When enabled, the action strings passed to the selection
+	helper will be NULL separated, instead of newline
+	separated.
+	
+	Note that you may also have to adjust *selection-helper*, to
+	ensure the selection helper parses the action strings
+	correctly. For example, instead of *fuzzel --dmenu*, you would
+	have to use *fuzzel --dmenu0*.
+	
+	Default: _no_.
+
 *play-sound*
 	Command to execute to play notification sounds. _${filename}_ will
 	be expanded to the path to the audio file to play. Default: _aplay

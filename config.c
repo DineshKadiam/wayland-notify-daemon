@@ -618,6 +618,16 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         conf->selection_helper = strdup(value);
     }
 
+    else if (strcmp(key, "selection-helper-uses-null-separator") == 0) {
+        bool enabled;
+        if (!str_to_bool(value, &enabled)) {
+            LOG_ERR("%s:%d: %s: invalid boolean value", path, lineno, value);
+            return false;
+        }
+
+        conf->selection_helper_uses_null_separator = enabled;
+    }
+
     else if (strcmp(key, "play-sound") == 0) {
         if (!str_to_spawn_template(conf, value, &conf->play_sound, path, lineno))
             return false;

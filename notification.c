@@ -2529,15 +2529,18 @@ notif_select_action(
     }
 
     /* Construct a single string consisting of all the action labels
-     * separated by newlines */
+     * separated by newlines, or NULL */
     tll_foreach(notif->actions, it)
         input_len += strlen(it->item.label) + 1;
+
+    const bool use_null =
+        notif->mgr->conf->selection_helper_uses_null_separator;
 
     input = malloc(input_len + 1);
     input[0] = '\0';
     tll_foreach(notif->actions, it) {
         strcat(input, it->item.label);
-        strcat(input, "\n");
+        strcat(input, use_null ? "\0" : "\n");
     }
 
     /* FDM callback data. Shared by both the write and read callback,

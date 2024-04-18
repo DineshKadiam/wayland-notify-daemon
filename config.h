@@ -100,6 +100,7 @@ struct config {
     struct urgency_config by_urgency[3];
 
     char *selection_helper;
+    bool selection_helper_uses_null_separator;
     struct config_spawn_template play_sound;
 };
 

@@ -16,6 +16,14 @@
 
 ## Unreleased
 ### Added
+
+* `selection-helper-uses-null-separator=yes|no` to `fnott.ini`. This
+  can be used to e.g. improve handling of action strings with newlines
+  in them ([#113][113]).
+
+[113]: https://codeberg.org/dnkl/fnott/issues/113
+
+
 ### Changed
 ### Deprecated
 ### Removed
