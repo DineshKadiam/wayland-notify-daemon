@@ -731,15 +731,27 @@ notif_set_image_internal(struct notif *notif, pixman_image_t *pix, bool custom)
     pixman_transform_from_pixman_f_transform(&t, &f_scale);
     pixman_image_set_transform(pix, &t);
 
-    /* TODO: make scaling filter configurable? */
-    {
+    const enum scaling_filter filter = notif->mgr->conf->scaling_filter;
+
+    switch (filter) {
+    case SCALING_FILTER_NONE:
+        break;
+
+    case SCALING_FILTER_NEAREST:
+        pixman_image_set_filter(pix, PIXMAN_FILTER_NEAREST, NULL, 0);
+        break;
+
+    case SCALING_FILTER_BILINEAR:
+        pixman_image_set_filter(pix, PIXMAN_FILTER_BILINEAR, NULL, 0);
+        break;
+
+    case SCALING_FILTER_CUBIC:
+    case SCALING_FILTER_LANCZOS3: {
         int param_count = 0;
-#if 0
-        pixman_kernel_t kernel = filter_to_use == FCFT_SCALING_FILTER_CUBIC
+        pixman_kernel_t kernel = filter == SCALING_FILTER_CUBIC
             ? PIXMAN_KERNEL_CUBIC
             : PIXMAN_KERNEL_LANCZOS3;
-#endif
-        pixman_kernel_t kernel = PIXMAN_KERNEL_LANCZOS3;
+
         pixman_fixed_t *params = pixman_filter_create_separable_convolution(
             &param_count,
             pixman_double_to_fixed(scale),
@@ -752,6 +764,7 @@ notif_set_image_internal(struct notif *notif, pixman_image_t *pix, bool custom)
         pixman_image_set_filter(
             pix, PIXMAN_FILTER_SEPARABLE_CONVOLUTION, params, param_count);
         free(params);
+    }
     }
 }
 

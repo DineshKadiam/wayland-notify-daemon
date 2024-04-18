@@ -663,6 +663,34 @@ parse_section_main(const char *key, const char *value, struct config *conf,
             return false;
     }
 
+    else if (strcmp(key, "scaling-filter") == 0) {
+        enum scaling_filter filter;
+
+        if (strcasecmp(value, "none") == 0)
+            filter = SCALING_FILTER_NONE;
+        else if (strcasecmp(value, "nearest") == 0)
+            filter = SCALING_FILTER_NEAREST;
+        else if (strcasecmp(value, "bilinear") == 0)
+            filter = SCALING_FILTER_BILINEAR;
+        else if (strcasecmp(value, "cubic") == 0)
+            filter = SCALING_FILTER_CUBIC;
+        else if (strcasecmp(value, "lanczos3") == 0)
+            filter = SCALING_FILTER_LANCZOS3;
+        else {
+            LOG_ERR(
+                "%s:%u: %s: invalid scaling-filter value, must be one of "
+                "\"none\", "
+                "\"nearest\", "
+                "\"bilinear\", "
+                "\"cubic\" or "
+                "\"lanczos3\"",
+                path, lineno, value);
+            return false;
+        }
+
+        conf->scaling_filter = filter;
+    }
+
     else if (strcmp(key, "background") == 0) {
         pixman_color_t bg;
         if (!str_to_color(value, &bg, path, lineno))
@@ -1152,6 +1180,7 @@ config_load(struct config *conf, const char *path)
             },
         },
         .selection_helper = strdup("dmenu"),
+        .scaling_filter = SCALING_FILTER_LANCZOS3,
     };
 
     for (size_t i = 0; i < sizeof(conf->by_urgency) / sizeof(conf->by_urgency[0]); i++) {

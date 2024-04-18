@@ -120,6 +120,23 @@ in this order:
 	be expanded to the path to the audio file to play. Default: _aplay
 	${filename}_.
 
+*scaling-filter*
+
+	Which scaling filter to use when scaling non-SVG notification
+	images.
+	
+	Possible values are:
+	- none
+	- nearest
+	- bilinear
+	- cubic
+	- lanczos3
+	
+	*none* is the fastest, but also looks the worst. *lanczos3*
+	produces the best result, but is also, by far, the slowest option.
+	
+	Default: _lanczos3_
+
 ## Per-urgency default options
 
 These options can also be specified in an _urgency_ section, in which

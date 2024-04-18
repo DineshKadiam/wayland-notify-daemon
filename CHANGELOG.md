@@ -20,19 +20,19 @@
 * `selection-helper-uses-null-separator=yes|no` to `fnott.ini`. This
   can be used to e.g. improve handling of action strings with newlines
   in them ([#113][113]).
+* `scaling-filter` to `fnott.ini`, allowing you to choose which
+  scaling filter to use when scaling non-SVG notification images. The
+  default is `lanczos3` ([#103][103]).
 
 [113]: https://codeberg.org/dnkl/fnott/issues/113
+[103]: https://codeberg.org/dnkl/fnott/issues/103
 
 
 ### Changed
 
 * `layer` is now per-urgency ([#112][112]).
-* PNGs and other bitmap (non-SVG) formats are now scaled with the
-  lanczos3 filter. This results in smoother and better looking
-  notification images ([#103][103]).
 
 [112]: https://codeberg.org/dnkl/fnott/issues/112
-[103]: https://codeberg.org/dnkl/fnott/issues/103
 
 
 ### Deprecated

@@ -13,6 +13,14 @@ struct config_font {
     int px_size;
 };
 
+enum scaling_filter {
+    SCALING_FILTER_NONE,
+    SCALING_FILTER_NEAREST,
+    SCALING_FILTER_BILINEAR,
+    SCALING_FILTER_CUBIC,
+    SCALING_FILTER_LANCZOS3,
+};
+
 struct urgency_config {
     enum zwlr_layer_shell_v1_layer layer;
     pixman_color_t bg;
@@ -101,6 +109,7 @@ struct config {
     char *selection_helper;
     bool selection_helper_uses_null_separator;
     struct config_spawn_template play_sound;
+    enum scaling_filter scaling_filter;
 };
 
 bool config_load(struct config *conf, const char *path);
