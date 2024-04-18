@@ -25,6 +25,12 @@
 
 
 ### Changed
+
+* `layer` is now per-urgency ([#112][112]).
+
+[112]: https://codeberg.org/dnkl/fnott/issues/112
+
+
 ### Deprecated
 ### Removed
 ### Fixed

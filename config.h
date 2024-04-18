@@ -14,6 +14,7 @@ struct config_font {
 };
 
 struct urgency_config {
+    enum zwlr_layer_shell_v1_layer layer;
     pixman_color_t bg;
 
     struct {
@@ -81,8 +82,6 @@ struct config {
         STACK_BOTTOM_UP,
         STACK_TOP_DOWN,
     } stacking_order;
-
-    enum zwlr_layer_shell_v1_layer layer;
 
     enum {
         ANCHOR_TOP_LEFT,

@@ -260,7 +260,32 @@ parse_section_urgency(const char *key, const char *value,
                       struct urgency_config *conf,
                       const char *path, unsigned lineno)
 {
-    if (strcmp(key, "background") == 0) {
+    if (strcmp(key, "layer") == 0) {
+        enum zwlr_layer_shell_v1_layer layer = 0;
+
+        if (strcasecmp(value, "background") == 0)
+            layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
+        else if (strcasecmp(value, "top") == 0)
+            layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP;
+        else if (strcasecmp(value, "bottom") == 0)
+            layer = ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM;
+        else if (strcasecmp(value, "overlay") == 0)
+            layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY;
+        else {
+            LOG_ERR(
+                "%s:%u: %s: invalid layer value, must be one of "
+                "\"background\", "
+                "\"bottom\", "
+                "\"top\" or "
+                "\"overlay\"",
+                path, lineno, value);
+            return false;
+        }
+
+        conf->layer = layer;
+    }
+
+    else if (strcmp(key, "background") == 0) {
         pixman_color_t bg;
         if (!str_to_color(value, &bg, path, lineno))
             return false;
@@ -536,14 +561,16 @@ parse_section_main(const char *key, const char *value, struct config *conf,
 
 
     else if (strcmp(key, "layer") == 0) {
+        enum zwlr_layer_shell_v1_layer layer = 0;
+
         if (strcasecmp(value, "background") == 0)
-            conf->layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
+            layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
         else if (strcasecmp(value, "top") == 0)
-            conf->layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP;
+            layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP;
         else if (strcasecmp(value, "bottom") == 0)
-            conf->layer = ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM;
+            layer = ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM;
         else if (strcasecmp(value, "overlay") == 0)
-            conf->layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY;
+            layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY;
         else {
             LOG_ERR(
                 "%s:%u: %s: invalid layer value, must be one of "
@@ -554,6 +581,9 @@ parse_section_main(const char *key, const char *value, struct config *conf,
                 path, lineno, value);
             return false;
         }
+
+        for (int i = 0; i < 3; i++)
+            conf->by_urgency[i].layer = layer;
     }
 
     else if (strcmp(key, "anchor") == 0) {
@@ -1008,7 +1038,6 @@ config_load(struct config *conf, const char *path)
         .max_icon_size = 48,
         .stacking_order = STACK_BOTTOM_UP,
         .anchor = ANCHOR_TOP_RIGHT,
-        .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
         .margins = {
             .vertical = 10,
             .horizontal = 10,
@@ -1017,6 +1046,7 @@ config_load(struct config *conf, const char *path)
         .by_urgency = {
             /* urgency == low */
             {
+                .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
                 .bg = {0x2b2b, 0x2b2b, 0x2b2b, 0xffff},
                 .border = {
                     .color = {0x9090, 0x9090, 0x9090, 0xffff},
@@ -1051,6 +1081,7 @@ config_load(struct config *conf, const char *path)
                 .icon = NULL,
             },
             {
+                .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
                 .bg = {0x3f3f, 0x5f5f, 0x3f3f, 0xffff},
                 .border = {
                     .color = {0x9090, 0x9090, 0x9090, 0xffff},
@@ -1085,6 +1116,7 @@ config_load(struct config *conf, const char *path)
                 .icon = NULL,
             },
             {
+                .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
                 .bg = {0x6c6c, 0x3333, 0x3333, 0xffff},
                 .border = {
                     .color = {0x9090, 0x9090, 0x9090, 0xffff},

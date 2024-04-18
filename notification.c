@@ -1142,11 +1142,12 @@ notif_instantiate_surface(struct notif *notif, int *width, int *height)
     }
 
     const struct config *conf = mgr->conf;
+    const struct urgency_config *urgency = &conf->by_urgency[notif->urgency];
 
     struct zwlr_layer_surface_v1 *layer_surface =
         zwlr_layer_shell_v1_get_layer_surface(
             wayl_layer_shell(wayl), surface, mon != NULL ? mon->output : NULL,
-            conf->layer, "notifications");
+            urgency->layer, "notifications");
 
     if (layer_surface == NULL) {
         LOG_ERR("failed to create layer shell surface");

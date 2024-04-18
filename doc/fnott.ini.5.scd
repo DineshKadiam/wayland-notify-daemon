@@ -76,10 +76,6 @@ in this order:
 	Where notifications are positioned: *top-left*, *top-right*,
 	*bottom-left* or *bottom-right*. Default: _top-right_.
 
-*layer*
-	Layer on which notifications will appear: *background*, *bottom*,
-	*top* or *overlay*. Default: _top_.
-
 *edge-margin-vertical*
 	Vertical margin, in pixels, between the screen edge (top or
 	bottom, depending on anchor pointer) and notifications. Default:
@@ -122,6 +118,10 @@ in this order:
 
 These options can also be specified in an _urgency_ section, in which
 case they override the values specified in the default section.
+
+*layer*
+	Layer on which notifications will appear: *background*, *bottom*,
+	*top* or *overlay*. Default: _top_.
 
 *background*
 	Background color of the notification, in RGBA format. Default:
