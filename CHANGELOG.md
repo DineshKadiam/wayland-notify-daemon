@@ -41,8 +41,12 @@
 
 * Selected action not being recognized correctly ([#114][114]).
 * PNG images being way too dark.
+* Regression: notification replacement (e.g. `notify-send -r NNNN`)
+  not working correctly; the notification was resized, but the content
+  was not updated ([#126][126]).
 
 [114]: https://codeberg.org/dnkl/fnott/issues/114
+[126]: https://codeberg.org/dnkl/fnott/issues/126
 
 
 ### Security

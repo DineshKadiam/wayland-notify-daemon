@@ -317,9 +317,10 @@ commit_buffer(struct notif *notif, struct buffer *buf)
                 buf->width, buf->height);
 
         wl_surface_set_buffer_scale(notif->surface, notif->scale);
-        wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
-        wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
     }
+
+    wl_surface_attach(notif->surface, buf->wl_buf, 0, 0);
+    wl_surface_damage_buffer(notif->surface, 0, 0, buf->width, buf->height);
 
     assert(notif->frame_callback == NULL);
     notif->frame_callback = wl_surface_frame(notif->surface);
