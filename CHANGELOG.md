@@ -23,6 +23,7 @@
 * `scaling-filter` to `fnott.ini`, allowing you to choose which
   scaling filter to use when scaling non-SVG notification images. The
   default is `lanczos3` ([#103][103]).
+* Nanosvg updated to 93ce879dc4c04a3ef1758428ec80083c38610b1f
 
 [113]: https://codeberg.org/dnkl/fnott/issues/113
 [103]: https://codeberg.org/dnkl/fnott/issues/103
