@@ -1,6 +1,6 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.6.0](#1-6-0)
 * [1.5.0](#1-5-0)
 * [1.4.1](#1-4-1)
 * [1.4.0](#1-4-0)
@@ -14,7 +14,8 @@
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.6.0
+
 ### Added
 
 * `selection-helper-uses-null-separator=yes|no` to `fnott.ini`. This
@@ -40,8 +41,6 @@
 [112]: https://codeberg.org/dnkl/fnott/issues/112
 
 
-### Deprecated
-### Removed
 ### Fixed
 
 * Selected action not being recognized correctly ([#114][114]).
@@ -54,8 +53,11 @@
 [126]: https://codeberg.org/dnkl/fnott/issues/126
 
 
-### Security
 ### Contributors
+
+* Mark Stosberg
+* Max Gautier
+* sewn
 
 
 ## 1.5.0
