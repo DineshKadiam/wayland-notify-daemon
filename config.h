@@ -28,6 +28,7 @@ struct urgency_config {
     struct {
         pixman_color_t color;
         int size;
+        int radius;
     } border;
 
     struct {

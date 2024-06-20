@@ -154,6 +154,9 @@ case they override the values specified in the default section.
 	Border color of the notification, in RGBA format. Default:
 	_909090ff_.
 
+*border-radius*
+	Corner radius on the border in pixels. Default: _0_.
+
 *border-size*
 	Border size, in pixels. Default: _1_.
 

@@ -301,6 +301,16 @@ parse_section_urgency(const char *key, const char *value,
         conf->border.color = color;
     }
 
+    else if (strcmp(key, "border-radius") == 0) {
+        unsigned long rad;
+        if (!str_to_ulong(value, 10, &rad)) {
+            LOG_ERR("%s:%u: invalid border-radius (expected an integer): %s",
+                    path, lineno, value);
+            return false;
+        }
+        conf->border.radius = rad;
+    }
+
     else if (strcmp(key, "border-size") == 0) {
         unsigned long sz;
         if (!str_to_ulong(value, 10, &sz)) {
@@ -707,6 +717,18 @@ parse_section_main(const char *key, const char *value, struct config *conf,
 
         for (int i = 0; i < 3; i++)
             conf->by_urgency[i].border.color = color;
+    }
+
+    else if (strcmp(key, "border-radius") == 0) {
+        unsigned long rad;
+        if (!str_to_ulong(value, 10, &rad)) {
+            LOG_ERR("%s:%u: invalid border-radius (expected an integer): %s",
+                    path, lineno, value);
+            return false;
+        }
+
+        for (int i = 0; i < 3; i++)
+            conf->by_urgency[i].border.radius = rad;
     }
 
     else if (strcmp(key, "border-size") == 0) {
