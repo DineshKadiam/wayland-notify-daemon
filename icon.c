@@ -326,8 +326,8 @@ parse_theme(FILE *index, struct icon_theme *theme, theme_names_t *themes_to_load
 
         if (strcasecmp(key, "inherits") == 0) {
             char *ctx = NULL;
-            for (const char *theme_name = strtok_r(value, ",", &ctx);
-                 theme_name != NULL; theme_name = strtok_r(NULL, ",", &ctx))
+            for (const char *theme_name = strtok_r(value, ", ", &ctx);
+                 theme_name != NULL; theme_name = strtok_r(NULL, ", ", &ctx))
             {
                 tll_push_back(*themes_to_load, strdup(theme_name));
             }
