@@ -7,7 +7,7 @@ url=https://codeberg.org/dnkl/fnott
 license=(mit)
 makedepends=('meson' 'ninja' 'scdoc' 'tllist>=1.0.1')
 depends=(
-  'wayland' 'pixman' 'libpng' 'dbus'
+  'wayland' 'pixman' 'libpng' 'dbus' 'nanosvg'
   'fcft>=3.0.0' 'fcft<4.0.0')
 source=()
 changelog=CHANGELOG.md
@@ -18,7 +18,7 @@ pkgver() {
 }
 
 build() {
-  meson --prefix=/usr --buildtype=release --wrap-mode=nofallback -Db_lto=true ..
+  meson --prefix=/usr --buildtype=release --wrap-mode=nofallback -Db_lto=true -Dsystem-nanosvg=enabled ..
   ninja
 }
 
