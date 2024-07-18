@@ -20,6 +20,8 @@
 
 * Log output now respects the [`NO_COLOR`](http://no-color.org/)
   environment variable.
+* `border-radius` configuration option (yes, this means fnott now
+  supports rounded corners).
 
 
 ### Changed
