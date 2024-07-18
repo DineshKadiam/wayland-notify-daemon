@@ -1713,20 +1713,30 @@ expand_format_string(const struct notif *notif, const char32_t *fmt)
 }
 
 static inline void
-fill_rounded_rectangle(pixman_op_t op, pixman_image_t* dest, const pixman_color_t* color, int16_t x, int16_t y, uint16_t width, uint16_t height, uint16_t radius)
+fill_rounded_rectangle(pixman_op_t op, pixman_image_t* dest,
+                       const pixman_color_t* color, int16_t x, int16_t y,
+                       uint16_t width, uint16_t height, uint16_t radius)
 {
-  int rect_count = ( radius + radius ) + 1;
-  pixman_rectangle16_t rects[rect_count];
-  for (int i = 0; i <= radius; i++){
-    uint16_t ydist = radius - i;
-    uint16_t curve = sqrt(radius * radius - ydist * ydist);
-    rects[i] = (pixman_rectangle16_t){ x + radius - curve, y + i, width - radius * 2 + curve * 2, 1};
+    int rect_count = ( radius + radius ) + 1;
+    pixman_rectangle16_t rects[rect_count];
 
-    rects[radius + i] = (pixman_rectangle16_t){x + radius - curve, y + height - i, width - radius * 2 + curve * 2, 1};
-  }
-  rects[(radius * 2)] = (pixman_rectangle16_t){x, y + radius, width, height + 1 - radius * 2};
+    for (int i = 0; i <= radius; i++){
+        uint16_t ydist = radius - i;
+        uint16_t curve = sqrt(radius * radius - ydist * ydist);
 
-  pixman_image_fill_rectangles(op, dest, color,rect_count, rects);
+        rects[i] = (pixman_rectangle16_t){
+            x + radius - curve, y + i, width - radius * 2 + curve * 2, 1
+        };
+
+        rects[radius + i] = (pixman_rectangle16_t){
+            x + radius - curve, y + height - i, width - radius * 2 + curve * 2, 1
+        };
+    }
+
+    rects[(radius * 2)] = (pixman_rectangle16_t){
+        x, y + radius, width, height + 1 - radius * 2
+    };
+    pixman_image_fill_rectangles(op, dest, color,rect_count, rects);
 }
 
 static int
@@ -1907,53 +1917,61 @@ notif_show(struct notif *notif, int y)
     pixman_region32_fini(&clip);
 
     if (brd_rad == 0){
-      /* Border */
-      pixman_image_fill_rectangles(
-          PIXMAN_OP_SRC, buf->pix, &urgency->border.color,
-          4, (pixman_rectangle16_t []){
-          {0, 0, buf->width, brd_sz},                     /* top */
-          {buf->width - brd_sz, 0, brd_sz, buf->height},  /* right */
-          {0, buf->height - brd_sz, buf->width, brd_sz},  /* bottom */
-          {0, 0, brd_sz, buf->height},                    /* left */
-          });
+        /* Border */
+        pixman_image_fill_rectangles(
+            PIXMAN_OP_SRC, buf->pix, &urgency->border.color,
+            4, (pixman_rectangle16_t []){
+                {0, 0, buf->width, brd_sz},                     /* top */
+                {buf->width - brd_sz, 0, brd_sz, buf->height},  /* right */
+                {0, buf->height - brd_sz, buf->width, brd_sz},  /* bottom */
+                {0, 0, brd_sz, buf->height},                    /* left */
+            });
 
-      /* Background */
-      pixman_image_fill_rectangles(
-          PIXMAN_OP_SRC, buf->pix, &urgency->bg,
-          1, &(pixman_rectangle16_t){
-          brd_sz, brd_sz,
-          buf->width - 2 * brd_sz, buf->height - 2 * brd_sz}
+        /* Background */
+        pixman_image_fill_rectangles(
+            PIXMAN_OP_SRC, buf->pix, &urgency->bg,
+            1, &(pixman_rectangle16_t){
+                brd_sz, brd_sz,
+                buf->width - 2 * brd_sz, buf->height - 2 * brd_sz}
           );
     } else {
-      const int msaa_scale = 2;
-      const double brd_sz_scaled = brd_sz * msaa_scale;
-      const double brd_rad_scaled = brd_rad * msaa_scale;
-      int w = buf->width * msaa_scale;
-      int h = buf->height * msaa_scale;
+        const int msaa_scale = 2;
+        const double brd_sz_scaled = brd_sz * msaa_scale;
+        const double brd_rad_scaled = brd_rad * msaa_scale;
+        int w = buf->width * msaa_scale;
+        int h = buf->height * msaa_scale;
 
-      pixman_image_t *bg;
-      if (msaa_scale != 1){
-        bg = pixman_image_create_bits(PIXMAN_a8r8g8b8, w, h, NULL, w*4);
-      }else{
-        bg = buf->pix;
-      }
-      /* Border */
-      fill_rounded_rectangle(PIXMAN_OP_SRC, bg, &urgency->border.color, 0, 0, w, h, brd_rad_scaled);
+        pixman_image_t *bg;
+        if (msaa_scale != 1){
+            bg = pixman_image_create_bits(PIXMAN_a8r8g8b8, w, h, NULL, w*4);
+        } else {
+            bg = buf->pix;
+        }
 
-      /* Background */
-      fill_rounded_rectangle(PIXMAN_OP_SRC, bg, &urgency->bg, brd_sz_scaled, brd_sz_scaled, w-(brd_sz_scaled*2), h-(brd_sz_scaled*2), brd_rad_scaled - brd_sz_scaled);
+        /* Border */
+        fill_rounded_rectangle(
+            PIXMAN_OP_SRC, bg, &urgency->border.color,
+            0, 0, w, h, brd_rad_scaled);
 
-      if (msaa_scale != 1){
-        pixman_f_transform_t ftrans;
-        pixman_transform_t trans;
-        pixman_f_transform_init_scale(&ftrans, msaa_scale, msaa_scale);
-        pixman_transform_from_pixman_f_transform(&trans, &ftrans);
-        pixman_image_set_transform(bg, &trans);
-        pixman_image_set_filter(bg, PIXMAN_FILTER_BILINEAR, NULL, 0);
+        /* Background */
+        fill_rounded_rectangle(
+            PIXMAN_OP_SRC, bg, &urgency->bg, brd_sz_scaled, brd_sz_scaled,
+            w-(brd_sz_scaled*2),
+            h-(brd_sz_scaled*2),
+            brd_rad_scaled - brd_sz_scaled);
 
-        pixman_image_composite32(PIXMAN_OP_SRC, bg, NULL, buf->pix, 0, 0, 0, 0, 0, 0, buf->width, buf->height);
-        pixman_image_unref(bg);
-      }
+        if (msaa_scale != 1){
+            pixman_f_transform_t ftrans;
+            pixman_transform_t trans;
+            pixman_f_transform_init_scale(&ftrans, msaa_scale, msaa_scale);
+            pixman_transform_from_pixman_f_transform(&trans, &ftrans);
+            pixman_image_set_transform(bg, &trans);
+            pixman_image_set_filter(bg, PIXMAN_FILTER_BILINEAR, NULL, 0);
+
+            pixman_image_composite32(
+                PIXMAN_OP_SRC, bg, NULL, buf->pix, 0, 0, 0, 0, 0, 0, buf->width, buf->height);
+            pixman_image_unref(bg);
+        }
     }
 
     /* Image */
