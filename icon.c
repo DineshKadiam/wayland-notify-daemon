@@ -13,8 +13,8 @@
 
 #include <tllist.h>
 
-#include <nanosvg.h>
-#include <nanosvgrast.h>
+#include <nanosvg/nanosvg.h>
+#include <nanosvg/nanosvgrast.h>
 
 #define LOG_MODULE "icon"
 #define LOG_ENABLE_DBG 0

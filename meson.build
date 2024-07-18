@@ -60,6 +60,8 @@ wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 dbus = dependency('dbus-1')
 fontconfig = dependency('fontconfig')
+system_nanosvg = cc.find_library('nanosvg', required: get_option('system-nanosvg'))
+system_nanosvgrast = cc.find_library('nanosvgrast', required: get_option('system-nanosvg'))
 
 tllist = dependency('tllist', version: '>=1.0.1', fallback: 'tllist')
 fcft = dependency('fcft', version: ['>=3.0.0', '<4.0.0'], fallback: 'fcft')
@@ -106,11 +108,19 @@ version = custom_target(
   output: 'version.h',
   command: [env, 'LC_ALL=C', generate_version_sh, meson.project_version(), '@CURRENT_SOURCE_DIR@', '@OUTPUT@'])
 
-nanosvg = declare_dependency(
-  sources: ['nanosvg.c', '3rd-party/nanosvg/src/nanosvg.h',
-            'nanosvgrast.c', '3rd-party/nanosvg/src/nanosvgrast.h'],
-  include_directories: '3rd-party/nanosvg/src',
-  dependencies: math)
+if system_nanosvg.found() and system_nanosvgrast.found()
+  nanosvg = declare_dependency(
+    dependencies: [system_nanosvg, system_nanosvgrast, math]
+  )
+  svg_lib = 'nanosvg (system)'
+else
+  nanosvg = declare_dependency(
+    sources: ['nanosvg.c', '3rd-party/nanosvg/src/nanosvg.h',
+              'nanosvgrast.c', '3rd-party/nanosvg/src/nanosvgrast.h'],
+    include_directories: '.',
+    dependencies: math)
+  svg_lib = 'nanosvg (bundled)'
+endif
 
 executable(
   'fnott',
@@ -162,6 +172,7 @@ subdir('systemd')
 
 summary(
   {
+    'SVG': svg_lib,
     'Documentation': scdoc.found(),
   }
 )

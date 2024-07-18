@@ -22,6 +22,9 @@
   environment variable.
 * `border-radius` configuration option (yes, this means fnott now
   supports rounded corners).
+* Support for linking against a system provided nanosvg library. See
+  the new `-Dsystem-nanosvg` meson option. Defaults to `disabled`
+  (i.e. use the bundled version).
 
 
 ### Changed

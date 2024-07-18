@@ -6,8 +6,8 @@
 #define LOG_ENABLE_DBG 0
 #include "log.h"
 
-#include <nanosvg.h>
-#include <nanosvgrast.h>
+#include <nanosvg/nanosvg.h>
+#include <nanosvg/nanosvgrast.h>
 
 pixman_image_t *
 svg_load(const char *path, int size)
