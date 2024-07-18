@@ -17,6 +17,11 @@
 
 ## Unreleased
 ### Added
+
+* Log output now respects the [`NO_COLOR`](http://no-color.org/)
+  environment variable.
+
+
 ### Changed
 ### Deprecated
 ### Removed
