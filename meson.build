@@ -82,6 +82,7 @@ wl_xmls = [
   wayland_protocols_datadir / 'staging/fractional-scale/fractional-scale-v1.xml',
   wayland_protocols_datadir / 'unstable/tablet/tablet-unstable-v2.xml',  # required by cursor-shape-v1
   wayland_protocols_datadir / 'staging/cursor-shape/cursor-shape-v1.xml',
+  wayland_protocols_datadir / 'staging/xdg-activation/xdg-activation-v1.xml',
 ]
 
 wl_proto_headers = []

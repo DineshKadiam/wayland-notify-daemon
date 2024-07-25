@@ -8,6 +8,7 @@ enum ctrl_command {
     CTRL_UNPAUSE,
     CTRL_DISMISS_BY_ID, CTRL_DISMISS_ALL,
     CTRL_ACTIONS_BY_ID,
+    CTRL_DISMISS_WITH_DEFAULT_ACTION_BY_ID,
 };
 
 struct ctrl_request {

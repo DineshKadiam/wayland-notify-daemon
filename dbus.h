@@ -17,6 +17,7 @@ void dbus_destroy(struct dbus *bus);
 bool dbus_signal_expired(struct dbus *bus, uint32_t id);
 bool dbus_signal_dismissed(struct dbus *bus, uint32_t id);
 bool dbus_signal_closed(struct dbus *bus, uint32_t id);
+bool dbus_signal_token(struct dbus *bus, uint32_t id, const char *token);
 bool dbus_signal_action(struct dbus *bus, uint32_t id, const char *action_id);
 
 int dbus_poll_fd(const struct dbus *bus);

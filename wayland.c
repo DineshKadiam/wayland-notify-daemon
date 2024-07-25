@@ -14,6 +14,7 @@
 #include <wayland-client.h>
 #include <wayland-cursor.h>
 #include <wlr-layer-shell-unstable-v1.h>
+#include <xdg-activation-v1.h>
 #include <xdg-output-unstable-v1.h>
 
 #include <tllist.h>
@@ -79,6 +80,7 @@ struct wayland {
     struct wp_viewporter *viewporter;
     struct wp_fractional_scale_manager_v1 *fractional_scale_manager;
     struct wp_cursor_shape_manager_v1 *cursor_shape_manager;
+    struct xdg_activation_v1 *xdg_activation;
 
     bool have_argb8888;
 
@@ -426,6 +428,77 @@ wl_pointer_motion(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void
+xdg_activation_token_done(
+    void *data, struct xdg_activation_token_v1 *xdg_activation_token_v1,
+    const char *token)
+{
+    char **out = data;
+    *out = token != NULL ? strdup(token) : NULL;
+}
+
+
+static const struct xdg_activation_token_v1_listener xdg_activation_token_listener = {
+    .done = &xdg_activation_token_done,
+};
+
+char *
+wayl_get_activation_token(struct wayland *wayl, struct wl_surface *surface)
+{
+    if (wayl->xdg_activation == NULL)
+        return NULL;
+
+    struct seat *seat = NULL;
+    tll_foreach(wayl->seats, it) {
+        if (it->item.pointer.on_surface == surface) {
+            seat = &it->item;
+            break;
+        }
+    }
+
+    if (seat == NULL ||
+        seat->pointer.serial == 0 ||
+        seat->pointer.on_surface == NULL)
+    {
+        return NULL;
+    }
+
+    struct xdg_activation_token_v1 *token =
+        xdg_activation_v1_get_activation_token(wayl->xdg_activation);
+
+    if (token == NULL)
+        return NULL;
+
+    char *token_str = NULL;
+    xdg_activation_token_v1_add_listener(
+        token, &xdg_activation_token_listener, &token_str);
+
+    xdg_activation_token_v1_set_serial(token, seat->pointer.serial, seat->wl_seat);
+    xdg_activation_token_v1_set_surface(token, seat->pointer.on_surface);
+    xdg_activation_token_v1_commit(token);
+    wl_display_flush(wayl->display);
+
+    while (token_str == NULL) {
+        while (wl_display_prepare_read(wayl->display) != 0) {
+            if (wl_display_dispatch_pending(wayl->display) < 0) {
+                LOG_ERRNO("failed to dispatch pending Wayland events");
+                goto out;
+            }
+        }
+
+        if (wl_display_read_events(wayl->display) < 0) {
+            LOG_ERRNO("failed to read events from the Wayland socket");
+            goto out;
+        }
+    }
+
+out:
+    xdg_activation_token_v1_destroy(token);
+
+    LOG_DBG("XDG activation token: %s", token_str != NULL ? token_str : "<failed>");
+    return token_str;
+}
+
+static void
 wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
                   uint32_t serial, uint32_t time, uint32_t button, uint32_t state)
 {
@@ -434,14 +507,23 @@ wl_pointer_button(void *data, struct wl_pointer *wl_pointer,
     struct seat *seat = data;
     struct wayland *wayl = seat->wayl;
 
+    seat->pointer.serial = serial;
+
     switch (state) {
     case WL_POINTER_BUTTON_STATE_PRESSED: {
-        if (button == BTN_LEFT) {
-            struct notif *notif = notif_mgr_get_notif_for_surface(
-                wayl->notif_mgr, seat->pointer.on_surface);
+        struct notif *notif = notif_mgr_get_notif_for_surface(
+            wayl->notif_mgr, seat->pointer.on_surface);
 
-            if (notif != NULL)
+        if (notif != NULL) {
+            if (button == BTN_LEFT) {
+                notif_signal_action(notif, "default");
                 notif_mgr_dismiss_id(wayl->notif_mgr, notif_id(notif));
+            }
+
+            else if (button == BTN_RIGHT) {
+                /* Dismiss without triggering the default action */
+                notif_mgr_dismiss_id(wayl->notif_mgr, notif_id(notif));
+            }
         }
         break;
     }
@@ -848,6 +930,14 @@ handle_global(void *data, struct wl_registry *registry,
             wayl->registry, name, &wp_cursor_shape_manager_v1_interface, required);
     }
 
+    else if (strcmp(interface, xdg_activation_v1_interface.name) == 0) {
+        const uint32_t required = 1;
+        if (!verify_iface_version(interface, version, required))
+            return;
+
+        wayl->xdg_activation = wl_registry_bind(
+            wayl->registry, name, &xdg_activation_v1_interface, required);
+    }
 }
 
 static void
@@ -1038,6 +1128,8 @@ wayl_destroy(struct wayland *wayl)
         seat_destroy(&it->item);
     tll_free(wayl->seats);
 
+    if (wayl->xdg_activation != NULL)
+        xdg_activation_v1_destroy(wayl->xdg_activation);
     if (wayl->cursor_shape_manager != NULL)
         wp_cursor_shape_manager_v1_destroy(wayl->cursor_shape_manager);
     if (wayl->fractional_scale_manager != NULL)

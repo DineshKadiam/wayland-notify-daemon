@@ -82,6 +82,8 @@ struct zwlr_layer_shell_v1 *wayl_layer_shell(const struct wayland *wayl);
 struct wp_fractional_scale_manager_v1 *wayl_fractional_scale_manager(const struct wayland *wayl);
 struct wp_viewporter *wayl_viewporter(const struct wayland *wayl);
 
+char *wayl_get_activation_token(struct wayland *wayl, struct wl_surface *surface);
+
 bool wayl_is_idle_for_urgency(const struct wayland *wayl, const enum urgency urgency);
 
 struct buffer *wayl_get_buffer(const struct wayland *wayl, int width, int height);

@@ -5,6 +5,7 @@ fnottctl - utility to interact with *fnott*(1)
 
 # SYNOPSIS
 *fnottctl* *dismiss* [_id_]++
+*fnottctl* *dismiss-with-default-action* [_id_]++
 *fnottctl* *actions* [_id_]++
 *fnottctl* *list*++
 *fnottctl* *pause*++
@@ -28,11 +29,17 @@ action for notifications) with *fnott*(1).
 
 The most common operation is *fnottctl dismiss*. This will dismiss the
 highest priority notification. You might want to bind this to a
-keyboard shortcut in your Wayland compositor configuration.
+keyboard shortcut in your Wayland compositor configuration. This is
+the same as right clicking the notification.
 
 To see, and select between, actions associated with the notification,
 use *fnottctl actions*. This requires a dmenu-like utility to have
 been configured in *fnott.ini*(5).
+
+Finally, you can trigger the notification's default action (an action
+named *default*) and dismiss it simultaniously with
+*dismiss-with-default-action*. This is the same as left clicking the
+notification.
 
 You can optionally specify a notification ID, to dismiss (or show
 actions for) a specific notification instead of the highest priority

@@ -18,7 +18,7 @@
 static void
 print_usage(const char *prog)
 {
-    printf("Usage: %s dismiss | actions [<id>]\n"
+    printf("Usage: %s dismiss | actions | dismiss-with-default-action [<id>]\n"
            "       %s list | pause | unpause | quit\n"
            "       %s --version\n"
            "\n"
@@ -86,6 +86,8 @@ main(int argc, char *const *argv)
             ? CTRL_DISMISS_ALL : CTRL_DISMISS_BY_ID;
     } else if (strcmp(cmd_word, "actions") == 0)
         cmd_type = CTRL_ACTIONS_BY_ID;
+    else if (strcmp(cmd_word, "dismiss-with-default-action") == 0)
+        cmd_type = CTRL_DISMISS_WITH_DEFAULT_ACTION_BY_ID;
     else if (strcmp(cmd_word, "list") == 0)
         cmd_type = CTRL_LIST;
     else if (strcmp(cmd_word, "pause") == 0)
@@ -102,6 +104,7 @@ main(int argc, char *const *argv)
     switch (cmd_type) {
     case CTRL_DISMISS_BY_ID:
     case CTRL_ACTIONS_BY_ID:
+    case CTRL_DISMISS_WITH_DEFAULT_ACTION_BY_ID:
         if (have_id) {
             char *end = NULL;
             errno = 0;

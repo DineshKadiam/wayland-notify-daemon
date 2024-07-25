@@ -76,11 +76,12 @@ struct notif {
     bool is_configured;
 
     uint32_t id;
-    enum urgency urgency;
+    char *synchronous_tag;  /* x-canonical-private-synchronous */
 
     char32_t *app;
     char32_t *summary;
     char32_t *body;
+    enum urgency urgency;
     tll(struct action) actions;
 
     int8_t progress;
@@ -401,6 +402,23 @@ notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id)
 }
 
 struct notif *
+notif_mgr_get_notif_for_sync_tag(struct notif_mgr *mgr, const char *tag)
+{
+    if (tag == NULL)
+        return NULL;
+
+    tll_foreach(mgr->notifs, it) {
+        if (it->item->synchronous_tag == NULL)
+            continue;
+
+        if (strcmp(it->item->synchronous_tag, tag) == 0)
+            return it->item;
+    }
+
+    return NULL;
+}
+
+struct notif *
 notif_mgr_get_notif_for_surface(struct notif_mgr *mgr,
                                 const struct wl_surface *surface)
 {
@@ -415,9 +433,16 @@ notif_mgr_get_notif_for_surface(struct notif_mgr *mgr,
 /* Instantiates a new notification. You *must* call
  * notif_mgr_refresh() "soon" (after configuring the notification). */
 struct notif *
-notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
+notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id,
+                       const char *sync_tag)
 {
     int notif_id;
+
+    {
+        struct notif *old_notif = notif_mgr_get_notif_for_sync_tag(mgr, sync_tag);
+        if (old_notif != NULL)
+            return old_notif;
+    }
 
     if (replaces_id != 0) {
         struct notif *old_notif = notif_mgr_get_notif(mgr, replaces_id);
@@ -432,10 +457,11 @@ notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id)
     *notif = (struct notif) {
         .mgr = mgr,
         .id = notif_id,
-        .urgency = URGENCY_NORMAL,
+        .synchronous_tag = sync_tag != NULL ? strdup(sync_tag) : NULL,
         .app = c32dup(U""),
         .summary = c32dup(U""),
         .body = c32dup(U""),
+        .urgency = URGENCY_NORMAL,
         .actions = tll_init(),
         .timeout_ms = -1,  /* -1, up to us, 0 - never expire */
         .timeout_fd = -1,
@@ -529,6 +555,7 @@ notif_destroy(struct notif *notif)
         tll_remove(notif->text_run_cache, it);
     }
 
+    free(notif->synchronous_tag);
     free(notif->app);
     free(notif->summary);
     free(notif->body);
@@ -2450,7 +2477,7 @@ check_pollhup:
     LOG_WARN("could not map chosen action label to action ID: %.*s", (int)chosen_len, chosen);
 
 done:
-    completion_cb(notif_id, action_id, cb_data);
+    completion_cb(notif, action_id, cb_data);
     free(chosen);
 
     if (notif->deferred_expiral == EXPIRE_DELAYED) {
@@ -2551,6 +2578,28 @@ size_t
 notif_action_count(const struct notif *notif)
 {
     return tll_length(notif->actions);
+}
+
+bool
+notif_signal_action(const struct notif *notif, const char *action_id)
+{
+    if (action_id == NULL)
+        return false;
+
+    tll_foreach(notif->actions, it) {
+        if (strcmp(it->item.id, action_id) == 0) {
+            char *activation_token =
+                wayl_get_activation_token(notif->mgr->wayl, notif->surface);
+
+            if (activation_token != NULL)
+                dbus_signal_token(notif->mgr->bus, notif->id, activation_token);
+            free(activation_token);
+
+            return dbus_signal_action(notif->mgr->bus, notif->id, action_id);
+        }
+    }
+
+    return false;
 }
 
 void
@@ -2693,7 +2742,7 @@ err_before_fork:
     free(copy);
     free(argv);
 
-    completion_cb(notif->id, NULL, data);
+    completion_cb(notif, NULL, data);
     notif->deferred_dismissal = DISMISS_IMMEDIATELY;
     notif->deferred_expiral = EXPIRE_IMMEDIATELY;
     return;
@@ -2703,7 +2752,7 @@ err_in_parent:
     free(input);
     fdm_del(notif->mgr->fdm, to_child[1]);
     fdm_del(notif->mgr->fdm, from_child[0]);
-    completion_cb(notif->id, NULL, data);
+    completion_cb(notif, NULL, data);
     notif->deferred_dismissal = DISMISS_IMMEDIATELY;
     notif->deferred_expiral = EXPIRE_IMMEDIATELY;
     return;

@@ -43,8 +43,11 @@ bool notif_mgr_monitor_updated(struct notif_mgr *mgr, const struct monitor *mon)
 enum urgency { URGENCY_LOW, URGENCY_NORMAL, URGENCY_CRITICAL };
 
 struct notif;
-struct notif *notif_mgr_create_notif(struct notif_mgr *mgr, uint32_t replaces_id);
+struct notif *notif_mgr_create_notif(
+    struct notif_mgr *mgr, uint32_t replaces_id, const char *sync_tag);
 struct notif *notif_mgr_get_notif(struct notif_mgr *mgr, uint32_t id);
+struct notif *notif_mgr_get_notif_for_sync_tag(
+    struct notif_mgr *mgr, const char *tag);
 struct notif *notif_mgr_get_notif_for_surface(
     struct notif_mgr *mgr, const struct wl_surface *surface);
 bool notif_mgr_del_notif(struct notif_mgr *mgr, uint32_t id);
@@ -67,8 +70,9 @@ void notif_play_sound(struct notif *notif);
 char *notif_get_summary(const struct notif *notif);
 
 typedef void (*notif_select_action_cb)(
-    uint32_t notif_id, const char *action_id, void *data);
+    struct notif *notif, const char *action_id, void *data);
 
 size_t notif_action_count(const struct notif *notif);
+bool notif_signal_action(const struct notif *notif, const char *action_id);
 void notif_select_action(
     struct notif *notif, notif_select_action_cb completion_cb, void *data);

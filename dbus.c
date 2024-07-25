@@ -81,6 +81,7 @@ get_capabilities(struct dbus *bus, DBusMessage *msg)
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"body-markup"});
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"actions"});
     dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"icon-static"});
+    dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &(const char *){"x-canonical-private-synchronous"});
 
     dbus_message_iter_close_container(&iter, &arr);
     if (!dbus_connection_send(bus->conn, reply, NULL))
@@ -121,7 +122,7 @@ notify(struct dbus *bus, DBusMessage *msg)
     if (notif_mgr_is_paused(bus->notif_mgr)) {
         LOG_DBG("paused, refusing to notify");
     } else {
-        char *app_name, *app_icon, *summary, *body;
+        char *app_name, *app_icon, *summary, *body, *sync_tag = NULL;
         enum urgency urgency = URGENCY_NORMAL;
         int8_t progress_percent = -1;
 
@@ -265,6 +266,14 @@ notify(struct dbus *bus, DBusMessage *msg)
                 LOG_DBG("hint: urgency=%hhu", level);
 
                 urgency = level;
+            }
+
+            else if (strcmp(name, "x-canonical-private-synchronous") == 0) {
+                if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_STRING)
+                    goto err;
+
+                dbus_message_iter_get_basic(&value_iter, &sync_tag);
+                LOG_DBG("x-canonical-private-synchronous: %s", sync_tag);
             }
 
             else if (strcmp(name, "value") == 0) {
@@ -412,7 +421,7 @@ notify(struct dbus *bus, DBusMessage *msg)
         dbus_message_iter_get_basic(&args_iter, &timeout_ms);
         LOG_DBG("timeout = %dms", timeout_ms);
 
-        notif = notif_mgr_create_notif(bus->notif_mgr, replaces_id);
+        notif = notif_mgr_create_notif(bus->notif_mgr, replaces_id, sync_tag);
         if (notif == NULL)
             goto err;
 
@@ -584,6 +593,28 @@ bool
 dbus_signal_closed(struct dbus *bus, uint32_t id)
 {
     return signal_notification_closed(bus, id, 2);
+}
+
+bool
+dbus_signal_token(struct dbus *bus, uint32_t id, const char *token)
+{
+    DBusMessage *signal = dbus_message_new_signal(
+        "/org/freedesktop/Notifications",
+        "org.freedesktop.Notifications",
+        "ActivationToken");
+
+    if (signal == NULL)
+        return false;
+
+    DBusMessageIter iter;
+    dbus_message_iter_init_append(signal, &iter);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){id});
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &token);
+    dbus_connection_send(bus->conn, signal, NULL);
+    dbus_message_unref(signal);
+    if (dbus_connection_has_messages_to_send(bus->conn))
+        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
+    return true;
 }
 
 bool

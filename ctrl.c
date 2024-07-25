@@ -80,7 +80,7 @@ struct actions_cb_data {
 };
 
 static void
-actions_complete(uint32_t notif_id, const char *action_id, void *data)
+actions_complete(struct notif *notif, const char *action_id, void *data)
 {
     struct actions_cb_data *info = data;
     struct ctrl *ctrl = info->ctrl;
@@ -93,8 +93,7 @@ actions_complete(uint32_t notif_id, const char *action_id, void *data)
     if (action_id == NULL)
         goto out;
 
-    reply.result = dbus_signal_action(info->ctrl->bus, notif_id, action_id)
-        ? CTRL_OK : CTRL_ERROR;
+    reply.result = notif_signal_action(notif, action_id) ? CTRL_OK : CTRL_ERROR;
 
 out:
     send_reply(fd, &reply);
@@ -198,6 +197,23 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
              * response before sending reply to fnottctl */
             goto no_reply;
         }
+        break;
+
+    case CTRL_DISMISS_WITH_DEFAULT_ACTION_BY_ID: {
+        LOG_DBG("client: FD=%d, dismiss-with-default-action: %u", fd, client->recv.cmd.id);
+
+        struct notif *notif =
+            notif_mgr_get_notif(ctrl->notif_mgr, client->recv.cmd.id);
+
+        if (notif != NULL) {
+            notif_signal_action(notif, "default");
+            reply.result =
+                notif_mgr_dismiss_id(ctrl->notif_mgr, client->recv.cmd.id)
+                    ? CTRL_OK : CTRL_INVALID_ID;
+        } else
+            reply.result = CTRL_INVALID_ID;
+        break;
+    }
     }
 
     if (!send_reply(fd, &reply))

@@ -25,9 +25,21 @@
 * Support for linking against a system provided nanosvg library. See
   the new `-Dsystem-nanosvg` meson option. Defaults to `disabled`
   (i.e. use the bundled version).
+* Support for the `x-canonical-private-synchronous` hint.
+* XDG activation support; when triggering an action, fnott attempts to
+  retrieve an XDG activation token. This will only succeed if the
+  cursor is inside the notification window. The token is then
+  signalled over the D-Bus _Notifications_ interface.
+* `fnottctl dismiss-with-default-action`.
 
 
 ### Changed
+
+* Left clicking a notification now triggers the default action, if
+  any, in addition to dismissing the notification. Right click to
+  dismiss the notification without trigger the default action.
+
+
 ### Deprecated
 ### Removed
 ### Fixed
