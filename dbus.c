@@ -56,8 +56,8 @@ get_server_information(struct dbus *bus, DBusMessage *msg)
     if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
-    if (dbus_connection_has_messages_to_send(bus->conn))
-        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
+    dbus_connection_flush(bus->conn);
+    assert(!dbus_connection_has_messages_to_send(bus->conn));
     ret = true;
 
 err:
@@ -87,8 +87,8 @@ get_capabilities(struct dbus *bus, DBusMessage *msg)
     if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
-    if (dbus_connection_has_messages_to_send(bus->conn))
-        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
+    dbus_connection_flush(bus->conn);
+    assert(!dbus_connection_has_messages_to_send(bus->conn));
     ret = true;
 
 err:
@@ -457,8 +457,8 @@ notify(struct dbus *bus, DBusMessage *msg)
     if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
-    if (dbus_connection_has_messages_to_send(bus->conn))
-        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
+    dbus_connection_flush(bus->conn);
+    assert(!dbus_connection_has_messages_to_send(bus->conn));
     ret = true;
     goto out;
 
@@ -515,8 +515,84 @@ close_notification(struct dbus *bus, DBusMessage *msg)
     if (!dbus_connection_send(bus->conn, reply, NULL))
         goto err;
 
-    if (dbus_connection_has_messages_to_send(bus->conn))
-        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
+    dbus_connection_flush(bus->conn);
+    assert(!dbus_connection_has_messages_to_send(bus->conn));
+    ret = true;
+
+err:
+    dbus_message_unref(reply);
+    return ret;
+}
+
+static bool
+introspect(struct dbus *bus, DBusMessage *msg)
+{
+    const char *data =
+        "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\"\n"
+        " \"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\">\n"
+        "<node name=\"/org/freedesktop/Notifications\">\n"
+        "  <interface name=\"org.freedesktop.Notifications\">\n"
+
+        "    <method name=\"Notify\">\n"
+        "      <arg name=\"id\" type=\"u\" direction=\"out\"/>\n"
+        "      <arg name=\"app_name\" type=\"s\" direction=\"in\"/>\n"
+        "      <arg name=\"replaces_id\" type=\"u\" direction=\"in\"/>\n"
+        "      <arg name=\"app_icon\" type=\"s\" direction=\"in\"/>\n"
+        "      <arg name=\"summary\" type=\"s\" direction=\"in\"/>\n"
+        "      <arg name=\"body\" type=\"s\" direction=\"in\"/>\n"
+        "      <arg name=\"actions\" type=\"as\" direction=\"in\"/>\n"
+        "      <arg name=\"hints\" type=\"a{sv}\" direction=\"in\"/>\n"
+        "      <arg name=\"expire_timeout\" type=\"i\" direction=\"in\"/>\n"
+        "    </method>\n"
+
+        "    <method name=\"CloseNotification\">\n"
+        "      <arg name=\"id\" type=\"u\" direction=\"in\"/>\n"
+        "    </method>\n"
+
+        "    <method name=\"GetServerInformation\">\n"
+        "      <arg name=\"name\" type=\"s\" direction=\"out\"/>\n"
+        "      <arg name=\"vendor\" type=\"s\" direction=\"out\"/>\n"
+        "      <arg name=\"version\" type=\"s\" direction=\"out\"/>\n"
+        "      <arg name=\"spec_version\" type=\"s\" direction=\"out\"/>\n"
+        "    </method>\n"
+
+        "    <method name=\"GetCapabilities\">\n"
+        "      <arg name=\"capabilities\" type=\"as\" direction=\"out\"/>\n"
+        "    </method>\n"
+
+        "    <signal name=\"NotificationClosed\">\n"
+        "      <arg name=\"id\" type=\"u\"/>\n"
+        "      <arg name=\"reason\" type=\"u\"/>\n"
+        "    </signal>\n"
+
+        "    <signal name=\"ActionInvoked\">\n"
+        "      <arg name=\"id\" type=\"u\"/>\n"
+        "      <arg name=\"action_key\" type=\"s\"/>\n"
+        "    </signal>\n"
+
+        "    <signal name=\"ActivationToken\">\n"
+        "      <arg name=\"id\" type=\"u\"/>\n"
+        "      <arg name=\"activation_token\" type=\"s\"/>\n"
+        "    </signal>\n"
+
+        "  </interface>\n"
+        "</node>\n";
+
+    bool ret = false;
+    DBusMessage *reply = dbus_message_new_method_return(msg);
+
+    if (reply == NULL)
+        goto err;
+
+    DBusMessageIter args;
+    dbus_message_iter_init_append(reply, &args);
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &data);
+
+    if (!dbus_connection_send(bus->conn, reply, NULL))
+        goto err;
+
+    dbus_connection_flush(bus->conn);
+    assert(!dbus_connection_has_messages_to_send(bus->conn));
     ret = true;
 
 err:
@@ -529,21 +605,27 @@ dbus_handler(DBusConnection *conn, DBusMessage *msg, void *data)
 {
     struct dbus *bus = data;
 
-    const char *iface __attribute__((unused)) = dbus_message_get_interface(msg);
+    const char *iface = dbus_message_get_interface(msg);
     const char *member = dbus_message_get_member(msg);
     LOG_DBG("%s:%s", iface, member);
 
     static const struct {
+        const char *iface;
         const char *name;
         bool (*handler)(struct dbus *bus, DBusMessage *msg);
     } handlers[] = {
-        {"GetServerInformation", &get_server_information},
-        {"GetCapabilities", &get_capabilities},
-        {"Notify", &notify},
-        {"CloseNotification", &close_notification},
+        /* Don't forget to update introspect() when adding methods or signals */
+        {"org.freedesktop.DBus.Introspectable", "Introspect", &introspect},
+
+        {"org.freedesktop.Notifications", "GetServerInformation", &get_server_information},
+        {"org.freedesktop.Notifications", "GetCapabilities", &get_capabilities},
+        {"org.freedesktop.Notifications", "Notify", &notify},
+        {"org.freedesktop.Notifications", "CloseNotification", &close_notification},
     };
 
     for (size_t i = 0; i < sizeof(handlers) / sizeof(handlers[0]); i++) {
+        if (strcmp(handlers[i].iface, iface) != 0)
+            continue;
         if (strcmp(handlers[i].name, member) != 0)
             continue;
 
@@ -571,28 +653,28 @@ signal_notification_closed(struct dbus *bus, uint32_t id, uint32_t reason)
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){id});
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){reason});
     dbus_connection_send(bus->conn, signal, NULL);
+    dbus_connection_flush(bus->conn);
+    assert(!dbus_connection_has_messages_to_send(bus->conn));
     dbus_message_unref(signal);
-    if (dbus_connection_has_messages_to_send(bus->conn))
-        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     return true;
 }
 
 bool
 dbus_signal_expired(struct dbus *bus, uint32_t id)
 {
-    return signal_notification_closed(bus, id, 0);
+    return signal_notification_closed(bus, id, 1);
 }
 
 bool
 dbus_signal_dismissed(struct dbus *bus, uint32_t id)
 {
-    return signal_notification_closed(bus, id, 1);
+    return signal_notification_closed(bus, id, 2);
 }
 
 bool
 dbus_signal_closed(struct dbus *bus, uint32_t id)
 {
-    return signal_notification_closed(bus, id, 2);
+    return signal_notification_closed(bus, id, 3);
 }
 
 bool
@@ -611,9 +693,9 @@ dbus_signal_token(struct dbus *bus, uint32_t id, const char *token)
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){id});
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &token);
     dbus_connection_send(bus->conn, signal, NULL);
+    dbus_connection_flush(bus->conn);
+    assert(!dbus_connection_has_messages_to_send(bus->conn));
     dbus_message_unref(signal);
-    if (dbus_connection_has_messages_to_send(bus->conn))
-        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     return true;
 }
 
@@ -633,9 +715,9 @@ dbus_signal_action(struct dbus *bus, uint32_t id, const char *action_id)
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &(dbus_uint32_t){id});
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &action_id);
     dbus_connection_send(bus->conn, signal, NULL);
+    dbus_connection_flush(bus->conn);
+    assert(!dbus_connection_has_messages_to_send(bus->conn));
     dbus_message_unref(signal);
-    if (dbus_connection_has_messages_to_send(bus->conn))
-        fdm_event_add(bus->fdm, bus->bus_fd, EPOLLOUT);
     return true;
 }
 
@@ -645,22 +727,10 @@ fdm_handler(struct fdm *fdm, int fd, int events, void *data)
     bool ret = false;
     struct dbus *bus = data;
 
-    bool had_outgoing = dbus_connection_has_messages_to_send(bus->conn);
-
-    /* A sending function added EPOLLOUT when it wasn't necessary */
-    if ((events & EPOLLOUT) && !had_outgoing) {
-        LOG_WARN("EPOLLOUT set, but no outgoing messages");
-        fdm_event_del(bus->fdm, bus->bus_fd, EPOLLOUT);
-    }
-
     if (!dbus_connection_read_write(bus->conn, 0)) {
         LOG_ERRNO("failed to read/write dbus connection");
         goto err;
     }
-
-    /* Remove EPOLLOUT when no longer needed */
-    if (had_outgoing && !dbus_connection_has_messages_to_send(bus->conn))
-        fdm_event_del(bus->fdm, bus->bus_fd, EPOLLOUT);
 
     while (dbus_connection_dispatch(bus->conn) != DBUS_DISPATCH_COMPLETE)
         ;

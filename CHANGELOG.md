@@ -31,6 +31,9 @@
   cursor is inside the notification window. The token is then
   signalled over the D-Bus _Notifications_ interface.
 * `fnottctl dismiss-with-default-action`.
+* Implemented the `org.freedesktop.DBus.Introspectable`
+  interface. This fixes an issue where e.g. `gdbus` was not able to
+  create, or close, notifications.
 
 
 ### Changed
@@ -43,6 +46,10 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* `reason` in the `NotificationClosed` signal being off-by-one.
+
+
 ### Security
 ### Contributors
 
