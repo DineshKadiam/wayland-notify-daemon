@@ -41,7 +41,9 @@
 * Left clicking a notification now triggers the default action, if
   any, in addition to dismissing the notification. Right click to
   dismiss the notification without trigger the default action.
-
+* `STRING:image-path` hint that points to either a non-existing file,
+  or an invalid image, will now be ignored (instead of removing the
+  notification's icon).
 
 ### Deprecated
 ### Removed

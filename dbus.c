@@ -307,13 +307,17 @@ notify(struct dbus *bus, DBusMessage *msg)
                     image_path = path;
                 }
 
-                if (pix != NULL) {
-                    free(pixman_image_get_data(pix));
-                    pixman_image_unref(pix);
-                    pix = NULL;
-                }
+                pixman_image_t *image = icon_load(
+                    image_path, bus->conf->max_icon_size, bus->icon_theme);
 
-                pix = icon_load(image_path, bus->conf->max_icon_size, bus->icon_theme);
+                if (image != NULL) {
+                    if (pix != NULL) {
+                        free(pixman_image_get_data(pix));
+                        pixman_image_unref(pix);
+                    }
+
+                    pix = image;
+                }
 
                 free(scheme);
                 free(host);
