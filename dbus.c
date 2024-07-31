@@ -254,8 +254,6 @@ notify(struct dbus *bus, DBusMessage *msg)
             dbus_message_iter_recurse(&entry_iter, &value_iter);
             dbus_message_iter_next(&entry_iter);
 
-            LOG_DBG("hint: %s", name);
-
             if (strcmp(name, "urgency") == 0) {
                 if (dbus_message_iter_get_arg_type(&value_iter) != DBUS_TYPE_BYTE)
                     goto err;
@@ -410,9 +408,38 @@ notify(struct dbus *bus, DBusMessage *msg)
                         pix = NULL;
                     }
 
+                    /* pixman expects pre-multiplied alpha */
+                    if (format == PIXMAN_a8b8g8r8) {
+                        for (int i = 0; i < height; i++) {
+                            uint32_t *p = (uint32_t *)&image_data[i * stride];
+                            for (int j = 0; j < width; j++, p++) {
+                                uint8_t a = (*p >> 24) & 0xff;
+                                uint8_t b = (*p >> 16) & 0xff;
+                                uint8_t g = (*p >> 8) & 0xff;
+                                uint8_t r = (*p >> 0) & 0xff;
+
+                                if (a == 0xff)
+                                    continue;
+
+                                if (a == 0) {
+                                    r = g = b = 0;
+                                } else {
+                                    r = r * a / 0xff;
+                                    g = g * a / 0xff;
+                                    b = b * a / 0xff;
+                                }
+
+                                *p = (uint32_t)a << 24 | b << 16 | g << 8 | r;
+                            }
+                        }
+                    }
+
                     pix = pixman_image_create_bits_no_clear(
                         format, width, height, (uint32_t *)image_data, stride);
                 }
+            } else {
+                LOG_DBG("hint: %s unrecognized, ignoring", name);
+
             }
         }
 
