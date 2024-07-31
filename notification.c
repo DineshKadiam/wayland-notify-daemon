@@ -181,6 +181,8 @@ notif_mgr_destroy(struct notif_mgr *mgr)
 
     regfree(&mgr->html_entity_re);
 
+    notif_mgr_dismiss_all(mgr);
+
     tll_foreach(mgr->notifs, it)
         notif_destroy(it->item);
     tll_free(mgr->notifs);

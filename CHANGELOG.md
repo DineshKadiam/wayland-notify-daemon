@@ -44,6 +44,10 @@
 * `STRING:image-path` hint that points to either a non-existing file,
   or an invalid image, will now be ignored (instead of removing the
   notification's icon).
+* All notifications are now dismissed
+  (i.e. `org.freedesktop.Notifications.NotificationClosed` is
+  signaled) when fnott exits.
+
 
 ### Deprecated
 ### Removed
