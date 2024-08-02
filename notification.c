@@ -2370,6 +2370,9 @@ fdm_action_writer(struct fdm *fdm, int fd, int events, void *data)
         async->input_len - async->input_idx);
 
     if (count < 0) {
+        if (errno == EINTR)
+            return true;
+
         LOG_ERRNO("could not write actions to actions selection helper");
         goto done;
     }
@@ -2394,25 +2397,33 @@ fdm_action_reader(struct fdm *fdm, int fd, int events, void *data)
 {
     struct action_async *async = data;
 
-    const size_t chunk_sz = 128;
+    const size_t chunk_sz = 1024;
     char buf[chunk_sz];
 
     ssize_t count = read(async->from_child, buf, chunk_sz);
     if (count < 0) {
+        if (errno == EINTR)
+            return true;
+
         LOG_ERRNO("failed to read from actions selection helper");
-        goto check_pollhup;
+
+        /* FIXME: leaks memory (the async context) */
+        return false;
     }
 
-    /* Append to previously received response */
-    size_t new_len = async->output_len + count;
-    async->output = realloc(async->output, new_len);
-    memcpy(&async->output[async->output_len], buf, count);
-    async->output_len = new_len;
+    if (count > 0) {
+        /* Append to previously received response */
+        size_t new_len = async->output_len + count;
+        async->output = realloc(async->output, new_len);
+        memcpy(&async->output[async->output_len], buf, count);
+        async->output_len = new_len;
 
-check_pollhup:
-
-    if (!(events & EPOLLHUP))
+        /* There may be more data to read */
         return true;
+    }
+
+    /* No more data to read */
+    assert(count == 0);
 
     /* Strip trailing spaces/newlines */
     while (async->output_len > 0

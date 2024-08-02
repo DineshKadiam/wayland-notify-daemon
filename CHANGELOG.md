@@ -55,6 +55,8 @@
 
 * `reason` in the `NotificationClosed` signal being off-by-one.
 * Icons loaded via `image-data` hints being too dark.
+* Not all data being read from the action selection helper, under
+  certain circumstances.
 
 
 ### Security
