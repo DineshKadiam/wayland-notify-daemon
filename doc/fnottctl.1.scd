@@ -37,7 +37,7 @@ use *fnottctl actions*. This requires a dmenu-like utility to have
 been configured in *fnott.ini*(5).
 
 Finally, you can trigger the notification's default action (an action
-named *default*) and dismiss it simultaniously with
+named *default*) and dismiss it simultaneously with
 *dismiss-with-default-action*. This is the same as left clicking the
 notification.
 
