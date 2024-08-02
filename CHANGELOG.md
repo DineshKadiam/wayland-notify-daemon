@@ -29,7 +29,7 @@
 * XDG activation support; when triggering an action, fnott attempts to
   retrieve an XDG activation token. This will only succeed if the
   cursor is inside the notification window. The token is then
-  signalled over the D-Bus _Notifications_ interface.
+  signaled over the D-Bus _Notifications_ interface.
 * `fnottctl dismiss-with-default-action`.
 * Implemented the `org.freedesktop.DBus.Introspectable`
   interface. This fixes an issue where e.g. `gdbus` was not able to
