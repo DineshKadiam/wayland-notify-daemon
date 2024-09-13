@@ -18,6 +18,10 @@
 
 ## Unreleased
 ### Added
+
+* `anchor` can now be set to `center`.
+
+
 ### Changed
 ### Deprecated
 ### Removed
