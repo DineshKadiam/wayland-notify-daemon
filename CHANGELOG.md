@@ -26,6 +26,12 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* Messages sent directly after starting fnott (for example, when fnott
+  is auto-activated by D-Bus) not processed until more D-Bus messages
+  are received later.
+
+
 ### Security
 ### Contributors
 
