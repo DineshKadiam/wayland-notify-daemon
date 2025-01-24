@@ -20,6 +20,7 @@
 ### Added
 
 * `anchor` can now be set to `center`.
+* Nanosvg updated to ea6a6aca009422bba0dbad4c80df6e6ba0c82183
 
 
 ### Changed
