@@ -605,6 +605,8 @@ parse_section_main(const char *key, const char *value, struct config *conf,
             conf->anchor = ANCHOR_BOTTOM_LEFT;
         else if (strcasecmp(value, "bottom-right") == 0)
             conf->anchor = ANCHOR_BOTTOM_RIGHT;
+        else if (strcasecmp(value, "center") == 0)
+            conf->anchor = ANCHOR_CENTER;
         else {
             LOG_ERR(
                 "%s:%u: %s: invalid anchor value, must be one of "

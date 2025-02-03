@@ -7,7 +7,7 @@ wlroots-based Wayland compositors.
 
 It implements (parts of) the [Desktop Notifications Specification](https://specifications.freedesktop.org/notification-spec/latest/).
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/fnott.svg)](https://repology.org/project/fnott/versions)
+[![Packaging status](https://repology.org/badge/vertical-allrepos/fnott.svg?columns=4)](https://repology.org/project/fnott/versions)
 
 
 Supports styling and progress hints:

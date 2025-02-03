@@ -203,6 +203,8 @@ main(int argc, char *const *argv)
             goto err;
     }
 
+    dbus_dispatch_initial_pending(bus);
+
     while (!aborted) {
         wayl_flush(wayl);
         if (!fdm_poll(fdm))
