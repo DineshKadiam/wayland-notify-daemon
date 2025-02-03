@@ -1,6 +1,6 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.7.1](#1-7-1)
 * [1.7.0](#1-7-0)
 * [1.6.0](#1-6-0)
 * [1.5.0](#1-5-0)
@@ -16,25 +16,19 @@
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.7.1
+
 ### Added
 
 * `anchor` can now be set to `center`.
 * Nanosvg updated to ea6a6aca009422bba0dbad4c80df6e6ba0c82183
 
 
-### Changed
-### Deprecated
-### Removed
 ### Fixed
 
 * Messages sent directly after starting fnott (for example, when fnott
   is auto-activated by D-Bus) not processed until more D-Bus messages
   are received later.
-
-
-### Security
-### Contributors
 
 
 ## 1.7.0
