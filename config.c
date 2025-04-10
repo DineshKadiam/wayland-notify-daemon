@@ -271,6 +271,16 @@ parse_section_urgency(const char *key, const char *value,
             layer = ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM;
         else if (strcasecmp(value, "overlay") == 0)
             layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY;
+        else if (strcmp(key, "progress-style") == 0) {
+            if (strcasecmp(value, "bar") == 0)
+                conf->progress.style = PROGRESS_STYLE_BAR;
+            else if (strcasecmp(value, "background") == 0)
+                conf->progress.style = PROGRESS_STYLE_BACKGROUND;
+            else {
+                LOG_ERR("%s:%d: invalid progress style: %s", path, lineno, value);
+                return false;
+            }
+        }
         else {
             LOG_ERR(
                 "%s:%u: %s: invalid layer value, must be one of "
@@ -394,7 +404,12 @@ parse_section_urgency(const char *key, const char *value,
         conf->body.format = ambstoc32(value);
     }
 
-    else if (strcmp(key, "progress-bar-color") == 0) {
+    else if (strcmp(key, "progress-color") == 0 || strcmp(key, "progress-bar-color") == 0) {
+        if (strcmp(key, "progress-bar-color") == 0) {
+            LOG_WARN("%s:%d: 'progress-bar-color' is deprecated, use 'progress-color' instead",
+                    path, lineno);
+        }
+
         pixman_color_t color;
         if (!str_to_color(value, &color, path, lineno))
             return false;
@@ -837,7 +852,12 @@ parse_section_main(const char *key, const char *value, struct config *conf,
         }
     }
 
-    else if (strcmp(key, "progress-bar-color") == 0) {
+    else if (strcmp(key, "progress-color") == 0 || strcmp(key, "progress-bar-color") == 0) {
+        if (strcmp(key, "progress-bar-color") == 0) {
+            LOG_WARN("%s:%d: 'progress-bar-color' is deprecated, use 'progress-color' instead",
+                    path, lineno);
+        }
+
         pixman_color_t color;
         if (!str_to_color(value, &color, path, lineno))
             return false;
@@ -861,6 +881,21 @@ parse_section_main(const char *key, const char *value, struct config *conf,
             struct urgency_config *urgency = &conf->by_urgency[i];
             urgency->progress.height = height;
         }
+    }
+
+    else if (strcmp(key, "progress-style") == 0) {
+        enum progress_style style;
+        if (strcasecmp(value, "bar") == 0)
+            style = PROGRESS_STYLE_BAR;
+        else if (strcasecmp(value, "background") == 0)
+            style = PROGRESS_STYLE_BACKGROUND;
+        else {
+            LOG_ERR("%s:%d: invalid progress style: %s", path, lineno, value);
+            return false;
+        }
+        
+        for (int i = 0; i < 3; i++)
+            conf->by_urgency[i].progress.style = style;
     }
 
     else if (strcmp(key, "max-timeout") == 0) {
@@ -1126,6 +1161,7 @@ config_load(struct config *conf, const char *path)
                 .progress = {
                     .height = 20,
                     .color = {0xffff, 0xffff, 0xffff, 0xffff},
+                    .style = PROGRESS_STYLE_BAR,
                 },
                 .max_timeout_secs = 0,
                 .default_timeout_secs = 0,

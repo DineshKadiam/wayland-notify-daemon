@@ -21,6 +21,11 @@ enum scaling_filter {
     SCALING_FILTER_LANCZOS3,
 };
 
+enum progress_style {
+    PROGRESS_STYLE_BAR,
+    PROGRESS_STYLE_BACKGROUND
+};
+
 struct urgency_config {
     enum zwlr_layer_shell_v1_layer layer;
     pixman_color_t bg;
@@ -62,6 +67,7 @@ struct urgency_config {
     struct {
         int height;
         pixman_color_t color;
+        enum progress_style style;
     } progress;
 
     int max_timeout_secs;

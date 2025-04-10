@@ -19,6 +19,12 @@
 
 ## Unreleased
 ### Added
+
+* `progress-style` configuration option with possible values of `bar`
+  (previous behavior) and `background` which shows the progress as the
+  background color.
+
+
 ### Changed
 ### Deprecated
 ### Removed

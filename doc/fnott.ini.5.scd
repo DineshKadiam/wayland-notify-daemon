@@ -236,8 +236,17 @@ case they override the values specified in the default section.
 	Height, in pixels, of progress bars (rendered when a notification
 	has an _int:value_ hint). Default: _20_.
 
-*progress-bar-color*
-	Color, in RGBA format, of progress bars. Default: _ffffffff_.
+*progress-color*
+	Color, in RGBA format, of progress indicator. Default: _ffffffff_.
+
+*progress-style*
+	Defines the style of the progress indicator in notifications.
+	
+	Possible values:
+	- *bar*: Displays a separate progress bar.
+	- *background*: Fills the notification background with the progress color.
+
+	Default: _bar_.
 
 *max-timeout*
 	Time limit, in seconds, before notifications are automatically

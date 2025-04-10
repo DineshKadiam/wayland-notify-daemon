@@ -1753,32 +1753,63 @@ expand_format_string(const struct notif *notif, const char32_t *fmt)
     return ret;
 }
 
+static pixman_region32_t
+rounded_rectangle_region(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t radius)
+{
+
+    int rect_count = ( radius + radius ) + 1;
+    pixman_box32_t rects[rect_count];
+
+    for (int i = 0; i <= radius; i++) {
+        uint16_t ydist = radius - i;
+        uint16_t curve = sqrt(radius * radius - ydist * ydist);
+
+        rects[i] = (pixman_box32_t) {
+            x + radius - curve,
+            y + i,
+            x + width - radius + curve,
+            y + i + 1
+        };
+
+        rects[radius + i] = (pixman_box32_t) {
+            x + radius - curve,
+            y + height - i,
+            x + width - radius + curve,
+            y + height - i + 1
+        };
+    }
+
+    rects[(radius * 2)] = (pixman_box32_t){
+        x,
+        y + radius,
+        x + width,
+        y + height + 1 - radius
+    };
+
+    pixman_region32_t region;
+    pixman_region32_init_rects(&region, rects, rect_count);
+    return region;
+}
+
+static inline void
+fill_region32(pixman_op_t op, pixman_image_t* dest,
+                       const pixman_color_t* color, pixman_region32_t* region)
+{
+    int rectc;
+    pixman_box32_t *rects = pixman_region32_rectangles(region, &rectc);
+    pixman_image_fill_boxes(op, dest, color, rectc, rects);
+
+}
+
 static inline void
 fill_rounded_rectangle(pixman_op_t op, pixman_image_t* dest,
                        const pixman_color_t* color, int16_t x, int16_t y,
                        uint16_t width, uint16_t height, uint16_t radius)
 {
-    int rect_count = ( radius + radius ) + 1;
-    pixman_rectangle16_t rects[rect_count];
-
-    for (int i = 0; i <= radius; i++){
-        uint16_t ydist = radius - i;
-        uint16_t curve = sqrt(radius * radius - ydist * ydist);
-
-        rects[i] = (pixman_rectangle16_t){
-            x + radius - curve, y + i, width - radius * 2 + curve * 2, 1
-        };
-
-        rects[radius + i] = (pixman_rectangle16_t){
-            x + radius - curve, y + height - i, width - radius * 2 + curve * 2, 1
-        };
-    }
-
-    rects[(radius * 2)] = (pixman_rectangle16_t){
-        x, y + radius, width, height + 1 - radius * 2
-    };
-    pixman_image_fill_rectangles(op, dest, color,rect_count, rects);
+    pixman_region32_t region = rounded_rectangle_region(x, y, width, height, radius);
+    fill_region32(op, dest, color, &region);
 }
+
 
 static int
 notif_show(struct notif *notif, int y)
@@ -1901,13 +1932,15 @@ notif_show(struct notif *notif, int y)
     }
 
     if (notif->progress >= 0) {
-        const int bar_y = height + notif->fonts.body.regular->height;
-        if (conf->max_height == 0 ||
-            bar_y + pbar_height <= conf->max_height - pad_vertical)
-        {
-            pbar_y = bar_y;
-            height += notif->fonts.body.regular->height + pbar_height;
-            width = max(width, 3 * pad_horizontal);
+        if (urgency->progress.style == PROGRESS_STYLE_BAR) {
+            const int bar_y = height + notif->fonts.body.regular->height;
+            if (conf->max_height == 0 ||
+                bar_y + pbar_height <= conf->max_height - pad_vertical)
+            {
+                pbar_y = bar_y;
+                height += notif->fonts.body.regular->height + pbar_height;
+                width = max(width, 3 * pad_horizontal);
+            }
         }
     }
     height += pad_vertical;
@@ -1975,12 +2008,27 @@ notif_show(struct notif *notif, int y)
                 brd_sz, brd_sz,
                 buf->width - 2 * brd_sz, buf->height - 2 * brd_sz}
           );
+
+        /* Progress */
+        if (notif->progress > 0 && urgency->progress.style == PROGRESS_STYLE_BACKGROUND) {
+            pixman_image_fill_rectangles(
+                PIXMAN_OP_SRC, buf->pix, &urgency->progress.color,
+                1, &(pixman_rectangle16_t){
+                brd_sz,
+                brd_sz,
+                (buf->width - 2 * brd_sz) * notif->progress / 100,
+                buf->height - 2 * brd_sz}
+            );
+        }
     } else {
         const int msaa_scale = 2;
         const double brd_sz_scaled = brd_sz * msaa_scale;
         const double brd_rad_scaled = brd_rad * msaa_scale;
         int w = buf->width * msaa_scale;
         int h = buf->height * msaa_scale;
+        int bg_w = w - (brd_sz_scaled * 2);
+        int bg_h = h - (brd_sz_scaled * 2);
+        int bg_rad = brd_rad_scaled * (1.0 - (float)brd_sz_scaled / (float)brd_rad_scaled);
 
         pixman_image_t *bg;
         if (msaa_scale != 1){
@@ -1992,16 +2040,40 @@ notif_show(struct notif *notif, int y)
         /* Border */
         fill_rounded_rectangle(
             PIXMAN_OP_SRC, bg, &urgency->border.color,
-            0, 0, w, h, brd_rad_scaled);
+            0, 0, w, h, brd_rad_scaled
+        );
 
         /* Background */
-        fill_rounded_rectangle(
-            PIXMAN_OP_SRC, bg, &urgency->bg, brd_sz_scaled, brd_sz_scaled,
-            w-(brd_sz_scaled*2),
-            h-(brd_sz_scaled*2),
-            brd_rad_scaled - brd_sz_scaled);
+        pixman_region32_t bg_reg = rounded_rectangle_region(
+            brd_sz_scaled,
+            brd_sz_scaled,
+            bg_w,
+            bg_h,
+            bg_rad
+        );
+        fill_region32(PIXMAN_OP_SRC, bg, &urgency->bg, &bg_reg);
 
-        if (msaa_scale != 1){
+        /* Progress */
+        if (notif->progress > 0 && urgency->progress.style == PROGRESS_STYLE_BACKGROUND) {
+            int progress_width = (w - (brd_sz_scaled * 2)) * notif->progress / 100;
+            pixman_region32_t progress_reg;
+            pixman_region32_init_rect(&progress_reg,
+                brd_sz_scaled,
+                brd_sz_scaled,
+                progress_width,
+                h - (brd_sz_scaled * 2)
+                );
+
+            pixman_region32_t out_reg;
+            pixman_region32_init(&out_reg);
+            pixman_region32_intersect(&out_reg, &bg_reg, &progress_reg);
+
+            int rectc;
+            pixman_box32_t *rects = pixman_region32_rectangles(&out_reg, &rectc);
+            pixman_image_fill_boxes(PIXMAN_OP_SRC, bg, &urgency->progress.color, rectc, rects);
+        }
+
+        if (msaa_scale != 1) {
             pixman_f_transform_t ftrans;
             pixman_transform_t trans;
             pixman_f_transform_init_scale(&ftrans, msaa_scale, msaa_scale);
@@ -2055,7 +2127,7 @@ notif_show(struct notif *notif, int y)
     }
 
     /* Progress bar */
-    if (pbar_y >= 0) {
+    if (pbar_y >= 0 && urgency->progress.style == PROGRESS_STYLE_BAR) {
         const int full_width = buf->width - pad_horizontal * 2;
         const int width = full_width * notif->progress / 100;
 
