@@ -23,6 +23,12 @@
 ### Deprecated
 ### Removed
 ### Fixed
+
+* Crash when `max-icon-size=0` ([#145][145]).
+
+[145]: https://codeberg.org/dnkl/fnott/issues/145
+
+
 ### Security
 ### Contributors
 

@@ -57,7 +57,7 @@ in this order:
 
 *max-icon-size*
 	Maximum icon size, in pixels. Icons larger than this will be
-	scaled down. Default: _32_.
+	scaled down. A value of 0 disables icons. Default: _32_.
 
 *stacking-order*
 	How to stack multiple notifications.
