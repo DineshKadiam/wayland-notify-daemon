@@ -735,13 +735,15 @@ notif_set_image_internal(struct notif *notif, pixman_image_t *pix, bool custom)
 
     notif_reset_image(notif);
 
-    if (max_size == 0)
-        return;
-
     notif->image_is_custom = custom;
     notif->pix = pix;
     notif->image_width = pixman_image_get_width(pix);
     notif->image_height = pixman_image_get_height(pix);
+
+    if (max_size == 0) {
+        notif_reset_image(notif);
+        return;
+    }
 
     if (notif->image_width <= max_size && notif->image_height <= max_size)
         return;
