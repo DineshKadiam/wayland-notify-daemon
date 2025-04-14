@@ -24,6 +24,22 @@ struct config_file {
     int fd;
 };
 
+enum section {
+    SECTION_MAIN,
+    SECTION_LOW,
+    SECTION_NORMAL,
+    SECTION_CRITICAL,
+    SECTION_COUNT,
+};
+
+static const char *const section_names[] = {
+    [SECTION_MAIN] = "main",
+    [SECTION_LOW] = "low",
+    [SECTION_NORMAL] = "normal",
+    [SECTION_CRITICAL] = "critical",
+};
+
+
 static const char *
 get_user_home_dir(void)
 {
@@ -964,15 +980,7 @@ parse_section_main(const char *key, const char *value, struct config *conf,
 }
 
 static bool
-parse_config_file(FILE *f, struct config *conf, const char *path)
-{
-    enum section {
-        SECTION_MAIN,
-        SECTION_LOW,
-        SECTION_NORMAL,
-        SECTION_CRITICAL,
-        SECTION_COUNT,
-    } section = SECTION_MAIN;
+parse_config_file_section(FILE *f, struct config *conf, const char *path, enum section target_sec) {
 
     /* Function pointer, called for each key/value line */
     typedef bool (*parser_fun_t)(
@@ -987,16 +995,14 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
         [SECTION_CRITICAL] = &parse_section_critical,
     };
 
-    static const char *const section_names[] = {
-        [SECTION_MAIN] = "main",
-        [SECTION_LOW] = "low",
-        [SECTION_NORMAL] = "normal",
-        [SECTION_CRITICAL] = "critical",
-    };
-
     unsigned lineno = 0;
     char *_line = NULL;
     size_t count = 0;
+    /* If target_sec is main we can parse as if we are inside the main section */
+    bool inside_target_sec = target_sec == SECTION_MAIN;
+
+    parser_fun_t section_parser = section_parser_map[target_sec];
+    assert(section_parser != NULL);
 
     while (true) {
         errno = 0;
@@ -1043,17 +1049,26 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
 
             *end = '\0';
 
-            for (section = SECTION_MAIN; section < SECTION_COUNT; ++section) {
-                if (strcmp(&key_value[1], section_names[section]) == 0) {
-                    break;
+            bool invalid_sec = true;
+            for (enum section s = SECTION_MAIN; s < SECTION_COUNT; ++s) {
+                if (strcmp(&key_value[1], section_names[s]) == 0) {
+                    invalid_sec = false;
+                    if (s == target_sec) {
+                        inside_target_sec = true;
+                    }else {
+                        inside_target_sec = false;
+                    }
                 };
             }
 
-            if (section == SECTION_COUNT) {
+            if (invalid_sec) {
                 LOG_ERR("%s:%d: invalid section name: %s", path, lineno, &key_value[1]);
                 goto err;
             }
 
+            continue;
+        }
+        if (!inside_target_sec) {
             continue;
         }
 
@@ -1095,9 +1110,6 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
         LOG_DBG("section=%s, key='%s', value='%s'",
                 section_names[section], key, value);
 
-        parser_fun_t section_parser = section_parser_map[section];
-        assert(section_parser != NULL);
-
         if (!section_parser(key, value, conf, path, lineno))
             goto err;
     }
@@ -1108,6 +1120,18 @@ parse_config_file(FILE *f, struct config *conf, const char *path)
 err:
     free(_line);
     return false;
+}
+
+static bool
+parse_config_file(FILE *f, struct config *conf, const char *path)
+{
+    for (enum section sec=SECTION_MAIN; sec < SECTION_COUNT; sec++) {
+        rewind(f);
+        if (!parse_config_file_section(f, conf, path, sec)){
+            return false;
+        }
+    }
+    return true;
 }
 
 bool
