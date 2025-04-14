@@ -815,7 +815,12 @@ notif_reload_default_icon(struct notif *notif)
     pixman_image_t *pix = icon_load(
         icon, conf->max_icon_size, notif->mgr->icon_theme);
 
-    assert(pix != NULL);
+    if (pix == NULL) {
+        LOG_ERR("failed to load image: %s", icon);
+        notif_reset_image(notif);
+        return false;
+    }
+
     notif_set_image_internal(notif, pix, false);
     return true;
 }
