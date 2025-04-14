@@ -12,7 +12,6 @@ packages:
   - wayland
   - wayland-protocols
   - evdev-proto
-  - wlroots
 
 sources:
   - https://git.sr.ht/~dnkl/fnott

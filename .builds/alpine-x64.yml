@@ -13,9 +13,6 @@ packages:
   - dbus-dev
   - wayland-dev
   - wayland-protocols
-  - wlroots-dev
-  - python3
-  - py3-pip
 
 sources:
   - https://git.sr.ht/~dnkl/fnott
@@ -40,7 +37,3 @@ tasks:
       meson --buildtype=release fnott bld/release
       ninja -C bld/release -k0
       meson test -C bld/release --print-errorlogs
-  - codespell: |
-      pip install codespell
-      cd fnott
-      ~/.local/bin/codespell README.md CHANGELOG.md *.c *.h doc/*.scd
