@@ -147,3 +147,5 @@ license](3rd-party/nanosvg/LICENSE.txt).
 
 * Liberapay: https://liberapay.com/dnkl
 * GitHub Sponsors: https://github.com/sponsors/dnkl
+
+[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/dnkl/donate)
