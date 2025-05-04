@@ -1,10 +1,13 @@
 #include "wayland.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
 #include <assert.h>
+#include <errno.h>
+#include <poll.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include <sys/epoll.h>
 
 #include <cursor-shape-v1.h>
@@ -489,6 +492,8 @@ wayl_get_activation_token(struct wayland *wayl, struct wl_surface *surface)
             LOG_ERRNO("failed to read events from the Wayland socket");
             goto out;
         }
+
+        wl_display_dispatch_pending(wayl->display);
     }
 
 out:
@@ -1009,6 +1014,8 @@ fdm_handler(struct fdm *fdm, int fd, int events, void *data)
             return false;
         }
 
+        wl_display_dispatch_pending(wayl->display);
+
         while (wl_display_prepare_read(wayl->display) != 0) {
             if (wl_display_dispatch_pending(wayl->display)  < 0) {
                 LOG_ERRNO("failed to dispatch pending Wayland events");
@@ -1295,7 +1302,55 @@ wayl_poll_fd(const struct wayland *wayl)
 void
 wayl_flush(struct wayland *wayl)
 {
-    wl_display_flush(wayl->display);
+    while (true) {
+        int r = wl_display_flush(wayl->display);
+        if (r >= 0) {
+            /* Most likely code path - the flush succeed */
+            return;
+        }
+
+        if (errno == EINTR) {
+            /* Unlikely */
+            continue;
+        }
+
+        if (errno != EAGAIN) {
+            const int saved_errno = errno;
+
+            if (errno == EPIPE) {
+                wl_display_read_events(wayl->display);
+                wl_display_dispatch_pending(wayl->display);
+            }
+
+            LOG_ERRNO_P("failed to flush wayland socket", saved_errno);
+            return;
+        }
+
+        /* Socket buffer is full - need to wait for it to become
+           writeable again */
+        assert(errno == EAGAIN);
+
+        while (true) {
+            const int wayl_fd = wl_display_get_fd(wayl->display);
+            struct pollfd fds[] = {{.fd = wayl_fd, .events = POLLOUT}};
+
+            r = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
+
+            if (r < 0) {
+                if (errno == EINTR)
+                    continue;
+
+                LOG_ERRNO("failed to poll");
+                return;
+            }
+
+            if (fds[0].revents & POLLHUP)
+                return;
+
+            assert(fds[0].revents & POLLOUT);
+            break;
+        }
+    }
 }
 
 void
@@ -1306,6 +1361,8 @@ wayl_roundtrip(struct wayland *wayl)
         LOG_ERRNO("failed to roundtrip Wayland display");
         return;
     }
+
+    wl_display_dispatch_pending(wayl->display);
 
     while (wl_display_prepare_read(wayl->display) != 0) {
         if (wl_display_dispatch_pending(wayl->display) < 0) {
