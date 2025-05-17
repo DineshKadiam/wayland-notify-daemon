@@ -171,11 +171,13 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
     case CTRL_PAUSE:
         LOG_DBG("client: FD=%d, pause", fd);
         notif_mgr_pause(ctrl->notif_mgr);
+        reply.result = CTRL_OK;
         break;
 
     case CTRL_UNPAUSE:
         LOG_DBG("client: FD=%d, unpause", fd);
         notif_mgr_unpause(ctrl->notif_mgr);
+        reply.result = CTRL_OK;
         break;
 
     case CTRL_DISMISS_BY_ID:

@@ -33,6 +33,7 @@
 * Crash when `max-icon-size=0` ([#145][145]).
 * Parse sections in order. This fixes a bug where sections before the
   main section get ignored. ([#137][137]).
+* `fnottctl pause|unpause` exiting with an error.
 
 [145]: https://codeberg.org/dnkl/fnott/issues/145
 [137]: https://codeberg.org/dnkl/fnott/issues/137
