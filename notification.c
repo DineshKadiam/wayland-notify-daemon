@@ -1808,8 +1808,8 @@ fill_rounded_rectangle(pixman_op_t op, pixman_image_t* dest,
 {
     pixman_region32_t region = rounded_rectangle_region(x, y, width, height, radius);
     fill_region32(op, dest, color, &region);
+    pixman_region32_fini(&region);
 }
-
 
 static int
 notif_show(struct notif *notif, int y)
@@ -2062,7 +2062,7 @@ notif_show(struct notif *notif, int y)
                 brd_sz_scaled,
                 progress_width,
                 h - (brd_sz_scaled * 2)
-                );
+            );
 
             pixman_region32_t out_reg;
             pixman_region32_init(&out_reg);
@@ -2085,6 +2085,8 @@ notif_show(struct notif *notif, int y)
                 PIXMAN_OP_SRC, bg, NULL, buf->pix, 0, 0, 0, 0, 0, 0, buf->width, buf->height);
             pixman_image_unref(bg);
         }
+
+        pixman_region32_fini(&bg_reg);
     }
 
     /* Image */
