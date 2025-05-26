@@ -28,7 +28,7 @@ struct icon_theme {
 
 typedef tll(struct icon_theme) icon_theme_list_t;
 
-icon_theme_list_t icon_load_theme(const char *name);
+icon_theme_list_t icon_load_theme(const char *name, bool filter_context);
 void icon_themes_destroy(icon_theme_list_t themes);
 
 pixman_image_t *icon_load(

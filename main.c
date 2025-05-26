@@ -171,7 +171,7 @@ main(int argc, char *const *argv)
     if (!config_load(&conf, conf_path))
         goto err;
 
-    icon_theme = icon_load_theme(conf.icon_theme_name);
+    icon_theme = icon_load_theme(conf.icon_theme_name, true);
 
     setlocale(LC_CTYPE, "");
 

@@ -27,6 +27,10 @@
 
 
 ### Changed
+
+* Default icon theme from `hicolor` to `default`.
+
+
 ### Deprecated
 ### Removed
 ### Fixed
@@ -35,6 +39,7 @@
 * Parse sections in order. This fixes a bug where sections before the
   main section get ignored. ([#137][137]).
 * `fnottctl pause|unpause` exiting with an error.
+* Lookup of icon themes in `~/.icons` and `/usr/share/pixmans`.
 
 [145]: https://codeberg.org/dnkl/fnott/issues/145
 [137]: https://codeberg.org/dnkl/fnott/issues/137

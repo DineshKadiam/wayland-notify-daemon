@@ -1145,7 +1145,7 @@ config_load(struct config *conf, const char *path)
         .max_width = 0,
         .max_height = 0,
         .dpi_aware = false,
-        .icon_theme_name = strdup("hicolor"),
+        .icon_theme_name = strdup("default"),
         .max_icon_size = 48,
         .stacking_order = STACK_BOTTOM_UP,
         .anchor = ANCHOR_TOP_RIGHT,

@@ -53,7 +53,7 @@ in this order:
 
 *icon-theme*
 	Icon theme to use when a notification has requested an
-	non-embedded icon. Default: _hicolor_.
+	non-embedded icon. Default: _default_.
 
 *max-icon-size*
 	Maximum icon size, in pixels. Icons larger than this will be
