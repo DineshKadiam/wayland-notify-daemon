@@ -1,6 +1,6 @@
 # Changelog
 
-* [Unreleased](#unreleased)
+* [1.8.0](#1-8-0)
 * [1.7.1](#1-7-1)
 * [1.7.0](#1-7-0)
 * [1.6.0](#1-6-0)
@@ -17,7 +17,8 @@
 * [1.0.0](#1-0-0)
 
 
-## Unreleased
+## 1.8.0
+
 ### Added
 
 * `progress-style` configuration option with possible values of `bar`
@@ -31,8 +32,6 @@
 * Default icon theme from `hicolor` to `default`.
 
 
-### Deprecated
-### Removed
 ### Fixed
 
 * Crash when `max-icon-size=0` ([#145][145]).
@@ -45,8 +44,10 @@
 [137]: https://codeberg.org/dnkl/fnott/issues/137
 
 
-### Security
 ### Contributors
+
+* e-tho
+* ldev
 
 
 ## 1.7.1
