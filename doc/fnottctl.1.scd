@@ -10,6 +10,7 @@ fnottctl - utility to interact with *fnott*(1)
 *fnottctl* *list*++
 *fnottctl* *pause*++
 *fnottctl* *unpause*++
+*fnottctl* *status*++
 *fnottctl* *quit*++
 *fnottctl* *--version*
 
@@ -47,6 +48,13 @@ one.
 
 For _dismiss_, there is also the special ID _all_ which will, not
 unsurprisingly, dismiss *all* notifications.
+
+*fnottctl* can also be used to pause fnott (incoming notifications are
+ignored). Use *fnottctl pause* to pause fnott, and *fnottctl unpause*
+to once again display notifications.
+
+The current paused/unpaused state can be queried with *fnottctl
+status*. It will print either *paused* or *unpaused* on stdout.
 
 # SEE ALSO
 

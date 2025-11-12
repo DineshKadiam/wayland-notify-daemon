@@ -180,6 +180,11 @@ fdm_client(struct fdm *fdm, int fd, int events, void *data)
         reply.result = CTRL_OK;
         break;
 
+    case CTRL_STATUS:
+        LOG_DBG("client: FD=%d, status", fd);
+        reply.result = notif_mgr_is_paused(ctrl->notif_mgr) ? CTRL_PAUSED : CTRL_UNPAUSED;
+        break;
+
     case CTRL_DISMISS_BY_ID:
         LOG_DBG("client: FD=%d, dismiss by-id: %u", fd, client->recv.cmd.id);
         reply.result = notif_mgr_dismiss_id(ctrl->notif_mgr, client->recv.cmd.id)

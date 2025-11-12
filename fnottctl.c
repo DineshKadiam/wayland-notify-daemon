@@ -19,7 +19,7 @@ static void
 print_usage(const char *prog)
 {
     printf("Usage: %s dismiss | actions | dismiss-with-default-action [<id>]\n"
-           "       %s list | pause | unpause | quit\n"
+           "       %s list | pause | unpause | status | quit\n"
            "       %s --version\n"
            "\n"
            "Options:\n"
@@ -94,6 +94,8 @@ main(int argc, char *const *argv)
         cmd_type = CTRL_PAUSE;
     else if (strcmp(cmd_word, "unpause") == 0)
         cmd_type = CTRL_UNPAUSE;
+    else if (strcmp(cmd_word, "status") == 0)
+        cmd_type = CTRL_STATUS;
     else {
         LOG_ERR("%s: invalid command", cmd_word);
         return EXIT_FAILURE;
@@ -125,6 +127,7 @@ main(int argc, char *const *argv)
     case CTRL_LIST:
     case CTRL_PAUSE:
     case CTRL_UNPAUSE:
+    case CTRL_STATUS:
     case CTRL_DISMISS_ALL:
         id  = 0;
         break;
@@ -214,6 +217,14 @@ main(int argc, char *const *argv)
     case CTRL_OK:
         break;
 
+    case CTRL_PAUSED:
+        printf("paused\n");
+        break;
+
+    case CTRL_UNPAUSED:
+        printf("unpaused\n");
+        break;
+
     case CTRL_INVALID_ID:
         fprintf(stderr, "%u: invalid ID\n", id);
         break;
@@ -221,6 +232,7 @@ main(int argc, char *const *argv)
     case CTRL_NO_ACTIONS:
         fprintf(stderr, "%u: no actions\n", id);
         break;
+
 
     case CTRL_ERROR:
         fprintf(stderr, "unknown error\n");

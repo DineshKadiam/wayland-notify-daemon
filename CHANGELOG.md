@@ -20,6 +20,14 @@
 
 ## Unreleased
 ### Added
+
+* `status` command to `fnottctl`. Prints `paused` on stdout if fnott
+  has been paused with `fnottctl pause`, or `unpaused` if fnott has
+  not been paused ([#141][141]).
+
+[141]: https://codeberg.org/dnkl/fnott/issues/141
+
+
 ### Changed
 
 * The regex fnott uses to translate HTML entities has been converted

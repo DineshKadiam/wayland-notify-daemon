@@ -1,4 +1,4 @@
-set -l commands dismiss actions dismiss-with-default-action list pause unpause quit
+set -l commands dismiss actions dismiss-with-default-action list pause unpause status quit
 
 complete -c fnottctl
 complete -c fnottctl -f
