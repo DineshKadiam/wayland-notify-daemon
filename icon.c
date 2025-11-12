@@ -437,7 +437,8 @@ icon_load(const char *name, int icon_size, const icon_theme_list_t *themes)
 
     if (name[0] == '/') {
         const size_t name_len = strlen(name);
-        if (name[name_len - 3] == 's' &&
+        if (name_len >= 3 &&
+            name[name_len - 3] == 's' &&
             name[name_len - 2] == 'v' &&
             name[name_len - 1] == 'g')
         {
@@ -445,7 +446,8 @@ icon_load(const char *name, int icon_size, const icon_theme_list_t *themes)
                 LOG_DBG("%s: absolute path SVG", name);
                 return pix;
             }
-        } else if (name[name_len - 3] == 'p' &&
+        } else if (name_len >= 3 &&
+                   name[name_len - 3] == 'p' &&
                    name[name_len - 2] == 'n' &&
                    name[name_len - 1] == 'g')
         {
@@ -454,6 +456,9 @@ icon_load(const char *name, int icon_size, const icon_theme_list_t *themes)
                 return pix;
             }
         }
+
+        LOG_WARN("%s: invalid icon, or unsupported image format", name);
+        return NULL;
     } else {
         if (asprintf(&icon_data.file_name, "%s.xxx", name) < 0)
             return NULL;
