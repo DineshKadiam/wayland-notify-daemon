@@ -26,8 +26,11 @@
   to an _"POSIX Extended Regular Expression"_. This fixes an issue on
   FreeBSD, where HTML entities were not handled correctly
   ([#135][135]).
+* If fnott is forced to truncate a notification, the displayed text
+  now ends with an `…` ([#197][197]).
 
 [135]: https://codeberg.org/dnkl/fnott/issues/135
+[197]: https://codeberg.org/dnkl/fnott/issues/197
 
 
 ### Deprecated

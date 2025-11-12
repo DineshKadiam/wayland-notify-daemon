@@ -1407,6 +1407,7 @@ notify_rasterize(struct notif *notif, struct fcft_font *font, enum fcft_subpixel
 }
 
 struct glyph_layout {
+    struct fcft_font *font;
     const struct fcft_glyph *glyph;
     const pixman_color_t *color;
     int x, y;
@@ -1574,12 +1575,12 @@ notif_layout(struct notif *notif, struct font_set *fonts,
      * This is done by looping the glyphs, and inserting a newline
      * whenever a word cannot be fitted in the remaining space.
      */
+    bool truncated = false;
     size_t idx = 0;
     tll_foreach(runs, it) {
         struct glyph_run *run = &it->item;
 
         for (size_t i = 0; i < run->count; i++, idx++) {
-
             const char32_t wc = text[run->cluster[i]];
             const struct fcft_glyph *glyph = run->glyphs[i];
             struct fcft_font *font = run->font;
@@ -1601,13 +1602,19 @@ notif_layout(struct notif *notif, struct font_set *fonts,
                 }
             }
 
-            if (max_y >= 0 && y + fonts->regular->height > max_y)
+            if (max_y >= 0 && y + fonts->regular->height > max_y) {
+                /* Last run, with more characters after this one? */
+                if (run == &tll_back(runs) && i + 1 <= run->count) {
+                    truncated = true;
+                }
                 break;
+            }
 
             if (glyph->cols <= 0)
                 continue;
 
             struct glyph_layout layout = {
+                .font = run->font,
                 .glyph = glyph,
                 .color = color,
                 .x = x,
@@ -1629,6 +1636,17 @@ notif_layout(struct notif *notif, struct font_set *fonts,
         }
 
         tll_remove(runs, it);
+    }
+
+    /* If we truncated the text, replace the last glyphs with '…'
+       (HORIZONTAL ELLIPSIS) */
+    if (truncated && tll_length(*glyph_list) > 0) {
+        struct glyph_layout *l = &tll_back(*glyph_list);
+        const struct fcft_glyph *ellipsis =
+            fcft_rasterize_char_utf32(l->font, U'…', subpixel);
+
+        if (ellipsis != NULL)
+            l->glyph = ellipsis;
     }
 
     *width = max(*width, x + right_pad);
