@@ -21,6 +21,15 @@
 ## Unreleased
 ### Added
 ### Changed
+
+* The regex fnott uses to translate HTML entities has been converted
+  to an _"POSIX Extended Regular Expression"_. This fixes an issue on
+  FreeBSD, where HTML entities were not handled correctly
+  ([#135][135]).
+
+[135]: https://codeberg.org/dnkl/fnott/issues/135
+
+
 ### Deprecated
 ### Removed
 ### Fixed

@@ -152,13 +152,13 @@ notif_mgr_new(struct config *conf, struct fdm *fdm,
     int r = regcomp(
         &mgr->html_entity_re,
         /* Entity names (there's a *lot* of these - we only support the common ones */
-        "&\\(nbsp\\|lt\\|gt\\|amp\\|quot\\|apos\\|cent\\|pound\\|yen\\|euro\\|copy\\|reg\\);\\|"
+        "&(nbsp|lt|gt|amp|quot|apos|cent|pound|yen|euro|copy|reg);|"
 
         /* Decimal entity number: &#39; */
-        "&#\\([0-9]\\+\\);\\|"
+        "&#([0-9]+);|"
 
         /* Hexadecimal entity number: &#x27; */
-        "&#x\\([0-9a-fA-F]\\+\\);" , 0);
+        "&#x([0-9a-fA-F]+);" , REG_EXTENDED);
 
     if (r != 0) {
         char err[1024];
