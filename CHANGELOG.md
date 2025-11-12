@@ -28,9 +28,12 @@
   ([#135][135]).
 * If fnott is forced to truncate a notification, the displayed text
   now ends with an `…` ([#197][197]).
+* `top-center` and `bottom-center` to the `anchor` option
+  ([#198][198]).
 
 [135]: https://codeberg.org/dnkl/fnott/issues/135
 [197]: https://codeberg.org/dnkl/fnott/issues/197
+[198]: https://codeberg.org/dnkl/fnott/issues/198
 
 
 ### Deprecated

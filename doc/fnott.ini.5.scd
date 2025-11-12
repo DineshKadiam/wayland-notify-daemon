@@ -73,8 +73,9 @@ in this order:
 	Default: _bottom-up_.
 
 *anchor*
-	Where notifications are positioned: *top-left*, *top-right*,
-	*bottom-left*, *bottom-right* or *center*. Default: _top-right_.
+	Where notifications are positioned: *top-left*, *top-center*,
+	*top-right*, *bottom-left*, *bottom-center*, *bottom-right* or
+	*center*. Default: _top-right_.
 
 *edge-margin-vertical*
 	Vertical margin, in pixels, between the screen edge (top or

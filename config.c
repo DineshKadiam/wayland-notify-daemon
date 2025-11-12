@@ -632,8 +632,12 @@ parse_section_main(const char *key, const char *value, struct config *conf,
             conf->anchor = ANCHOR_TOP_LEFT;
         else if (strcasecmp(value, "top-right") == 0)
             conf->anchor = ANCHOR_TOP_RIGHT;
+        else if (strcasecmp(value, "top-center") == 0)
+            conf->anchor = ANCHOR_TOP_CENTER;
         else if (strcasecmp(value, "bottom-left") == 0)
             conf->anchor = ANCHOR_BOTTOM_LEFT;
+        else if (strcasecmp(value, "bottom-center") == 0)
+            conf->anchor = ANCHOR_BOTTOM_CENTER;
         else if (strcasecmp(value, "bottom-right") == 0)
             conf->anchor = ANCHOR_BOTTOM_RIGHT;
         else if (strcasecmp(value, "center") == 0)
@@ -642,8 +646,10 @@ parse_section_main(const char *key, const char *value, struct config *conf,
             LOG_ERR(
                 "%s:%u: %s: invalid anchor value, must be one of "
                 "\"top-left\", "
+                "\"top-center\", "
                 "\"top-right\", "
-                "\"bottom-left\" or "
+                "\"bottom-left\", "
+                "\"bottom-center\" or "
                 "\"bottom-right\"",
                 path, lineno, value);
             return false;

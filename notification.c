@@ -1240,12 +1240,14 @@ notif_instantiate_surface(struct notif *notif, int *width, int *height)
     enum zwlr_layer_surface_v1_anchor anchor
         = conf->anchor == ANCHOR_CENTER
             ? 0
-            : (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT
+            : (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT || conf->anchor == ANCHOR_TOP_CENTER
                 ? ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
                 : ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM) |
               (conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_BOTTOM_LEFT
                   ? ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
-                  : ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+                  : (conf->anchor == ANCHOR_TOP_RIGHT || conf->anchor == ANCHOR_BOTTOM_RIGHT
+                      ? ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT
+                      : 0));
 
     zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
     zwlr_layer_surface_v1_set_size(
@@ -1967,7 +1969,9 @@ notif_show(struct notif *notif, int y)
         height = min(height, conf->max_height);
 
     bool top_anchored
-        = conf->anchor == ANCHOR_TOP_LEFT || conf->anchor == ANCHOR_TOP_RIGHT;
+        = conf->anchor == ANCHOR_TOP_LEFT ||
+          conf->anchor == ANCHOR_TOP_RIGHT ||
+          conf->anchor == ANCHOR_TOP_CENTER;
 
     float scale;
 
