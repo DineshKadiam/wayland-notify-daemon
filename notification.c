@@ -34,12 +34,7 @@
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
 #ifndef CLOCK_BOOTTIME
-#ifdef CLOCK_UPTIME
-/* DragonFly and FreeBSD */
-#define CLOCK_BOOTTIME CLOCK_UPTIME
-#else
 #define CLOCK_BOOTTIME CLOCK_MONOTONIC
-#endif
 #endif
 
 struct notif_mgr;
