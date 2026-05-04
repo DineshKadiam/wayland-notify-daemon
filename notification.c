@@ -793,8 +793,7 @@ notif_set_image_internal(struct notif *notif, pixman_image_t *pix, bool custom)
             pixman_double_to_fixed(scale),
             kernel, kernel,
             kernel, kernel,
-            pixman_int_to_fixed(1),
-            pixman_int_to_fixed(1));
+            1, 1);
 
         pixman_image_set_filter(
             pix, PIXMAN_FILTER_SEPARABLE_CONVOLUTION, params, param_count);
