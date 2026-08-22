@@ -1,13 +1,14 @@
 #include "icon.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
 #include <assert.h>
-#include <unistd.h>
-#include <limits.h>
+#include <ctype.h>
 #include <errno.h>
+#include <limits.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -116,10 +117,49 @@ parse_theme(FILE *index, struct icon_theme *theme, bool filter_context,
             continue;
         }
 
-        char *tok_ctx = NULL;
+        char *p = line;
+        while (isspace((unsigned char)*p))
+            p++;
+        /* skip over comments and blank lines comprised of only whitespace */
+        if (*p == '#' || *p == '\0') {
+            free(line);
+            continue;
+        }
 
-        const char *key = strtok_r(line, "=", &tok_ctx);
-        char *value = strtok_r(NULL, "=", &tok_ctx);
+        const char *key_start = p;
+        /* look for the first space or '=', i.e. the end of the key name */
+        while (*p != '\0' && !isspace((unsigned char)*p) && *p != '=')
+            p++;
+        if (p == key_start) {
+            /* empty key name */
+            free(line);
+            continue;
+        }
+
+        char *key_end = p;
+
+        while (isspace((unsigned char)*p))
+            p++;
+
+        /* keys may not contain whitespace */
+        if (*p != '=') {
+            free(line);
+            continue;
+        }
+        /* consume the '=' */
+        p++;
+
+        /*
+         * While values themselves may contain whitespace, the spec tells us to
+         * ignore any leading whitespace:
+         * "Space before and after the equals sign should be ignored"
+         */
+        while (isspace((unsigned char)*p))
+            p++;
+
+        *key_end = '\0';
+        const char *key = key_start;
+        char *value = p;
 
         if (strcasecmp(key, "inherits") == 0) {
             char *ctx = NULL;
