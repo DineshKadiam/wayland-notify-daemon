@@ -177,17 +177,36 @@ err:
     return NULL;
 }
 
+static void
+buffer_destroy(struct buffer *buf)
+{
+    if (buf->pix != NULL)
+        pixman_image_unref(buf->pix);
+    wl_buffer_destroy(buf->wl_buf);
+    munmap(buf->mmapped, buf->size);
+}
+
+void
+shm_purge_non_busy(void)
+{
+    tll_foreach(buffers, it) {
+        struct buffer *buf = &it->item;
+
+        if (buf->busy)
+            continue;
+
+        buffer_destroy(buf);
+        tll_remove(buffers, it);
+    }
+}
+
 void
 shm_fini(void)
 {
     tll_foreach(buffers, it) {
         struct buffer *buf = &it->item;
 
-        if (buf->pix != NULL)
-            pixman_image_unref(buf->pix);
-        wl_buffer_destroy(buf->wl_buf);
-        munmap(buf->mmapped, buf->size);
-
+        buffer_destroy(buf);
         tll_remove(buffers, it);
     }
 }

@@ -20,4 +20,5 @@ struct buffer {
 };
 
 struct buffer *shm_get_buffer(struct wl_shm *shm, int width, int height);
+void shm_purge_non_busy(void);
 void shm_fini(void);

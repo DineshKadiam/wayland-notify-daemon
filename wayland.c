@@ -1208,6 +1208,12 @@ wayl_get_buffer(const struct wayland *wayl, int width, int height)
     return shm_get_buffer(wayl->shm, width, height);
 }
 
+void
+wayl_purge_buffers(const struct wayland *wayl)
+{
+    return shm_purge_non_busy();
+}
+
 const struct monitor *
 wayl_preferred_monitor(const struct wayland *wayl)
 {

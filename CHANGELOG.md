@@ -50,8 +50,10 @@
 
 * Crash when provided icon is either invalid, or in an unsupported
   format ([#200][200]).
+* SHM cache growing indefinitely ([#213][213])
 
 [200]: https://codeberg.org/dnkl/fnott/issues/200
+[213]: https://codeberg.org/dnkl/fnott/issues/213
 
 
 ### Security

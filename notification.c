@@ -2198,6 +2198,8 @@ notif_mgr_refresh(struct notif_mgr *mgr)
             y += notif_show(it->item, y) + mgr->conf->margins.between;
         break;
     }
+
+    wayl_purge_buffers(mgr->wayl);
 }
 
 void

@@ -87,6 +87,7 @@ char *wayl_get_activation_token(struct wayland *wayl, struct wl_surface *surface
 bool wayl_is_idle_for_urgency(const struct wayland *wayl, const enum urgency urgency);
 
 struct buffer *wayl_get_buffer(const struct wayland *wayl, int width, int height);
+void wayl_purge_buffers(const struct wayland *wayl);
 const struct monitor *wayl_preferred_monitor(const struct wayland *wayl);
 const struct monitor *wayl_monitor_get(
     const struct wayland *wayl, struct wl_output *output);
