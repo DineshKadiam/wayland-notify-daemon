@@ -603,7 +603,7 @@ reload_one_font_set(const config_font_list_t *fonts,
     dpi = dpi_aware ? dpi : 96.;
 
     const size_t font_count = tll_length(*fonts);
-    char **names = reallocarray(NULL, font_count, sizeof(names[0]));
+    char **names = calloc(font_count, sizeof(names[0]));
 
     {
         size_t i = 0;
@@ -611,10 +611,16 @@ reload_one_font_set(const config_font_list_t *fonts,
             const struct config_font *font = &it->item;
             if (font->px_size > 0) {
                 int px = (int)roundf(font->px_size * scale);
-                asprintf(&names[i], "%s:pixelsize=%d", font->pattern, px);
+                if (asprintf(&names[i], "%s:pixelsize=%d", font->pattern, px) < 0) {
+                    LOG_ERR("failed to allocate font name buffer");
+                    goto err;
+                }
             } else {
                 double pt = font->pt_size * (double)scale;
-                asprintf(&names[i], "%s:size=%.2f", font->pattern, pt);
+                if (asprintf(&names[i], "%s:size=%.2f", font->pattern, pt) < 0) {
+                    LOG_ERR("failed to allocate font name buffer");
+                    goto err;
+                }
             }
 
             i++;
