@@ -67,7 +67,7 @@ system_nanosvg = cc.find_library('nanosvg', required: get_option('system-nanosvg
 system_nanosvgrast = cc.find_library('nanosvgrast', required: get_option('system-nanosvg'))
 
 tllist = dependency('tllist', version: '>=1.0.1', fallback: 'tllist')
-fcft = dependency('fcft', version: ['>=3.0.0', '<4.0.0'], fallback: 'fcft')
+fcft = dependency('fcft', version: ['>=3.2.0', '<4.0.0'], fallback: 'fcft')
 
 wayland_protocols_datadir = wayland_protocols.get_variable('pkgdatadir')
 

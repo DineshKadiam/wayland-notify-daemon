@@ -215,7 +215,7 @@ str_to_spawn_template(struct config *conf,
 }
 
 static bool
-config_font_parse(const char *pattern, struct config_font *font)
+parse_font_pattern(const char *pattern, struct config_font *font)
 {
     FcPattern *pat = FcNameParse((const FcChar8 *)pattern);
     if (pat == NULL)
@@ -285,6 +285,33 @@ config_font_parse(const char *pattern, struct config_font *font)
         .pt_size = pt_size,
         .px_size = px_size
     };
+    return true;
+}
+
+static bool
+config_font_parse(const char *pattern, config_font_list_t *fonts)
+{
+    assert(tll_length(*fonts) == 0);
+
+    char *copy = strdup(pattern);
+    for (char *font = strtok(copy, ","); font != NULL; font = strtok(NULL, ","))
+    {
+        while (*font != '\0' && isspace(*font))
+            font++;
+
+        size_t len = strlen(font);
+        while (len > 0 && isspace(font[len - 1]))
+            font[--len] = '\0';
+
+        if (font[0] == '\0')
+            continue;
+
+        struct config_font spec;
+        if (parse_font_pattern(font, &spec))
+            tll_push_back(*fonts, spec);
+
+    }
+    free(copy);
     return true;
 }
 
@@ -392,15 +419,18 @@ parse_section_urgency(const char *key, const char *value,
              strcmp(key, "body-font") == 0 ||
              strcmp(key, "action-font") == 0)
     {
-        struct config_font *font =
-            strcmp(key, "title-font") == 0 ? &conf->app.font :
-            strcmp(key, "summary-font") == 0 ? &conf->summary.font :
-            strcmp(key, "body-font") == 0 ? &conf->body.font :
-            strcmp(key, "action-font") == 0 ? &conf->action.font : NULL;
+        config_font_list_t *fonts =
+            strcmp(key, "title-font") == 0 ? &conf->app.fonts :
+            strcmp(key, "summary-font") == 0 ? &conf->summary.fonts :
+            strcmp(key, "body-font") == 0 ? &conf->body.fonts :
+            strcmp(key, "action-font") == 0 ? &conf->action.fonts : NULL;
 
-        assert(font != NULL);
-        free(font->pattern);
-        config_font_parse(value, font);
+        assert(fonts != NULL);
+        tll_foreach(*fonts, it) {
+            free(it->item.pattern);
+            tll_remove(*fonts, it);
+        }
+        config_font_parse(value, fonts);
     }
 
     else if (strcmp(key, "title-color") == 0 ||
@@ -830,15 +860,18 @@ parse_section_main(const char *key, const char *value, struct config *conf,
     {
         for (int i = 0; i < 3; i++) {
             struct urgency_config *urgency = &conf->by_urgency[i];
-            struct config_font *font =
-                strcmp(key, "title-font") == 0 ? &urgency->app.font :
-                strcmp(key, "summary-font") == 0 ? &urgency->summary.font :
-                strcmp(key, "body-font") == 0 ? &urgency->body.font :
-                strcmp(key, "action-font") == 0 ? &urgency->action.font : NULL;
+            config_font_list_t *fonts =
+                strcmp(key, "title-font") == 0 ? &urgency->app.fonts :
+                strcmp(key, "summary-font") == 0 ? &urgency->summary.fonts :
+                strcmp(key, "body-font") == 0 ? &urgency->body.fonts :
+                strcmp(key, "action-font") == 0 ? &urgency->action.fonts : NULL;
 
-            assert(font != NULL);
-            free(font->pattern);
-            config_font_parse(value, font);
+            assert(fonts != NULL);
+            tll_foreach(*fonts, it) {
+                free(it->item.pattern);
+                tll_remove(*fonts, it);
+            }
+            config_font_parse(value, fonts);
         }
     }
 
@@ -1291,10 +1324,10 @@ config_load(struct config *conf, const char *path)
     };
 
     for (size_t i = 0; i < sizeof(conf->by_urgency) / sizeof(conf->by_urgency[0]); i++) {
-        config_font_parse(default_font_name, &conf->by_urgency[i].app.font);
-        config_font_parse(default_font_name, &conf->by_urgency[i].summary.font);
-        config_font_parse(default_font_name, &conf->by_urgency[i].body.font);
-        config_font_parse(default_font_name, &conf->by_urgency[i].action.font);
+        config_font_parse(default_font_name, &conf->by_urgency[i].app.fonts);
+        config_font_parse(default_font_name, &conf->by_urgency[i].summary.fonts);
+        config_font_parse(default_font_name, &conf->by_urgency[i].body.fonts);
+        config_font_parse(default_font_name, &conf->by_urgency[i].action.fonts);
     }
 
     conf->play_sound.raw_cmd = strdup("aplay ${filename}");
@@ -1358,14 +1391,26 @@ config_destroy(struct config conf)
 
     for (int i = 0; i < 3; i++) {
         struct urgency_config *uconf = &conf.by_urgency[i];
-        free(uconf->app.font.pattern);
         free(uconf->app.format);
-        free(uconf->summary.font.pattern);
         free(uconf->summary.format);
-        free(uconf->body.font.pattern);
         free(uconf->body.format);
-        free(uconf->action.font.pattern);
         free(uconf->sound_file);
         free(uconf->icon);
+        tll_foreach(uconf->app.fonts, it) {
+            free(it->item.pattern);
+            tll_remove(uconf->app.fonts, it);
+        }
+        tll_foreach(uconf->summary.fonts, it) {
+            free(it->item.pattern);
+            tll_remove(uconf->summary.fonts, it);
+        }
+        tll_foreach(uconf->body.fonts, it) {
+            free(it->item.pattern);
+            tll_remove(uconf->body.fonts, it);
+        }
+        tll_foreach(uconf->action.fonts, it) {
+            free(it->item.pattern);
+            tll_remove(uconf->action.fonts, it);
+        }
     }
 }

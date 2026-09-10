@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <pixman.h>
+#include <tllist.h>
 
 #include "char32.h"
 
@@ -12,6 +13,7 @@ struct config_font {
     float pt_size;
     int px_size;
 };
+typedef tll(struct config_font) config_font_list_t;
 
 enum scaling_filter {
     SCALING_FILTER_NONE,
@@ -42,25 +44,25 @@ struct urgency_config {
     } padding;
 
     struct {
-        struct config_font font;
+        config_font_list_t fonts;
         pixman_color_t color;
         char32_t *format;
     } app;
 
     struct {
-        struct config_font font;
+        config_font_list_t fonts;
         pixman_color_t color;
         char32_t *format;
     } summary;
 
     struct {
-        struct config_font font;
+        config_font_list_t fonts;
         pixman_color_t color;
         char32_t *format;
     } body;
 
     struct {
-        struct config_font font;
+        config_font_list_t fonts;
         pixman_color_t color;
     } action;
 

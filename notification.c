@@ -593,46 +593,65 @@ font_set_destroy(struct font_set *set)
 }
 
 static bool
-reload_one_font_set(const struct config_font *font,
+reload_one_font_set(const config_font_list_t *fonts,
                     struct font_set *set,
                     bool dpi_aware, float scale, float dpi)
 {
+    bool ret = false;
 
     scale = dpi_aware ? 1 : scale;
     dpi = dpi_aware ? dpi : 96.;
 
-    char size[64];
-    if (font->px_size > 0) {
-        snprintf(size, sizeof(size), "pixelsize=%d",
-                 (int)roundf(font->px_size * scale));
-    } else {
-        snprintf(size, sizeof(size), "size=%.2f",
-                 font->pt_size * (double)scale);
+    const size_t font_count = tll_length(*fonts);
+    char **names = reallocarray(NULL, font_count, sizeof(names[0]));
+
+    {
+        size_t i = 0;
+        tll_foreach(*fonts, it) {
+            const struct config_font *font = &it->item;
+            if (font->px_size > 0) {
+                int px = (int)roundf(font->px_size * scale);
+                asprintf(&names[i], "%s:pixelsize=%d", font->pattern, px);
+            } else {
+                double pt = font->pt_size * (double)scale;
+                asprintf(&names[i], "%s:size=%.2f", font->pattern, pt);
+            }
+
+            i++;
+        }
     }
 
     char attrs0[256], attrs1[256], attrs2[256], attrs3[256];
-    snprintf(attrs0, sizeof(attrs0), "dpi=%.2f:%s", dpi, size);
-    snprintf(attrs1, sizeof(attrs1), "dpi=%.2f:weight=bold:%s", dpi, size);
-    snprintf(attrs2, sizeof(attrs2), "dpi=%.2f:slant=italic:%s", dpi, size);
-    snprintf(attrs3, sizeof(attrs3), "dpi=%.2f:weight=bold:slant=italic:%s", dpi, size);
+    snprintf(attrs0, sizeof(attrs0), "dpi=%.2f", dpi);
+    snprintf(attrs1, sizeof(attrs1), "dpi=%.2f:weight=bold", dpi);
+    snprintf(attrs2, sizeof(attrs2), "dpi=%.2f:slant=italic", dpi);
+    snprintf(attrs3, sizeof(attrs3), "dpi=%.2f:weight=bold:slant=italic", dpi);
 
-    const char *names[1] = {font->pattern};
-
-    struct fcft_font *regular = fcft_from_name(1, names, attrs0);
+    struct fcft_font_options *opts = fcft_font_options_create();
+    struct fcft_font *regular = fcft_from_name2(font_count, (const char **)names, attrs0, opts);
     if (regular == NULL) {
-        LOG_ERR("%s: failed to load font", font->pattern);
-        return false;
+        LOG_ERR("%s: failed to load font", tll_front(*fonts).pattern);
+        fcft_font_options_destroy(opts);
+        goto err;
     }
 
-    struct fcft_font *bold = fcft_from_name(1, names, attrs1);
-    struct fcft_font *italic = fcft_from_name(1, names, attrs2);
-    struct fcft_font *bold_italic = fcft_from_name(1, names, attrs3);
+    struct fcft_font *bold = fcft_from_name2(font_count, (const char **)names, attrs1, opts);
+    struct fcft_font *italic = fcft_from_name2(font_count, (const char **)names, attrs2, opts);
+    struct fcft_font *bold_italic = fcft_from_name2(font_count, (const char **)names, attrs3, opts);
+
+    fcft_font_options_destroy(opts);
 
     set->regular = regular;
     set->bold = bold;
     set->italic = italic;
     set->bold_italic = bold_italic;
-    return true;
+    ret = true;
+
+err:
+    for (size_t i = 0; i < font_count; i++)
+        free(names[i]);
+    free(names);
+    return ret;
 }
 
 static bool
@@ -678,7 +697,7 @@ notif_reload_fonts(struct notif *notif)
 
     struct font_set app;
     if (reload_one_font_set(
-            &urgency->app.font, &app, is_dpi_aware, new_scale, new_dpi))
+            &urgency->app.fonts, &app, is_dpi_aware, new_scale, new_dpi))
     {
         font_set_destroy(&notif->fonts.app);
         notif->fonts.app = app;
@@ -686,7 +705,7 @@ notif_reload_fonts(struct notif *notif)
 
     struct font_set summary;
     if (reload_one_font_set(
-            &urgency->summary.font, &summary, is_dpi_aware, new_scale, new_dpi))
+            &urgency->summary.fonts, &summary, is_dpi_aware, new_scale, new_dpi))
     {
         font_set_destroy(&notif->fonts.summary);
         notif->fonts.summary = summary;
@@ -694,7 +713,7 @@ notif_reload_fonts(struct notif *notif)
 
     struct font_set body;
     if (reload_one_font_set(
-            &urgency->body.font, &body, is_dpi_aware, new_scale, new_dpi))
+            &urgency->body.fonts, &body, is_dpi_aware, new_scale, new_dpi))
     {
         font_set_destroy(&notif->fonts.body);
         notif->fonts.body = body;
@@ -702,7 +721,7 @@ notif_reload_fonts(struct notif *notif)
 
     struct font_set action;
     if (reload_one_font_set(
-            &urgency->action.font, &action, is_dpi_aware, new_scale, new_dpi))
+            &urgency->action.fonts, &action, is_dpi_aware, new_scale, new_dpi))
     {
         font_set_destroy(&notif->fonts.action);
         notif->fonts.action = action;
