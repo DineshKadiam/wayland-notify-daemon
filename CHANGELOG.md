@@ -25,6 +25,7 @@
   has been paused with `fnottctl pause`, or `unpaused` if fnott has
   not been paused ([#141][141]).
 * Support for font fallback lists ([#209][209]).
+* Nanosvg updated to 239e102ec2c691f2902e20ace2ed36ee4a35cfe6
 
 [141]: https://codeberg.org/dnkl/fnott/issues/141
 [209]: https://codeberg.org/dnkl/fnott/issues/209
