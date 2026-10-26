@@ -1,3 +1,5 @@
+> Originally developed at [codeberg.org/dnkl/fnott](https://codeberg.org/dnkl/fnott) · MIT
+
 [![CI status](https://ci.codeberg.org/api/badges/dnkl/fnott/status.svg)](https://ci.codeberg.org/dnkl/fnott)
 
 # Fnott
